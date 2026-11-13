@@ -1,6 +1,15 @@
-# Pemeriksaan: invarian DB pasca-skenario
+# Pemeriksaan per langkah: DB dan UI
 
-Menjawab satu pertanyaan tanpa model AI: **setelah skenario ini jalan, apakah transaksi DB-nya aman dan konsisten?** Runner menjalankan serangkaian SQL **hanya SELECT** ke DB Postgres lokal v2 sebagai **snapshot**: satu **baseline** sebelum `siapkan`, lalu satu snapshot **setelah tiap langkah selesai** (juga langkah `diBelakangLayar`, dan langkah yang gagal/dihentikan). Yang dilaporkan adalah **pelanggaran baru**: baris yang tidak ada di baseline, diatribusikan ke **langkah tempat ia pertama muncul**; pelanggaran yang hilang lagi di langkah berikutnya dicatat *sembuh di langkah m* supaya terlihat kalau sesuatu sempat tidak konsisten di tengah rangkaian transaksi. Pelanggaran yang sudah ada sejak baseline (data seed, data lama) ditampilkan terpisah sebagai *sudah ada sebelumnya* supaya tidak jadi noise.
+Dua lapisan berjalan bersama tiap skenario, tanpa model AI, dan bertemu di satu **laporan gabungan**:
+
+- **DB** — apakah transaksi DB tiap langkah aman dan konsisten (invarian SQL hanya-SELECT). Bagian *DB* di bawah.
+- **UI** — apakah halaman yang tampil di tiap langkah patuh `DESIGN.md` v2 (pemeriksa statis `check:design` + pemeriksa DOM langsung). Bagian *UI* di bawah.
+
+Keduanya mengikuti pola yang sama: hasil per langkah di `steps[n].db` / `steps[n].ui`, chip live di baris langkah panel (`DB ok` · `UI ok`), ringkasan akhir (`pemeriksaan` / `pemeriksaanUi` di `result.json`), dan `runs/<jalan>/laporan.md`.
+
+# DB
+
+Menjawab satu pertanyaan: **setelah skenario ini jalan, apakah transaksi DB-nya aman dan konsisten?** Runner menjalankan serangkaian SQL **hanya SELECT** ke DB Postgres lokal v2 sebagai **snapshot**: satu **baseline** sebelum `siapkan`, lalu satu snapshot **setelah tiap langkah selesai** (juga langkah `diBelakangLayar`, dan langkah yang gagal/dihentikan). Yang dilaporkan adalah **pelanggaran baru**: baris yang tidak ada di baseline, diatribusikan ke **langkah tempat ia pertama muncul**; pelanggaran yang hilang lagi di langkah berikutnya dicatat *sembuh di langkah m* supaya terlihat kalau sesuatu sempat tidak konsisten di tengah rangkaian transaksi. Pelanggaran yang sudah ada sejak baseline (data seed, data lama) ditampilkan terpisah sebagai *sudah ada sebelumnya* supaya tidak jadi noise.
 
 Snapshot per langkah berjalan **asinkron** terhadap pemutaran: langkah berikutnya tidak menunggu SQL selesai, tapi tidak mulai sebelum snapshot langkah sebelumnya **dimulai**. Snapshot diantre berurutan (satu koneksi, tidak pernah paralel, tidak pernah dilewati); di akhir skenario runner menunggu semua snapshot selesai **sebelum `bersihkan`**, sehingga hasil akhir dan skenario selesai bersama. Snapshot terakhir adalah keadaan akhir.
 
@@ -8,7 +17,7 @@ Tiap snapshot juga mengambil **baris dokumen yang diikuti** — hasil aksi pusta
 
 Kode: `src/pemeriksaan/` — `invarian.ts` (definisi), `banding.ts` (pembanding, atribusi per langkah, diff dokumen; murni), `jalankan.ts` (koneksi Bun.sql, transaksi `READ ONLY`, antrean snapshot). Integrasi: `src/core/run.ts` (`periksaLangkah`); CLI `src/cli.ts`; skrip mandiri `src/pemeriksaan.ts`; deklarasi dokumen di `src/pustaka/*.ts` (`dokumen(hasil)`).
 
-## Konfigurasi
+## DB · Konfigurasi
 
 | Variabel `.env` | Guna |
 |---|---|
@@ -21,7 +30,7 @@ Kode: `src/pemeriksaan/` — `invarian.ts` (definisi), `banding.ts` (pembanding,
 - **Hanya membaca.** Semua query berjalan dalam satu transaksi `READ ONLY` dengan `statement_timeout` 20 detik; tidak ada INSERT/UPDATE/DELETE/DDL. Satu SQL yang gagal (savepoint) tidak menggugurkan invarian lain.
 - Pastikan DB yang ditunjuk **sama dengan DB server yang dipukul skenario** (API di `FLEETIFY_API_URL`); kalau tidak, Pemeriksaan membaca database yang tidak disentuh skenario dan selalu "lulus".
 
-## Menjalankan
+## DB · Menjalankan
 
 ```bash
 bun run pemeriksaan                       # semua invarian sekali terhadap tenant, tanpa skenario
@@ -31,7 +40,7 @@ bun run scenario pinjaman-alat --tanpa-pemeriksaan
 
 Di panel, hasil muncul **langsung** di baris langkah yang baru selesai (chip abu-abu *memeriksa…*, hijau *DB ok*, merah *DB ✗ n*), panel *Aksi di langkah ini* menampilkan diff dokumen dan pelanggaran baru di langkah itu, dan ringkasan akhir tampil di layar Selesai/Gagal/Dihentikan serta di detail jalan pada Riwayat. CLI mencetak satu baris `✓ DB ok` / `✗ 2 pelanggaran: …` dan diff dokumen di bawah tiap langkah, lalu ringkasan. Hasil disimpan di `runs/<slug>/<waktu>/result.json` (`pemeriksaan` untuk ringkasan, `steps[].db` per langkah).
 
-## Membaca hasil
+## DB · Membaca hasil
 
 | Status | Arti |
 |---|---|
@@ -48,9 +57,11 @@ Bagian lain dalam hasil:
 - **dilewati** — invarian yang dimatikan skenario (`pemeriksaan.nonaktif`) atau tabelnya tidak ada di database ini (skema cabang lain). Bukan kegagalan.
 - Mode **kenaikan** (`append-only`) membandingkan penghitung: pelanggaran bila nilai di akhir lebih besar daripada baseline. Tanpa baseline (`bun run pemeriksaan`) hanya menampilkan nilai penghitungnya.
 
+**Transaksi tersangka.** Runner mencatat tiap request **tulis** (`POST/PUT/PATCH/DELETE` ke `/api/v1/…`) per langkah: dari jendela skenario (`page.on('response')`) dan dari aksi pustaka yang memanggil API langsung (satu titik di `lib.apiSend`). Tersimpan di `steps[n].requests` (method, path dengan UUID → `{id}`, path asli, status, durasi, waktu, sumber `browser`/`api`); request sesi/impersonasi runner tidak dicatat, begitu pula `siapkan`/`bersihkan`. Pada pelanggaran baru di langkah *n*, panel, CLI, dan laporan menampilkan request tulis langkah itu sebagai transaksi tersangka, terbaru dulu (yang terakhir sebelum snapshot paling atas). Ini atribusi waktu, bukan bukti: snapshot diambil setelah langkah, jadi request langkah sebelumnya atau sesi lain bisa juga penyebabnya.
+
 Pelanggaran baru tidak otomatis berarti bug aplikasi: bisa SQL invarian yang kurang tepat untuk kasus itu, atau efek sesi lain pada DB yang sama. Telusuri barisnya dulu; kalau memang bug v2, catat sebagai temuan **Bug aplikasi** dari tombol di kartu.
 
-## Mematikan invarian untuk satu skenario
+## DB · Mematikan invarian untuk satu skenario
 
 Di berkas skenario JSON (lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md)):
 
@@ -63,7 +74,7 @@ Di berkas skenario JSON (lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md)):
 
 `nonaktif` hanya menerima id invarian yang ada; `alasan` wajib dan minimal 20 huruf. Jangan mematikan invarian hanya karena hasilnya merah — itu justru yang dicari.
 
-## Menambah invarian
+## DB · Menambah invarian
 
 1. Tambahkan objek ke `INVARIAN` di `src/pemeriksaan/invarian.ts`: `id` (kebab), `judul`, `keterangan` (apa yang diperiksa dan dasarnya di kode v2), `sql`, `kolomKunci`, `tabel`.
 2. SQL **hanya SELECT/WITH**, menerima `$1 = company_id` tenant, dan mengembalikan **baris yang melanggar** (nol baris = lulus). Cast angka ke `::text` supaya Decimal/BigInt tidak kehilangan presisi di JSON. Verifikasi nama tabel dan kolom terhadap `v2/Backend/prisma/schema/*.prisma` (`@@map`/`@map`), bukan menebak.
@@ -71,7 +82,7 @@ Di berkas skenario JSON (lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md)):
 4. Untuk penghitung yang hanya boleh tetap, pakai `mode: 'kenaikan'` + `kolomAngka`.
 5. Jalankan `bun run pemeriksaan` (SQL harus jalan), `bun run test` (ada tes yang mengeksekusi semua SQL dalam `READ ONLY` bila `V2_DATABASE_URL` terisi), lalu `bun run docs:pustaka` untuk memperbarui daftar di bawah.
 
-## Batasan
+## DB · Batasan
 
 - **Deteksi, bukan bukti kebenaran.** Lulus berarti tidak ada pelanggaran dari daftar ini yang muncul; bukan berarti transaksi benar. Invarian yang tidak terdaftar tidak diperiksa.
 - **Hanya tenant `TENANT_SLUG`** (kecuali `append-only`, yang global per database).
@@ -81,6 +92,89 @@ Di berkas skenario JSON (lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md)):
 - Identitas baris lewat `kolomKunci`: perubahan nilai pada baris yang sudah melanggar sejak baseline tidak dilaporkan sebagai baru.
 - **Snapshot adalah titik waktu setelah langkah**, bukan di dalam transaksi aplikasi: keadaan tidak konsisten yang terjadi dan pulih di dalam satu langkah tidak terlihat. Yang terlihat adalah inkonsistensi yang bertahan antar langkah (dicatat *sembuh di langkah m* bila pulih kemudian).
 - Diff dokumen membaca seluruh baris (`to_jsonb`) dan mengabaikan `updated_at`; baris baru hanya menampilkan kolom status/nomor/kuantitas/rupiah.
+
+# UI
+
+Menjawab: **apakah halaman yang tampil di tiap langkah patuh DESIGN.md v2, dan kalau tidak, di berkas dan baris mana?** Dua pemeriksa, keduanya per langkah setelah aksinya selesai:
+
+1. **Statis** — memanggil skrip v2 `bun run check:design --route <pathname> --json` (cwd `<V2_DIR>/Frontend`). Skrip mencocokkan pathname ke `PAGE_TABLE`, mengambil berkas halaman beserta impornya, dan melaporkan pelanggaran aturan `check:design` (`sx-tema`, `hex-mentah`, `restyle-sx`, `string-hardcode`, … — daftar dan pasal di `docs/CHECK-DESIGN.md` repo v2). Hasilnya dibandingkan dengan `Frontend/design-baseline.json`.
+2. **DOM** — `page.evaluate` di halaman yang sedang tampil, menilai elemen yang terlihat terhadap token tema v2.
+
+Kode: `src/pemeriksaan/ui-statis.ts` (pemanggil skrip, parser `--json`, pembanding baseline — murni), `ui-dom.ts` (token, normalisasi warna, fungsi evaluasi di browser, screenshot bersorot), `ui.ts` (`PemeriksaUi`: antrean, cache, ringkasan). Integrasi: `periksaUiLangkah` di `src/core/run.ts`.
+
+## UI · Konfigurasi
+
+| Variabel `.env` | Guna |
+|---|---|
+| `V2_DIR` | Akar repo v2 yang memuat `Frontend/scripts/check-design.ts` dan `Frontend/design-baseline.json`. Skrip saat ini hanya ada di worktree cabang `chore/check-design` (mis. `../v2-design-check`). Repo ini **hanya dibaca**. |
+
+Kosong (atau skrip tidak ada) ⇒ status `tidak_dikonfigurasi`, skenario tetap jalan. Token warna dibaca sekali saat jalan mulai dari `Frontend/src/shared/theme/tokens.ts` + `palette.ts` (semua literal hex/rgba), radius dari `radius.*`.
+
+## UI · Statis dan baseline
+
+Baseline menyimpan **jumlah** pelanggaran per (berkas, aturan), bukan baris. Untuk tiap pasangan: jumlah ≤ baseline = *sudah ada* (dilipat); kelebihannya = **baru** (merah). Karena posisi tidak tersimpan, kartu pelanggaran baru menampilkan **semua** baris pasangan itu (berkas:baris:kolom, pesan, pasal DESIGN.md, cuplikan satu baris kode, tautan `vscode://file/…`) supaya yang baru bisa dicari. Satu panggilan ±0,3–0,6 dtk; hasil di-*cache* per pathname (UUID dianggap sama) dalam satu jalan, karena pelanggaran statis tidak berubah antar langkah — tetap ditampilkan di tiap langkah. Pemeriksa statis berjalan **asinkron** di antrean (seperti snapshot DB): langkah berikutnya tidak menunggunya, tapi jalan menunggu semuanya sebelum `bersihkan`.
+
+Pathname yang tidak cocok `PAGE_TABLE` menghasilkan 0 berkas (dicatat sebagai `pattern: null`).
+
+## UI · DOM
+
+Dijalankan **sebelum aksi berikutnya** (diawait), setelah screenshot langkah. Hanya elemen terlihat (bbox > 0, di viewport); dikecualikan: elemen runner (`#sr-*`), `img`/`canvas`/`svg`/`video`/`iframe`, `.highcharts-container`, peta, dan `[data-ilustrasi]`. Maksimum 50 temuan per langkah (dedup per aturan + nilai + class MUI; `jumlah` = elemen serupa) dan 6.000 elemen.
+
+| Aturan | Yang dilaporkan | Pasal |
+|---|---|---|
+| `warna-luar-token` | `color` (elemen dengan teks langsung), `background-color`, `border-color` yang bukan transparan dan bukan token | §3, §8 |
+| `radius-menyimpang` | `border-radius` elemen berlatar/berbingkai yang bukan 0/8/12/16 px (token), 50 %, atau pill (≥ setengah sisi terpendek, ≥ 999 px) | §1 |
+| `bayangan-kartu` | `box-shadow` pada `.MuiCard-root`/`.MuiPaper-root` yang bukan overlay (Dialog, Popover, Menu, Drawer, Snackbar, Tooltip, popper Autocomplete), bukan tab aktif, dan tidak fixed/sticky | §6 |
+| `font-bukan-inter` | `font-family` yang tidak diawali Inter/Roboto/Helvetica/Arial/monospace | §4 |
+| `kontras-kuning` | teks ≈ `#FFDB0E` di atas latar efektif terang (luminance > 0,5), atau teks putih di atas latar ≈ `#FFDB0E` | §2 |
+
+**Kapan warna dianggap sah** (`warnaSah`): transparan; rgb-nya ada di token (alpha apa pun — MUI menurunkan hover/selected/disabled dengan alpha); hitam/putih murni beralpha (`common.black/white`); atau **turunan** satu token: `lighten(T, k)` atau `darken(T, k)` dengan koefisien sama di tiga kanal (±0,04), toleransi ±6 per kanal. Dasar turunan = token + `palette.light/dark` yang MUI hitung (lighten 0,2 / darken 0,3). Ini menutup warna Alert/Chip yang MUI hasilkan dari token (mis. teks Alert warning = darken(lighten(#F59E0B, 0,2), 0,6) = `rgb(98,70,23)`) tanpa menerima warna MUI bawaan seperti `#1976D2` atau `#9C27B0`.
+
+Temuan DOM adalah **peringatan**: tidak menggagalkan jalan (CLI exit tetap 0), karena ada false positive yang belum bisa dipisahkan secara statis (lihat *UI · Batasan*). Bila ada temuan, runner menyuntik kotak merah tipis + label aturan di bbox tiap temuan (div `sr-ui-overlay`, `pointer-events: none`), mengambil screenshot kedua `NN-<langkah>-ui.png` di samping yang asli (yang asli tidak diubah), lalu menghapus overlay. Live view dan jendela headed ikut memperlihatkan kotak sesaat.
+
+## UI · Menjalankan
+
+```bash
+bun run scenario pinjaman-alat            # UI ikut otomatis; statis baru = exit ≠ 0, DOM saja = peringatan
+bun run scenario pinjaman-alat --tanpa-ui # lewati Pemeriksaan UI
+```
+
+CLI mencetak di bawah tiap langkah `✓ UI ok (27 berkas, 0 DOM)` / `! UI 3 temuan DOM (…) · 27 berkas, 0 baru` / `✗ UI 1 baru: restyle-sx ReturnToolDialog.tsx:87`, lalu ringkasan akhir (rata-rata waktu statis dan DOM). Panel: chip `UI memeriksa…` → `UI ok` (hijau) / `UI ! n DOM` (kuning) / `UI ✗ n baru` (merah); klik chip membuka detail langkah dengan bagian **Kode** (pelanggaran statis baru) dan **Tampilan** (screenshot bersorot + daftar temuan DOM).
+
+## UI · Mematikan aturan atau halaman untuk satu skenario
+
+```json
+"pemeriksaanUi": {
+  "nonaktif": ["radius-menyimpang"],
+  "abaikanHalaman": ["/tires/used"],
+  "alasan": "Halaman ban bekas masih prototipe dengan data contoh (CLAUDE.md v2)."
+}
+```
+
+`nonaktif` menerima id aturan statis dan DOM; `abaikanHalaman` menerima awalan pathname (halaman itu tidak diperiksa sama sekali, tercatat *dilewati*). `alasan` wajib (min. 20 huruf) bila salah satunya terisi.
+
+## UI · Batasan
+
+- **Statis hanya mencakup berkas halaman + impor `@/modules/**`**; `src/shared/**` tidak ikut (dicakup pemindaian penuh v2). Pelanggaran di komponen bersama tidak akan muncul sebagai "baru" di sini.
+- **Baseline per (berkas, aturan)**: pelanggaran yang dipindah baris atau ditukar dengan pelanggaran lain di berkas yang sama tidak terdeteksi; yang terdeteksi hanya kenaikan jumlah.
+- **DOM melihat satu titik waktu**, setelah aksi langkah selesai. Dialog yang sudah tertutup tidak terperiksa; warna transisi yang tertangkap di tengah animasi bisa muncul (toleransi ±6 menutup sebagian).
+- **`warna-luar-token` paling rawan**: warna yang MUI hitung dengan rumus lain (mis. `emphasize`, `getContrastText`, grey bawaan Chip `#BDBDBD` yang kebetulan ≈ lighten(ink)) bisa lolos atau tertangkap tanpa ada kesalahan di kode v2. Warna abu-abu yang ≈ lighten/darken dari ink diterima, jadi aturan ini longgar untuk abu-abu.
+- `bayangan-kartu` mengecualikan elemen fixed/sticky (PageActionBar, AppBar): bayangannya memang untuk elemen yang mengambang (§6).
+- Struktur 6 layer, kriteria tab, pemilihan komponen, i18n, dan responsif tidak diperiksa (lihat *Batasan* di `docs/CHECK-DESIGN.md` v2).
+
+# Membaca laporan gabungan
+
+Tiap jalan (CLI dan panel) menulis `runs/<slug>/<waktu>/laporan.md` di akhir — ini yang dikirim ke pekerja, jadi bisa dibaca tanpa panel. Panel: tombol **Unduh laporan** di layar Selesai/Gagal dan di detail Riwayat.
+
+1. **KPI** — langkah lulus, pelanggaran DB `baru · lama`, pelanggaran UI statis `baru · lama`, temuan DOM, durasi. Layar Selesai panel menampilkan angka yang sama sebagai empat kartu besar.
+2. **Langkah** — tabel langkah × (status, URL, UI, DB, request tulis). Baris dengan ✗ adalah tempat mencari.
+3. **Pelanggaran UI baru** — per (berkas, aturan): jumlah vs baseline, langkah pertama muncul, pasal DESIGN.md, semua baris dengan cuplikan dan tautan editor. Lalu temuan DOM per langkah (selector, pesan, nama screenshot bersorot).
+4. **Pelanggaran DB baru** — per invarian: langkah muncul/sembuh, **transaksi tersangka** (request tulis langkah itu, terbaru dulu), dan baris pelanggaran.
+5. **Diff dokumen** — kolom yang berubah per langkah.
+6. **Sudah ada sebelumnya** — ringkas: pelanggaran UI yang tercakup baseline dan pelanggaran DB sejak baseline. Bukan akibat jalan ini.
+
+Urutan membaca: KPI → kalau ada angka *baru*, buka bagiannya; pelanggaran UI statis menunjuk berkas:baris di repo v2, pelanggaran DB menunjuk endpoint (transaksi tersangka) + tabel/baris. Temuan DOM dicek dengan screenshot bersorot sebelum dicatat sebagai bug.
+
 
 ## Daftar invarian
 

@@ -36,12 +36,15 @@ bun run scenario pinjaman-alat --headed --speed 1.5
 bun run scenario pinjaman-alat --from 5                                  # mulai di langkah 5 (pakai capai)
 bun run scenario pinjaman-alat --from 5 --data pinjaman-alat/2026-11-13T07-54-22   # pakai data jalan lain
 bun run scenario pinjaman-alat --tanpa-pemeriksaan                       # lewati Pemeriksaan invarian DB
+bun run scenario pinjaman-alat --tanpa-ui                                # lewati Pemeriksaan UI (DESIGN.md)
 bun run pemeriksaan                 # semua invarian DB sekali, tanpa skenario
 ```
 
-Bukti tiap jalan ada di `runs/<slug>/<waktu>/`: `data.json`, `result.json`, screenshot per langkah, dan `trace.zip` (`bunx playwright show-trace runs/<…>/trace.zip`). Folder `runs/` tidak di-commit.
+Bukti tiap jalan ada di `runs/<slug>/<waktu>/`: `data.json`, `result.json`, screenshot per langkah (dan `*-ui.png` bersorot bila ada temuan DOM), `laporan.md` (laporan gabungan UI + DB), dan `trace.zip` (`bunx playwright show-trace runs/<…>/trace.zip`). Folder `runs/` tidak di-commit.
 
 Tiap jalan juga melewati **Pemeriksaan**: serangkaian SQL hanya-SELECT ke DB lokal v2 — baseline sebelum siapkan data, lalu snapshot setelah tiap langkah (asinkron, diantre) — yang melaporkan **pelanggaran invarian baru per langkah** (stok vs ledger movement, saldo akun vs ledger, total WO, request approval yatim, pinjaman alat, tabel append-only) dan **kolom dokumen yang berubah** antar langkah (MR, WO, stok barang, …). Butuh `V2_DATABASE_URL`; tanpa itu dilewati. Hasil tampil langsung di baris langkah, di layar Selesai/Gagal, di Riwayat, dan di CLI (pelanggaran baru = exit code ≠ 0). Rincian: [docs/PEMERIKSAAN.md](docs/PEMERIKSAAN.md).
+
+Setiap langkah juga melewati **Pemeriksaan UI**: halaman yang tampil diperiksa kepatuhannya ke `DESIGN.md` v2 dengan dua cara — pemeriksa **statis** (skrip v2 `check:design --route <pathname>`, dibandingkan dengan `design-baseline.json`: kelebihan = pelanggaran baru dengan berkas:baris) dan pemeriksa **DOM** langsung di halaman (warna di luar token, radius, bayangan kartu, font, kontras kuning; temuan disorot kotak merah di screenshot `*-ui.png`). Runner juga mencatat **request tulis** per langkah, yang ditampilkan sebagai *transaksi tersangka* di pelanggaran DB. Butuh `V2_DIR`; tanpa itu dilewati. Pelanggaran statis baru = exit ≠ 0; temuan DOM hanya peringatan. Di akhir tiap jalan ditulis **`laporan.md`** gabungan (KPI, tabel langkah, pelanggaran UI dan DB beserta lokasinya) — panel punya tombol **Unduh laporan**.
 
 ## Panel (mode lokal)
 
@@ -71,6 +74,7 @@ Jeda berlaku sebelum aksi terlihat berikutnya (banner, klik, isian, ganti akun, 
 | `TICKET_URL` | Awalan tautan tiket di panel |
 | `V2_BACKEND_DIR` | Folder Backend v2 yang menyala; untuk `sla-eskalasi` dan cadangan alamat DB Pemeriksaan |
 | `V2_DATABASE_URL` | DB Postgres lokal v2 untuk Pemeriksaan (hanya SELECT, hanya host lokal). Kosong = dibaca dari `.env` Backend (`MIGRATE_DATABASE_URL`), bila tidak ada Pemeriksaan dilewati |
+| `V2_DIR` | Akar repo v2 yang memuat `Frontend/scripts/check-design.ts` (Pemeriksaan UI, hanya dibaca). Kosong = Pemeriksaan UI dilewati |
 
 ## Menulis skenario
 
@@ -95,7 +99,8 @@ Skema dan daftar aksi: [docs/SKEMA-SKENARIO.md](docs/SKEMA-SKENARIO.md). Invaria
 | `src/core/controller.ts` | Jeda, satu aksi, kecepatan, hentikan |
 | `src/core/run.ts` | Satu jalan: siapkan → langkah → bersihkan, temuan, bukti, screencast |
 | `src/core/config.ts`, `db.ts` | Baca dan validasi `.env` (zod); alamat DB lokal v2 dengan pagar host |
-| `src/pemeriksaan/` | Lapisan Pemeriksaan: `invarian.ts` (definisi SQL), `banding.ts` (baseline vs akhir), `jalankan.ts` (Bun.sql, transaksi READ ONLY) |
+| `src/pemeriksaan/` | Lapisan Pemeriksaan DB: `invarian.ts` (definisi SQL), `banding.ts` (baseline vs akhir), `jalankan.ts` (Bun.sql, transaksi READ ONLY). Lapisan UI: `ui-statis.ts` (check:design + baseline), `ui-dom.ts` (token, evaluasi DOM, sorot), `ui.ts` (per langkah, ringkasan) |
+| `src/core/requests.ts`, `laporan.ts` | Pencatat request tulis per langkah; penyusun `laporan.md` |
 | `src/server.ts`, `panel/index.html` | Panel (http + SSE `/events`, tampilan langsung `/live`) |
 | `src/cli.ts`, `src/new.ts`, `src/check-scenarios.ts`, `src/docs-pustaka.ts`, `src/pemeriksaan.ts` | CLI, kerangka, pemeriksa, generator docs (pustaka + invarian), Pemeriksaan mandiri |
 | `templates/skenario.json` | Templat untuk `bun run new` |

@@ -72,6 +72,7 @@ Field yang tidak tercantum ditolak (salah ketik ketahuan).
 | `langkah` | ya | Minimal satu langkah |
 | `bersihkan` | | Aksi API yang selalu berjalan di akhir, juga saat gagal atau dihentikan |
 | `pemeriksaan` | | `{ "nonaktif": ["approval-yatim"], "alasan": "…" }`: mematikan invarian DB tertentu untuk skenario ini (id dari [PEMERIKSAAN.md](PEMERIKSAAN.md)); `alasan` wajib (min. 20 huruf) |
+| `pemeriksaanUi` | | `{ "nonaktif": ["radius-menyimpang"], "abaikanHalaman": ["/tires/used"], "alasan": "…" }`: mematikan aturan Pemeriksaan UI (statis `check:design` atau DOM) dan/atau melewati halaman (awalan pathname) untuk skenario ini ([PEMERIKSAAN.md](PEMERIKSAAN.md), bagian UI); `alasan` wajib (min. 20 huruf) bila ada yang diisi |
 
 Persona yang dikenal: `mbl.superintendent` (Bagus), `mbl.plant-superintendent` (Andi), `mbl.planner` (Putri), `mbl.foreman` (Fajar), `mbl.foreman.beta` (Bima), `mbl.supervisor` (Surya), `mbl.mechanic` (Made), `mbl.storekeeper` (Wati), `mbl.purchasing` (Purnomo), `mbl.dispatcher` (Dedi), `mbl.mcr` (Mira). Sumber: `src/core/personas.ts`.
 
