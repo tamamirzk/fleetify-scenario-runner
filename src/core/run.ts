@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import type { APIRequestContext, Browser, BrowserContext, CDPSession, Page } from 'playwright'
+import type { APIRequestContext, BrowserContext, CDPSession, Page } from 'playwright'
 import { PUSTAKA } from '../pustaka/index.ts'
 import { config } from './config.ts'
 import { Controller, Stopped } from './controller.ts'
@@ -34,7 +34,7 @@ import type { BaseCtx, StepCtx } from './types.ts'
 
 const BECOME_HOLD = 4500
 const SHOT_TIMEOUT = 10_000
-/** Jeda sebelum browser ditutup paksa saat Hentikan, supaya aksi yang menunggu sempat berhenti. */
+/** Jeda sebelum jendela ditutup paksa saat Hentikan, supaya aksi yang menunggu sempat berhenti. */
 const STOP_GRACE_MS = 1500
 const CLOSE_TIMEOUT_MS = 5000
 const SCREENCAST = { format: 'jpeg', quality: 70, maxWidth: 1400, maxHeight: 900 } as const
@@ -54,7 +54,6 @@ export class Run extends EventEmitter {
   readonly result: RunResult
   data: Data = {}
   private page: Page | null = null
-  private browser: Browser | null = null
   private ctx: BrowserContext | null = null
   private cdp: CDPSession | null = null
   private persona: PersonaId | null = null
@@ -310,17 +309,17 @@ export class Run extends EventEmitter {
         }
         this.saveData()
       }
-      const browser = await lib.launch({ headed: this.headed })
-      this.browser = browser
-      browser.on('disconnected', () => {
-        if (!this.finished) this.ctl.stop()
-      })
+      const browser = await lib.sharedBrowser({ headed: this.headed })
       const first = steps[from]?.sebagai ?? this.sk.persona[0]?.siapa
       if (!first) throw new Error('Tidak ada persona untuk membuka jendela')
       const p = await lib.asPersona(browser, first)
       this.ctx = p.ctx
       this.page = p.page
       this.persona = first
+      // Menutup jendela (atau browser) sama dengan Hentikan.
+      p.page.on('close', () => {
+        if (!this.finished) this.ctl.stop()
+      })
       await this.startScreencast(p.page)
       this.log(`Jendela dibuka sebagai ${personaName(first)}`)
       for (; i < steps.length; i++) await this.runStep(i, p.page)
@@ -431,14 +430,14 @@ export class Run extends EventEmitter {
         this.save()
       }
     }
-    // Di bawah Bun, browser.close() kadang tidak pernah selesai; jangan biarkan jalan menggantung.
+    // Browser dipakai bersama antar-jalan (lib.sharedBrowser); yang ditutup hanya konteks jalan ini.
+    // Di bawah Bun, close() kadang tidak pernah selesai; jangan biarkan jalan menggantung.
     await Promise.race([
-      this.browser?.close().catch(() => {}),
+      this.ctx?.close().catch(() => {}),
       new Promise((r) => setTimeout(r, CLOSE_TIMEOUT_MS)),
     ])
     this.page = null
     this.ctx = null
-    this.browser = null
     this.emit('change')
   }
 
@@ -464,7 +463,7 @@ export class Run extends EventEmitter {
       return
     }
     this.ctl.stop()
-    setTimeout(() => this.browser?.close().catch(() => {}), STOP_GRACE_MS)
+    setTimeout(() => this.ctx?.close().catch(() => {}), STOP_GRACE_MS)
   }
 
   /** Catat temuan: screenshot saat ini + entri di berkas temuan dan result.json. */

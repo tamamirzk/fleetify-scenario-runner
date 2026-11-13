@@ -53,6 +53,22 @@ export function launch({ headed = false }: { headed?: boolean } = {}): Promise<B
   })
 }
 
+/**
+ * Satu browser untuk semua jalan dalam satu proses (panel). Tiap jalan membuka konteks
+ * sendiri dan hanya menutup konteksnya: meluncurkan browser baru per jalan di bawah Bun
+ * membuat jendela jalan kedua langsung tertutup.
+ */
+let shared: { browser: Browser; headed: boolean } | null = null
+export async function sharedBrowser({ headed = false }: { headed?: boolean } = {}) {
+  if (shared?.browser.isConnected() && shared.headed === headed) return shared.browser
+  const browser = await launch({ headed })
+  shared = { browser, headed }
+  browser.on('disconnected', () => {
+    if (shared?.browser === browser) shared = null
+  })
+  return browser
+}
+
 // ── API ─────────────────────────────────────────────────────────────────────
 async function api(target: ApiTarget, method: string, url: string, data?: unknown) {
   const req: APIRequestContext = 'request' in target ? target.request : target
@@ -226,7 +242,8 @@ export async function dismissWelcome(page: Page) {
 
 export async function open(page: Page, route: string) {
   await ctl.gate()
-  await page.goto(`${config.webUrl}${route}`)
+  // Bukan menunggu "load": halaman dasbor kadang tidak pernah selesai memuat semua sumber.
+  await page.goto(`${config.webUrl}${route}`, { waitUntil: 'domcontentloaded' })
   await page.waitForLoadState('networkidle').catch(() => {})
   await dismissWelcome(page)
   await page.waitForLoadState('networkidle').catch(() => {})

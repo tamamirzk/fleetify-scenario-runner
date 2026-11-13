@@ -141,6 +141,7 @@ describe('uraiAksi', () => {
       'Isi isian “Catatan” di dialog: “x”',
     )
     expect(uraiAksi({ buka: '/mr/{mr.id}' }, { mr: { id: 'm1' } })).toBe('Buka /mr/m1')
+    expect(uraiAksi({ buka: '/mr/{mr.id}' }, { mr: { id: 'm1', nomor: 'MR-1' } })).toBe('Buka MR-1')
     expect(uraiAksi({ sebagai: 'mbl.storekeeper' })).toBe('Ganti akun ke Wati (Penjaga Gudang)')
     expect(uraiAksi({ api: 'ajukan-mr', mr: '{mr.id}' })).toBe('Ajukan MR (di belakang layar)')
   })

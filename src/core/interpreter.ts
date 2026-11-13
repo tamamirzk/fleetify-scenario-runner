@@ -58,7 +58,7 @@ export function uraiAksi(aksi: Aksi, data: Record<string, unknown> = {}): string
   const sas = (k: string) => t(uraiSasaran(s(k)))
   switch (jenisAksi(aksi)) {
     case 'buka':
-      return `Buka ${t(a.buka)}`
+      return `Buka ${uraiRute(String(a.buka), data)}`
     case 'banner':
       return `Banner ${kutip(t(a.banner))}`
     case 'tahan':
@@ -110,6 +110,17 @@ export function uraiAksi(aksi: Aksi, data: Record<string, unknown> = {}): string
       }
     }
   }
+}
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+
+/** Rute untuk tampilan: {mr.id} menjadi nomor dokumennya bila ada, UUID dipendekkan. */
+function uraiRute(rute: string, data: Record<string, unknown>): string {
+  const m = rute.match(/\{([a-zA-Z_]\w*)\.id\}/)
+  const obj = m?.[1] ? (data[m[1]] as Record<string, unknown> | undefined) : undefined
+  const nomor = obj?.nomor ?? obj?.sku
+  if (nomor) return String(nomor)
+  return isiSebisanya(rute, data).replace(UUID, (u) => `${u.slice(0, 8)}…`)
 }
 
 function perluLayar(env: Lingkungan, jenis: string): Layar {

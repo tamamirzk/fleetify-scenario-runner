@@ -709,7 +709,7 @@ function renderJalanMain() {
   if (r.status === 'siap') { below.innerHTML = ''; return }
   const g = r.steps.find((s) => s.status === 'gagal')
   const ga = g?.aksi.find((a) => a.status === 'gagal')
-  const errBox = gagal ? `<div class="errbox" role="alert"><b>${g ? `Gagal di langkah ${g.n}: ${esc(g.title)}` : 'Siapkan data gagal'}</b>${g ? `<div class="dim" style="font-size:12px">Harus terlihat: ${esc(g.expect)}${ga ? ` · aksi: ${esc(ga.teks)}` : ''}</div>` : ''}<div class="mono">${esc(g?.error ?? r.error ?? '')}</div>${g?.shot ? `<img src="/runs/${esc(r.run_id)}/${esc(g.shot)}" alt="Screenshot saat langkah ${g.n} gagal">` : ''}</div>` : ''
+  const errBox = gagal ? `<div class="errbox" role="alert"><b>${g ? `Gagal di langkah ${g.n}: ${esc(g.title)}` : 'Siapkan data gagal'}</b>${g ? `<div class="dim" style="font-size:12px">Harus terlihat: ${esc(g.expect)}${ga ? ` · aksi: ${esc(ga.teks)}` : ''}</div>` : ''}<div class="mono">${esc(g?.error ?? r.error ?? '')}</div>${g?.shot ? `<a href="/runs/${esc(r.run_id)}/${esc(g.shot)}" target="_blank" rel="noopener" class="dim" style="font-size:12px">Buka screenshot saat gagal</a>` : ''}</div>` : ''
   const okBox = r.status === 'selesai' ? `<div class="expect"><div class="k">Hasil</div><div class="v ok-t">Lulus: ${r.steps.length - (r.from_step ?? 0)} langkah dalam ${durasi(r.duration_ms)}.${r.cleanup_error ? ` <span class="warn-t">Pembersihan: ${esc(r.cleanup_error)}</span>` : ''}</div></div>` : r.status === 'dihentikan' ? `<div class="expect"><div class="k">Hasil</div><div class="v">Dihentikan${cur && r.started_at ? ` di langkah ${cur.n}` : ''}.</div></div>` : ''
   const fromN = g?.n ?? (r.status === 'dihentikan' && r.started_at ? cur?.n : null)
   below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}
@@ -827,7 +827,7 @@ async function renderRiwayat(runId) {
   <div class="row">
     <section class="tile" style="flex:1 1 320px;max-width:420px" aria-labelledby="h-runs">
       <div class="thead"><h2 id="h-runs">Jalan</h2><span class="meta">terbaru dulu</span></div>
-      ${runs.length ? runs.slice(0, 80).map((r) => { const st = statusLast(r); return `<a class="runrow" href="#/riwayat/${esc(r.run_id)}" aria-current="${r.run_id === sel}"><span class="w"><b>${esc(r.title)}</b><span>${esc(tgl(r.started_at))} · ${esc(r.task ?? r.scenario)} · ${r.steps_passed}/${r.steps_total} langkah${r.findings ? ` · ${r.findings} temuan` : ''}</span></span><span class="s ${st.cls}">${esc(st.t.split(' · ')[0])}</span></a>` }).join('') : `<div class="empty">${q ? 'Tidak ada jalan yang cocok.' : 'Belum ada jalan. Putar satu skenario dulu.'}</div>`}
+      <div class="col" style="gap:8px;max-height:calc(100vh - 230px);overflow:auto;padding:2px">${runs.length ? runs.slice(0, 200).map((r) => { const st = statusLast(r); return `<a class="runrow" href="#/riwayat/${esc(r.run_id)}" aria-current="${r.run_id === sel}"><span class="w"><b>${esc(r.title)}</b><span>${esc(tgl(r.started_at))} · ${esc(r.task ?? r.scenario)} · ${r.steps_passed}/${r.steps_total} langkah${r.findings ? ` · ${r.findings} temuan` : ''}</span></span><span class="s ${st.cls}">${esc(st.t.split(' · ')[0])}</span></a>` }).join('') : `<div class="empty">${q ? 'Tidak ada jalan yang cocok.' : 'Belum ada jalan. Putar satu skenario dulu.'}</div>`}</div>
     </section>
     <section class="tile" style="flex:999 1 560px" id="run-detail" aria-label="Detail jalan">${sel ? '<div class="empty">Memuat…</div>' : '<div class="empty">Pilih jalan di kiri.</div>'}</section>
   </div>`
