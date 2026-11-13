@@ -236,7 +236,7 @@ ul.plain { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column
 .pcard { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--inner); outline: 1px solid rgba(255,133,137,.5) }
 .pcard .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
 .pcard .hd b { font-size: 14px; font-weight: 600 }
-.pcard .hd code { color: var(--bad-t) }
+.pcard .hd code { color: var(--bad-t); overflow-wrap: anywhere; min-width: 0 }
 .pcard .ket { font-size: 12px; color: var(--dim); line-height: 1.5 }
 .ptbl { width: 100%; border-collapse: collapse; font: 500 11.5px/1.4 var(--mono); display: block; overflow: auto; max-height: 320px }
 .ptbl th, .ptbl td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; vertical-align: top }
@@ -251,6 +251,38 @@ ul.plain { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column
 .dbchip.bad { border-color: rgba(255,133,137,.6); color: var(--bad-t); background: rgba(229,72,77,.12) }
 .dbchip.warn { border-color: rgba(245,158,11,.6); color: var(--warn) }
 .step.cur .dbchip, .step.pz .dbchip { border-color: rgba(26,29,33,.35); color: var(--ink) }
+.dbchip.warn.dom { background: rgba(245,158,11,.10) }
+/* Pemeriksaan UI */
+.vio { display: flex; flex-direction: column; gap: 6px }
+.vio .v { padding: 8px 10px; border-radius: 10px; background: var(--tile); font-size: 12px; line-height: 1.5; display: flex; flex-direction: column; gap: 4px }
+.vio .v .loc { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.vio .v .loc code { color: var(--bad-t) }
+.vio .v .loc .rule { color: var(--accent); font-weight: 600 }
+.vio .v .loc a { color: var(--dim); font-size: 11px; text-decoration: none }
+.vio .v .loc a:hover { color: var(--text) }
+.vio .v pre { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--inner); font: 500 11.5px/1.5 var(--mono); color: var(--code); overflow: auto; white-space: pre }
+.pcard.ui { outline-color: rgba(240,214,72,.45) }
+.pcard.ui.statis { outline-color: rgba(255,133,137,.5) }
+.pcard .hd .pasal { font-size: 11px; color: var(--dim); border: 1px solid var(--line-soft); border-radius: 999px; padding: 1px 7px }
+.shotui { display: block; width: 100%; max-width: 720px; border-radius: 12px; border: 1px solid var(--line-soft) }
+.domlist { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text2) }
+.domlist .d { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.domlist .d .n { color: var(--dim); font-size: 11px }
+.domlist code { color: var(--warn) }
+.reqlist { display: flex; flex-direction: column; gap: 3px; font: 500 11.5px/1.5 var(--mono); color: var(--text2) }
+.reqlist .rq { display: flex; gap: 8px; align-items: baseline }
+.reqlist .rq .m { color: var(--accent); min-width: 52px }
+.reqlist .rq .s { color: var(--dim) }
+.reqlist .rq.top .m { color: var(--bad-t) }
+/* KPI gabungan layar Selesai */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px }
+.kpi { padding: 14px 16px; border-radius: 14px; background: var(--inner); border: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px }
+.kpi .n { font-size: 30px; font-weight: 500; letter-spacing: -.03em; line-height: 1.05 }
+.kpi .n small { font-size: 14px; color: var(--dim); letter-spacing: 0; font-weight: 500 }
+.kpi .l { font-size: 12px; color: var(--dim) }
+.kpi.bad { border-color: rgba(255,133,137,.5) } .kpi.bad .n { color: var(--bad-t) }
+.kpi.ok .n { color: var(--ok-t) } .kpi.warn .n { color: var(--warn) }
+.pacts { display: flex; gap: 8px; flex-wrap: wrap }
 .diff { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text2) }
 .diff b { font-weight: 600; color: var(--text) }
 .diff code { color: var(--accent) }
@@ -734,12 +766,13 @@ function renderJalanMain() {
   const errBox = gagal ? `<div class="errbox" role="alert"><b>${g ? `Gagal di langkah ${g.n}: ${esc(g.title)}` : 'Siapkan data gagal'}</b>${g ? `<div class="dim" style="font-size:12px">Harus terlihat: ${esc(g.expect)}${ga ? ` · aksi: ${esc(ga.teks)}` : ''}</div>` : ''}<div class="mono">${esc(g?.error ?? r.error ?? '')}</div>${g?.shot ? `<a href="/runs/${esc(r.run_id)}/${esc(g.shot)}" target="_blank" rel="noopener" class="dim" style="font-size:12px">Buka screenshot saat gagal</a>` : ''}</div>` : ''
   const okBox = r.status === 'selesai' ? `<div class="expect"><div class="k">Hasil</div><div class="v ok-t">Lulus: ${r.steps.length - (r.from_step ?? 0)} langkah dalam ${durasi(r.duration_ms)}.${r.cleanup_error ? ` <span class="warn-t">Pembersihan: ${esc(r.cleanup_error)}</span>` : ''}</div></div>` : r.status === 'dihentikan' ? `<div class="expect"><div class="k">Hasil</div><div class="v">Dihentikan${cur && r.started_at ? ` di langkah ${cur.n}` : ''}.</div></div>` : ''
   const fromN = g?.n ?? (r.status === 'dihentikan' && r.started_at ? cur?.n : null)
-  below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}${pemeriksaanBox(r, { catat: true })}
+  below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}${gabunganBox(r, { catat: true })}
     <div class="ctlbar">
       ${fromN && fromN > 1 ? `<button type="button" class="btn primary lg" id="e-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
       <button type="button" class="btn ${fromN && fromN > 1 ? '' : 'primary '}lg" id="e-again">${svg('play', 14, 2)}Putar dari awal</button>
       <a class="btn lg" href="#/ringkasan/${esc(r.scenario)}">Ringkasan</a>
       <a class="btn lg" href="#/riwayat/${esc(r.run_id)}">Lihat di riwayat</a>
+      ${r.laporan ? `<a class="btn lg" href="/runs/${esc(r.run_id)}/${esc(r.laporan)}" download="laporan-${esc(r.scenario)}.md">Unduh laporan</a>` : ''}
       ${r.trace ? '<button type="button" class="btn lg" id="e-trace" title="Salin perintah untuk membuka trace Playwright">Salin perintah trace</button>' : ''}
     </div></div>`
   wirePemeriksaan(below, r, renderJalanMain)
@@ -761,9 +794,9 @@ function renderJalanSteps() {
     <div class="bar" style="grid-template-columns:repeat(${r.steps.length},minmax(0,1fr))" aria-hidden="true">${r.steps.map((s) => `<div class="${cls(s)}"></div>`).join('')}</div>
     ${r.steps.map((s) => {
       const k = s.status === 'berjalan' ? (paused ? 'pz' : 'cur') : s.status === 'lulus' ? 'done' : s.status === 'gagal' ? 'fail' : ''
-      return `<button type="button" class="step ${k} ${view === s.n && s.status !== 'berjalan' ? 'view' : ''}" data-n="${s.n}" aria-current="${s.status === 'berjalan' ? 'step' : 'false'}" title="Lihat aksi langkah ${s.n}"><span class="no">${s.status === 'lulus' ? '✓' : s.status === 'gagal' ? '✕' : s.n}</span><span class="tt">${esc(s.title)}${s.belakang ? '<small>di belakang layar</small>' : ''}</span>${dbChip(s)}<span class="st">${label[s.status] ?? s.status}</span></button>`
+      return `<button type="button" class="step ${k} ${view === s.n && s.status !== 'berjalan' ? 'view' : ''}" data-n="${s.n}" aria-current="${s.status === 'berjalan' ? 'step' : 'false'}" title="Lihat aksi langkah ${s.n}"><span class="no">${s.status === 'lulus' ? '✓' : s.status === 'gagal' ? '✕' : s.n}</span><span class="tt">${esc(s.title)}${s.belakang ? '<small>di belakang layar</small>' : ''}</span>${dbChip(s)}${uiChip(s)}<span class="st">${label[s.status] ?? s.status}</span></button>`
     }).join('')}`
-  for (const b of el.querySelectorAll('.step')) b.onclick = () => { const n = Number(b.dataset.n); S.viewStep = n === cur?.n ? null : n; renderJalanSteps() }
+  for (const b of el.querySelectorAll('.step')) b.onclick = (e) => { const n = Number(b.dataset.n); S.viewStep = n === cur?.n && !e.target.closest('.dbchip') ? null : n; renderJalanSteps(); if (e.target.closest('.dbchip')) $('#j-aksi')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   renderAksi(r.steps[(view ?? 1) - 1], r)
 }
 function renderAksi(s, r) {
@@ -780,6 +813,7 @@ function renderAksi(s, r) {
   el.innerHTML = `<div class="thead"><h2>Aksi di langkah ${S.viewStep ? s.n : 'ini'}</h2><span class="meta">${s.aksi.filter((a) => a.status === 'selesai').length}/${s.aksi.length} selesai</span></div>
     <div class="aksigrid">${s.aksi.map((a) => `<div class="aksi"><div class="a">${esc(a.teks)}</div><div class="s">${st(a)}</div></div>`).join('') || '<div class="empty">-</div>'}</div>
     ${s.notes?.length ? `<div class="inner" style="font-size:12px;line-height:1.5"><b class="warn-t">Catatan langkah</b><br>${s.notes.map(esc).join('<br>')}</div>` : ''}
+    ${uiLangkahBox(s, r.run_id, { catat: true })}
     ${dbLangkahBox(s, r.run_id, { catat: true })}`
   wirePemeriksaan(el, r, () => renderAksi(s, r))
 }
@@ -852,19 +886,6 @@ function teksTemuanPemeriksaan(it) {
   const baris = it.baris.slice(0, 5).map((r) => kolom.map((k) => `${k}=${r[k] ?? '-'}`).join(', '))
   return [`Pemeriksaan ${it.id} (${it.judul}): ${it.baris.length} baris pelanggaran baru${it.langkah !== undefined ? ` muncul di langkah ${it.langkah}` : ''}${it.sembuh !== undefined ? `, sembuh di langkah ${it.sembuh}` : ''}.`, ...baris.map((b) => `- ${b}`), it.baris.length > 5 ? `- … ${it.baris.length - 5} baris lagi` : null].filter(Boolean).join('\n')
 }
-function pemeriksaanBox(r, { catat }) {
-  const h = r.pemeriksaan
-  if (!h) return ''
-  if (h.status === 'tidak_dikonfigurasi') return `<div class="expect"><div class="k">Pemeriksaan</div><div class="v dim" style="font-size:13px">Tidak dikonfigurasi · isi <code>V2_DATABASE_URL</code> di <code>.env</code> (DB lokal server v2) untuk memeriksa invarian DB setelah skenario.</div></div>`
-  const lama = h.sudahAda?.length ? `<details class="pold"><summary class="psum">${h.sudahAda.length} invarian punya pelanggaran yang sudah ada sebelumnya (${h.sudahAda.reduce((n, i) => n + i.baris.length, 0)} baris, bukan akibat skenario ini)</summary>${h.sudahAda.map((it) => pcard(it, r.run_id, { catat: false, lama: true })).join('')}</details>` : ''
-  const lewat = h.dilewati?.length ? `<div class="note">Dilewati: ${h.dilewati.map((d) => `<code>${esc(d.id)}</code> (${esc(d.alasan)})`).join(', ')}</div>` : ''
-  const galat = h.galat?.length ? `<div class="errbox"><b>Invarian gagal dijalankan</b>${h.galat.map((g) => `<div class="mono"><code>${esc(g.id)}</code> ${esc(g.pesan)}</div>`).join('')}</div>` : ''
-  let utama
-  if (h.status === 'pelanggaran') utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v bad-t">Pelanggaran baru di ${h.baru.length} invarian · ${h.baru.reduce((n, i) => n + i.baris.length, 0)} baris</div></div>${h.baru.map((it) => pcard(it, r.run_id, { catat })).join('')}`
-  else if (h.status === 'galat') utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v warn-t">Galat${h.pesan ? `: ${esc(h.pesan)}` : ''}</div></div>`
-  else utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v ok-t">Semua invarian lulus (${h.diperiksa} diperiksa)<span class="dim" style="font-size:12px"> · ${h.snapshot ? `${h.snapshot.jumlah} snapshot, rata-rata ${h.snapshot.rataMs} ms` : ''}${h.pesan ? ` · ${esc(h.pesan)}` : ''}</span></div></div>`
-  return `<section class="tile" style="padding:0;background:transparent;gap:10px" aria-label="Pemeriksaan invarian DB">${utama}${galat}${lama}${lewat}</section>`
-}
 const nilaiDiff = (v) => (v == null ? '∅' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 function teksDiff(d) {
   if (d.jenis === 'dihapus') return `<b>${esc(d.label)}</b>: baris dihapus`
@@ -888,20 +909,127 @@ function dbLangkahBox(s, runId, { catat }) {
   const sembuh = db.sembuh?.length ? `<div class="note">Sembuh di langkah ini: ${db.sembuh.map((x) => `<code>${esc(x.id)}</code> (${x.baris.length} baris)`).join(', ')}</div>` : ''
   const galat = db.galat?.length ? `<div class="note warn-t">Galat: ${db.galat.map((g) => `${esc(g.id)} ${esc(g.pesan)}`).join('; ')}</div>` : ''
   const judul = db.status === 'memeriksa' ? '<span class="dim">memeriksa…</span>' : db.status === 'ok' ? `<span class="ok-t">DB ok${db.durasiMs != null ? ` · ${db.durasiMs} ms` : ''}</span>` : db.status === 'pelanggaran' ? `<span class="bad-t">${db.pelanggaran.reduce((n, i) => n + i.baris.length, 0)} pelanggaran baru</span>` : `<span class="warn-t">DB ${esc(db.status)}</span>`
-  return `<div class="inner" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;font-size:13px"><b>Pemeriksaan DB</b>${judul}</div>${diff || (db.status !== 'memeriksa' ? '<div class="note">Tidak ada dokumen yang diikuti berubah.</div>' : '')}${sembuh}${galat}${(db.pelanggaran ?? []).map((it) => pcard(it, runId, { catat })).join('')}</div>`
+  return `<div class="inner" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;font-size:13px"><b>Pemeriksaan DB</b>${judul}</div>${diff || (db.status !== 'memeriksa' ? '<div class="note">Tidak ada dokumen yang diikuti berubah.</div>' : '')}${sembuh}${galat}${(db.pelanggaran ?? []).map((it) => pcard(it, runId, { catat })).join('')}${db.status === 'pelanggaran' ? tersangkaBox(s) : ''}</div>`
+}
+/** Request tulis langkah (terakhir sebelum snapshot paling atas) sebagai transaksi tersangka pelanggaran DB. */
+function tersangkaBox(s) {
+  const rs = [...(s?.requests ?? [])].reverse()
+  if (!rs.length) return '<div class="note">Transaksi tersangka: tidak ada request tulis tercatat di langkah ini (perubahan mungkin dari langkah lain atau sesi lain).</div>'
+  const satu = rs.length === 1
+  return `<div class="inner" style="background:var(--tile)"><div style="font-size:12px;margin-bottom:6px"><b class="bad-t">Transaksi tersangka</b> <span class="dim">· ${satu ? 'satu request tulis di langkah ini' : `${rs.length} request tulis di langkah ini, terakhir sebelum snapshot paling atas`}</span></div><div class="reqlist">${rs.map((q, i) => `<div class="rq ${i === 0 ? 'top' : ''}"><span class="m">${esc(q.method)}</span><span title="${esc(q.pathAsli)}">${esc(q.path)}</span><span class="s">→ ${q.status}${q.durasiMs != null ? ` · ${q.durasiMs} ms` : ''}${q.sumber === 'api' ? ' · API' : ''}</span></div>`).join('')}</div></div>`
+}
+// ── Pemeriksaan UI (DESIGN.md per langkah) ───────────────────────────────────
+const nUiBaru = (u) => (u?.statis?.baru ?? []).reduce((a, g) => a + g.baru, 0)
+const nUiLama = (u) => (u?.statis?.sudahAda ?? []).reduce((a, g) => a + g.jumlah, 0) + (u?.statis?.baru ?? []).reduce((a, g) => a + g.baseline, 0)
+const nDom = (u) => (u?.dom?.temuan ?? []).reduce((a, t) => a + t.jumlah, 0)
+/** Chip status UI di baris langkah: memeriksa… / UI ok / UI ✗ n baru (merah = statis baru, kuning = hanya DOM). */
+function uiChip(s) {
+  const u = s.ui
+  if (!u) return ''
+  if (u.status === 'tidak_dikonfigurasi') return ''
+  if (u.status === 'memeriksa') return `<span class="dbchip" title="Pemeriksa statis berjalan${nDom(u) ? ` · ${nDom(u)} temuan DOM sudah ada` : ''}">UI memeriksa…</span>`
+  if (u.status === 'dilewati') return '<span class="dbchip" title="Halaman diabaikan (pemeriksaanUi.abaikanHalaman)">UI –</span>'
+  if (u.status === 'pelanggaran') return `<span class="dbchip bad" title="${esc(u.statis.baru.map((g) => `${g.rule} ${g.file.split('/').pop()}`).join(', '))}">UI ✗ ${nUiBaru(u)} baru</span>`
+  if (u.status === 'peringatan') return `<span class="dbchip warn dom" title="${esc([...new Set(u.dom.temuan.map((t) => t.aturan))].join(', '))} · hanya DOM, tidak menggagalkan">UI ! ${nDom(u)} DOM</span>`
+  if (u.status === 'galat') return `<span class="dbchip warn" title="${esc(u.galat.join('; '))}">UI galat</span>`
+  return `<span class="dbchip ok" title="${u.statis ? `${u.statis.berkas} berkas, ${nUiLama(u)} sudah ada` : ''}${u.dom ? ` · DOM ${u.dom.evalMs} ms` : ''}">UI ok</span>`
+}
+const pathDi = (u) => { try { return new URL(u).pathname } catch { return u } }
+const tautanKode = (b) => (S.cfg?.v2_dir ? `vscode://file${S.cfg.v2_dir}/Frontend/${b.file}:${b.line}:${b.col}` : null)
+/** Kartu satu kelompok (berkas, aturan) statis yang melebihi baseline: semua baris + cuplikan + tautan editor. */
+function ucard(g, { catat, lihat }) {
+  return `<div class="pcard ui statis" data-ukey="${esc(`${g.file}|${g.rule}`)}"><div class="hd"><b>${esc(g.rule)}</b><code>${esc(g.file)}</code><span class="pasal">DESIGN.md ${esc(g.pasal)}</span><span class="dim" style="font-size:12px">${g.jumlah} pelanggaran · baseline ${g.baseline} · <b class="bad-t">${g.baru} baru</b>${g.langkah !== undefined ? ` · langkah ${g.langkah}` : ''}</span></div>
+    <div class="ket">Baseline hanya menyimpan jumlah per (berkas, aturan); semua baris pasangan ini ditampilkan supaya yang baru bisa ditemukan.</div>
+    <div class="vio">${g.baris.map((b) => { const t = tautanKode(b); return `<div class="v"><div class="loc"><code>${esc(b.file.split('/').pop())}:${b.line}:${b.col}</code><span class="rule">${esc(b.rule)}</span><span>${esc(b.message)}</span>${t ? `<a href="${esc(t)}" title="Buka di VS Code">buka di editor ↗</a>` : ''}</div>${b.cuplikan ? `<pre>${esc(b.cuplikan)}</pre>` : ''}</div>` }).join('')}</div>
+    ${catat || lihat !== undefined ? `<div class="pacts">${catat ? `<button type="button" class="btn h40" data-ucatat="${esc(`${g.file}|${g.rule}`)}">Catat temuan</button>` : ''}${lihat !== undefined ? `<button type="button" class="btn h40" data-lihat="${lihat}">Lihat langkah ${lihat}</button>` : ''}</div>` : ''}</div>`
+}
+function teksTemuanUi(g) {
+  return [`Pemeriksaan UI ${g.rule} (DESIGN.md ${g.pasal}) di ${g.file}: ${g.jumlah} pelanggaran, baseline ${g.baseline}, ${g.baru} baru${g.langkah !== undefined ? ` (langkah ${g.langkah})` : ''}.`, ...g.baris.slice(0, 8).map((b) => `- ${b.file}:${b.line}:${b.col} ${b.message}${b.cuplikan ? ` — ${b.cuplikan}` : ''}`), g.baris.length > 8 ? `- … ${g.baris.length - 8} baris lagi` : null].filter(Boolean).join('\n')
+}
+function teksTemuanDom(s) {
+  const t = s.ui?.dom?.temuan ?? []
+  return [`Pemeriksaan UI (DOM) langkah ${s.n} di ${pathDi(s.ui?.url ?? '')}: ${nDom(s.ui)} temuan.`, ...t.slice(0, 10).map((x) => `- ${x.aturan}: ${x.selector} — ${x.pesan}${x.jumlah > 1 ? ` (×${x.jumlah})` : ''}`), t.length > 10 ? `- … ${t.length - 10} lagi` : null, s.ui?.shotUi ? `Screenshot bersorot: ${s.ui.shotUi}` : null].filter(Boolean).join('\n')
+}
+/** Panel per langkah: Kode (statis baru) + Tampilan (screenshot bersorot + temuan DOM). */
+function uiLangkahBox(s, runId, { catat, ulang }) {
+  const u = s?.ui
+  if (!u || u.status === 'tidak_dikonfigurasi') return ''
+  if (u.status === 'dilewati') return `<div class="inner" style="font-size:12px"><b>Pemeriksaan UI</b> <span class="dim">dilewati — halaman <code>${esc(pathDi(u.url ?? ''))}</code> ada di abaikanHalaman</span></div>`
+  const judul = u.status === 'memeriksa' ? '<span class="dim">statis memeriksa…</span>' : u.status === 'pelanggaran' ? `<span class="bad-t">${nUiBaru(u)} pelanggaran statis baru</span>` : u.status === 'peringatan' ? `<span class="warn-t">${nDom(u)} temuan DOM</span>` : u.status === 'galat' ? '<span class="warn-t">galat</span>' : '<span class="ok-t">UI ok</span>'
+  const meta = [u.pattern ? `rute <code>${esc(u.pattern)}</code>` : u.url ? `<code>${esc(pathDi(u.url))}</code> (tidak cocok PAGE_TABLE)` : null, u.statis ? `${u.statis.berkas} berkas${u.statis.cache ? ' (cache)' : ''} · ${u.statis.durasiMs} ms` : null, u.dom ? `DOM ${u.dom.elemen} elemen · ${u.dom.evalMs} ms${u.dom.terpotong ? ' · terpotong' : ''}` : null].filter(Boolean).join(' · ')
+  // ulang(g) = langkah tempat kelompok ini pertama tampil (Riwayat): tampil ringkas supaya tidak berulang.
+  const kartuStatis = (g) => { const n = ulang?.(g); return n && n !== s.n ? `<div class="note"><b class="bad-t">${esc(g.rule)}</b> <code>${esc(g.file)}</code>: ${g.baru} baru — sama dengan langkah ${n} (berkas halaman yang sama)</div>` : ucard(g, { catat }) }
+  const kode = u.statis ? (u.statis.baru.length ? u.statis.baru.map(kartuStatis).join('') : `<div class="note">Kode: tidak ada pelanggaran statis yang melebihi baseline${nUiLama(u) ? ` (${nUiLama(u)} sudah ada di baseline, dilipat di ringkasan akhir)` : ''}.</div>`) : (u.status === 'memeriksa' ? '' : '<div class="note warn-t">Kode: pemeriksa statis tidak menghasilkan keluaran.</div>')
+  const dom = u.dom ? (u.dom.temuan.length ? `<div class="pcard ui"><div class="hd"><b>Tampilan</b><span class="dim" style="font-size:12px">${nDom(u)} temuan DOM di ${u.dom.temuan.length} kelompok · peringatan, tidak menggagalkan</span></div>
+      ${u.shotUi ? `<a href="/runs/${esc(runId)}/${esc(u.shotUi)}" target="_blank" rel="noopener"><img class="shotui" src="/runs/${esc(runId)}/${esc(u.shotUi)}" alt="Screenshot langkah ${s.n} dengan temuan DOM disorot" loading="lazy"></a>` : ''}
+      <div class="domlist">${u.dom.temuan.map((t) => `<div class="d"><code>${esc(t.aturan)}</code><span>${esc(t.selector)}</span><span class="dim">${esc(t.pesan)}</span>${t.jumlah > 1 ? `<span class="n">×${t.jumlah}</span>` : ''}</div>`).join('')}</div>
+      ${catat ? `<div class="pacts"><button type="button" class="btn h40" data-dcatat="${s.n}">Catat temuan</button></div>` : ''}</div>` : '<div class="note">Tampilan: tidak ada temuan DOM.</div>') : ''
+  const galat = u.galat?.length ? `<div class="note warn-t">Galat: ${u.galat.map(esc).join('; ')}</div>` : ''
+  return `<div class="inner" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;font-size:13px;flex-wrap:wrap"><b>Pemeriksaan UI</b>${judul}<span class="dim" style="font-size:12px">${meta}</span></div>${kode}${dom}${galat}</div>`
+}
+/** Layar Selesai/Gagal dan Riwayat: KPI gabungan, kartu pelanggaran UI + DB (alert), yang sudah ada dilipat. */
+function gabunganBox(r, { catat }) {
+  const db = r.pemeriksaan
+  const ui = r.pemeriksaanUi
+  if (!db && !ui) return ''
+  const k = {
+    lulus: r.steps.filter((s) => s.status === 'lulus').length,
+    dbBaru: (db?.baru ?? []).reduce((a, i) => a + i.baris.length, 0),
+    dbLama: (db?.sudahAda ?? []).reduce((a, i) => a + i.baris.length, 0),
+    uiBaru: (ui?.baru ?? []).reduce((a, g) => a + g.baru, 0),
+    uiLama: (ui?.sudahAda ?? []).reduce((a, g) => a + g.jumlah, 0) + (ui?.baru ?? []).reduce((a, g) => a + g.baseline, 0),
+    dom: (ui?.dom ?? []).reduce((a, d) => a + d.jumlah, 0),
+  }
+  const dbOff = !db || db.status === 'tidak_dikonfigurasi'
+  const uiOff = !ui || ui.status === 'tidak_dikonfigurasi'
+  const kpis = `<div class="kpis">
+    <div class="kpi ${k.lulus === r.steps.length ? 'ok' : 'bad'}"><div class="n">${k.lulus}<small>/${r.steps.length}</small></div><div class="l">Langkah lulus</div></div>
+    <div class="kpi ${dbOff ? '' : k.dbBaru ? 'bad' : 'ok'}"><div class="n">${dbOff ? '–' : `${k.dbBaru}<small> baru · ${k.dbLama} lama</small>`}</div><div class="l">Pelanggaran DB${dbOff ? ' · tidak dikonfigurasi' : db.status === 'galat' ? ' · galat' : ''}</div></div>
+    <div class="kpi ${uiOff ? '' : k.uiBaru ? 'bad' : k.dom ? 'warn' : 'ok'}"><div class="n">${uiOff ? '–' : `${k.uiBaru}<small> baru · ${k.uiLama} lama${k.dom ? ` · ${k.dom} DOM` : ''}</small>`}</div><div class="l">Pelanggaran UI${uiOff ? ' · tidak dikonfigurasi' : ''}</div></div>
+    <div class="kpi"><div class="n">${durasi(r.duration_ms) || '–'}</div><div class="l">Durasi${db?.snapshot ? ` · DB ${db.snapshot.rataMs} ms/snapshot` : ''}${ui?.statis?.jumlah ? ` · UI ${ui.statis.rataMs} ms statis, ${ui.domWaktu.rataEvalMs} ms DOM` : ''}</div></div>
+  </div>`
+  const konfig = [dbOff ? `<div class="note">Pemeriksaan DB tidak dikonfigurasi · isi <code>V2_DATABASE_URL</code> di <code>.env</code> (DB lokal server v2).</div>` : '', uiOff ? `<div class="note">Pemeriksaan UI tidak dikonfigurasi · isi <code>V2_DIR</code> di <code>.env</code> (repo v2 yang memuat <code>Frontend/scripts/check-design.ts</code>)${ui?.pesan ? ` — ${esc(ui.pesan)}` : ''}.</div>` : ''].join('')
+  const uiCards = (ui?.baru ?? []).map((g) => ucard(g, { catat, lihat: g.langkah })).join('')
+  const domCards = (ui?.dom ?? []).length ? `<div class="pcard ui"><div class="hd"><b>Temuan DOM</b><span class="dim" style="font-size:12px">${k.dom} elemen · peringatan, tidak menggagalkan · DESIGN.md §2–§6</span></div><div class="domlist">${ui.dom.map((d) => `<div class="d"><code>${esc(d.aturan)}</code><span>${d.jumlah} elemen</span><span class="dim">langkah ${d.langkah.join(', ')}</span></div>`).join('')}</div><div class="pacts">${ui.dom.flatMap((d) => d.langkah).filter((n, i, a) => a.indexOf(n) === i).slice(0, 6).map((n) => `<button type="button" class="btn h40" data-lihat="${n}">Lihat langkah ${n}</button>`).join('')}</div></div>` : ''
+  const dbCards = (db?.baru ?? []).map((it) => `${pcard(it, r.run_id, { catat })}`.replace('</div>$', '')).join('')
+  const dbTersangka = (db?.baru ?? []).map((it) => { const s = r.steps[(it.langkah ?? 0) - 1]; return s ? `<div class="pcard" style="outline-color:var(--line-soft)"><div class="hd"><b>${esc(it.id)} · langkah ${it.langkah}</b></div>${tersangkaBox(s)}<div class="pacts"><button type="button" class="btn h40" data-lihat="${it.langkah}">Lihat langkah ${it.langkah}</button></div></div>` : '' }).join('')
+  const galatDb = db?.galat?.length ? `<div class="errbox"><b>Invarian gagal dijalankan</b>${db.galat.map((g) => `<div class="mono"><code>${esc(g.id)}</code> ${esc(g.pesan)}</div>`).join('')}</div>` : ''
+  const galatUi = ui?.galat?.length ? `<div class="note warn-t">Galat UI: ${ui.galat.map((g) => `langkah ${g.langkah}: ${esc(g.pesan)}`).join('; ')}</div>` : ''
+  const lamaN = (db?.sudahAda?.length ?? 0) + (ui?.sudahAda?.length ?? 0)
+  const lama = lamaN ? `<details class="pold"><summary class="psum">Sudah ada sebelumnya: ${k.uiLama ? `${k.uiLama} pelanggaran UI di baseline` : ''}${k.uiLama && k.dbLama ? ' · ' : ''}${k.dbLama ? `${k.dbLama} baris DB sejak sebelum skenario` : ''} (bukan akibat jalan ini)</summary>${(ui?.sudahAda ?? []).length ? `<div class="vio">${ui.sudahAda.map((g) => `<div class="v"><div class="loc"><span class="rule">${esc(g.rule)}</span><code style="color:var(--text2)">${esc(g.file)}</code><span class="dim">${g.jumlah} pelanggaran, semua di baseline</span></div></div>`).join('')}</div>` : ''}${(db?.sudahAda ?? []).map((it) => pcard(it, r.run_id, { catat: false, lama: true })).join('')}</details>` : ''
+  const lewat = [...(db?.dilewati ?? []).map((d) => `<code>${esc(d.id)}</code> (${esc(d.alasan)})`), ...(ui?.dilewati ?? []).map((d) => `UI langkah ${d.langkah} <code>${esc(pathDi(d.url))}</code> (abaikanHalaman)`)]
+  const lewatBox = lewat.length ? `<div class="note">Dilewati: ${lewat.join(', ')}</div>` : ''
+  const judul = (k.uiBaru || k.dbBaru) ? `<div class="expect"><div class="k">Pemeriksaan gabungan</div><div class="v bad-t">${[k.uiBaru ? `${k.uiBaru} pelanggaran UI baru` : null, k.dbBaru ? `${k.dbBaru} baris pelanggaran DB baru` : null].filter(Boolean).join(' · ')}</div></div>` : (!dbOff || !uiOff) ? `<div class="expect"><div class="k">Pemeriksaan gabungan</div><div class="v ${k.dom ? 'warn-t' : 'ok-t'}">${k.dom ? `Tidak ada pelanggaran baru · ${k.dom} temuan DOM (peringatan)` : 'Tidak ada pelanggaran baru'}${!dbOff && db.diperiksa ? ` · ${db.diperiksa} invarian DB` : ''}</div></div>` : ''
+  return `<section class="tile" style="padding:0;background:transparent;gap:10px" aria-label="Pemeriksaan gabungan UI dan DB">${kpis}${judul}${konfig}${uiCards}${domCards}${dbCards}${dbTersangka}${galatDb}${galatUi}${lama}${lewatBox}</section>`
+}
+function isiTemuan(teks) {
+  S.jenis = 'bug'
+  renderJenis()
+  const ta = $('#j-text')
+  if (!ta) return
+  ta.value = teks
+  ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  ta.focus()
 }
 function wirePemeriksaan(root, r, rerender) {
   for (const b of root.querySelectorAll('[data-plihat]')) b.onclick = () => { const k = b.dataset.plihat; if (S.pLihat.has(k)) S.pLihat.delete(k); else S.pLihat.add(k); rerender() }
   for (const b of root.querySelectorAll('[data-pcatat]')) b.onclick = () => {
     const it = r.pemeriksaan?.baru.find((x) => x.id === b.dataset.pcatat) ?? r.steps.flatMap((s) => s.db?.pelanggaran ?? []).find((x) => x.id === b.dataset.pcatat)
     if (!it) return
-    S.jenis = 'bug'
-    renderJenis()
-    const ta = $('#j-text')
-    if (!ta) return
-    ta.value = teksTemuanPemeriksaan(it)
-    ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    ta.focus()
+    const s = r.steps[(it.langkah ?? 0) - 1]
+    const rs = [...(s?.requests ?? [])].reverse()
+    isiTemuan(teksTemuanPemeriksaan(it) + (rs.length ? `\nTransaksi tersangka: ${rs.map((q) => `${q.method} ${q.pathAsli} ${q.status}`).join('; ')}` : ''))
+  }
+  for (const b of root.querySelectorAll('[data-ucatat]')) b.onclick = () => {
+    const [file, rule] = b.dataset.ucatat.split('|')
+    const g = r.pemeriksaanUi?.baru.find((x) => x.file === file && x.rule === rule) ?? r.steps.flatMap((s) => s.ui?.statis?.baru ?? []).find((x) => x.file === file && x.rule === rule)
+    if (g) isiTemuan(teksTemuanUi(g))
+  }
+  for (const b of root.querySelectorAll('[data-dcatat]')) b.onclick = () => { const s = r.steps[Number(b.dataset.dcatat) - 1]; if (s) isiTemuan(teksTemuanDom(s)) }
+  for (const b of root.querySelectorAll('[data-lihat]')) b.onclick = () => {
+    const n = Number(b.dataset.lihat)
+    if (route()[0] === 'jalan') { S.viewStep = n; renderJalanSteps(); $('#j-aksi')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+    else { const li = root.querySelector(`li[data-n="${n}"]`); if (li) { li.scrollIntoView({ behavior: 'smooth', block: 'start' }); li.querySelector('details')?.setAttribute('open', '') } }
   }
 }
 
@@ -949,21 +1077,23 @@ async function renderRunDetail(id) {
       const [c, t] = ic(s)
       const stc = { lulus: 'ok-t', gagal: 'bad-t', dihentikan: 'warn-t' }[s.status] ?? 'dim'
       const fa = s.aksi.find((a) => a.status === 'gagal')
-      return `<li><div class="rail"><span class="ic ${c}">${t}</span>${i < r.steps.length - 1 ? '<div class="line"></div>' : ''}</div><div class="body">
-        <div class="hd"><b>${s.n}. ${esc(s.title)}</b><span class="st ${stc}">${label[s.status] ?? s.status}</span>${s.ms ? `<span class="sub">${dtk(s.ms)}</span>` : ''}${dbChip(s)}</div>
+      return `<li data-n="${s.n}"><div class="rail"><span class="ic ${c}">${t}</span>${i < r.steps.length - 1 ? '<div class="line"></div>' : ''}</div><div class="body">
+        <div class="hd"><b>${s.n}. ${esc(s.title)}</b><span class="st ${stc}">${label[s.status] ?? s.status}</span>${s.ms ? `<span class="sub">${dtk(s.ms)}</span>` : ''}${dbChip(s)}${uiChip(s)}</div>
         <div class="sub">Harus terlihat: ${esc(s.expect)}${s.who_name ? ` · ${esc(s.who_name)}` : ''}</div>
         ${s.status === 'gagal' ? `<div class="errbox"><b>${fa ? `Aksi gagal: ${esc(fa.teks)}` : 'Langkah gagal'}</b><div class="mono">${esc(s.error ?? '')}</div>${s.shot ? `<img src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot langkah ${s.n} gagal">` : ''}</div>` : ''}
         ${s.notes?.length ? `<div class="finding"><b class="warn-t">Catatan langkah</b>${s.notes.map(esc).join('<br>')}</div>` : ''}
+        ${s.ui && (s.ui.statis?.baru?.length || s.ui.dom?.temuan?.length || s.ui.galat?.length) ? uiLangkahBox(s, r.run_id, { catat: false, ulang: (g) => r.pemeriksaanUi?.baru.find((x) => x.file === g.file && x.rule === g.rule)?.langkah }) : ''}
         ${s.db && (s.db.dokumen?.length || s.db.pelanggaran?.length || s.db.sembuh?.length || s.db.status === 'galat') ? dbLangkahBox(s, r.run_id, { catat: false }) : ''}
         ${fin(s.n).map((f) => `<div class="finding"><span><span class="chip ${f.jenis === 'bug' ? 'bad' : f.jenis === 'skenario' ? 'acc' : ''}">${LABEL_JENIS[f.jenis] ?? f.jenis}</span> <span class="dim" style="font-size:12px">${esc(jam(f.at))}${f.aksi ? ` · ${esc(f.aksi)}` : ''}</span></span><span>${esc(f.note)}</span>${f.screenshot ? `<a href="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" target="_blank" rel="noopener"><img class="thumb" src="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" alt="Screenshot temuan"></a>` : ''}</div>`).join('')}
         ${s.aksi?.length && !['menunggu', 'dilompati'].includes(s.status) ? `<details><summary>${s.aksi.length} aksi${s.shot && s.status === 'lulus' ? ' · screenshot akhir langkah' : ''}</summary><ol>${s.aksi.map((a) => `<li class="${a.status === 'gagal' ? 'bad-t' : ''}">${esc(a.teks)}${a.ms != null ? ` <span class="dim">· ${dtk(a.ms)}</span>` : ''}</li>`).join('')}</ol>${s.shot && s.status === 'lulus' ? `<a href="/runs/${esc(r.run_id)}/${esc(s.shot)}" target="_blank" rel="noopener"><img class="thumb" style="margin-top:8px" src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot akhir langkah ${s.n}" loading="lazy"></a>` : ''}</details>` : ''}
       </div></li>`
     }).join('')}</ol>
-    ${pemeriksaanBox(r, { catat: false })}
+    ${gabunganBox(r, { catat: false })}
     ${r.cleanup_error ? `<div class="errbox"><b>Pembersihan bermasalah</b><div class="mono">${esc(r.cleanup_error)}</div></div>` : ''}
     <div class="ctlbar">
       ${fromN && fromN > 1 ? `<button type="button" class="btn primary h44" id="h-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
       <a class="btn h44" href="#/ringkasan/${esc(r.scenario)}">Ringkasan skenario</a>
+      ${r.laporan ? `<a class="btn h44" href="/runs/${esc(r.run_id)}/${esc(r.laporan)}" download="laporan-${esc(r.scenario)}.md">Unduh laporan</a>` : ''}
       ${r.trace ? '<button type="button" class="btn h44" id="h-trace">Salin perintah trace</button>' : ''}
     </div>`
   wirePemeriksaan(el, r, () => renderRunDetail(id))
