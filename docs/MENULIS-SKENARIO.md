@@ -1,83 +1,43 @@
 # Menulis skenario
 
-Standar ini berlaku untuk semua skenario. Sebagian ditegakkan otomatis oleh `bun run check:scenarios` (ditandai **[otomatis]**); sisanya diperiksa saat review.
+Alur kerja menulis dan memperbaiki skenario. **Bentuk berkas, daftar aksi, sasaran, placeholder, aturan, dan daftar aksi pustaka ada di [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md)**; dokumen ini tidak mengulanginya.
 
-## Mulai
+## Siapa menulis apa
+
+- **AI (atau developer) di lokal** menulis dan memperbaiki berkas JSON di `scenarios/<task>/<slug>.json`.
+- **Panel** hanya membaca, memvalidasi, memutar, dan mencatat temuan. Panel tidak mengedit JSON dan tidak memanggil AI.
+- **Pustaka TypeScript** (`src/pustaka/`) memuat hal yang rumit: membuat data, approval berlapis, serah terima, dialog panjang. Ditulis developer dan direview seperti kode biasa.
+
+## Alur
 
 ```bash
-bun run new retur-rusak        # scenarios/retur-rusak.ts dari templates/scenario.ts
-bun run check:scenarios
-bun run scenario retur-rusak   # headless
+bun run new FMS-62 retur-rusak        # kerangka scenarios/FMS-62/retur-rusak.json
+bun run check:scenarios               # skema dan aturan
+bun run scenario retur-rusak          # putar headless (CLI)
+bun run panel                         # atau tonton dan kendalikan dari panel
 ```
 
-Contoh lengkap: `scenarios/pinjaman-alat.ts`.
+1. Tulis JSON. Mulai dari `templates/skenario.json` atau contoh lengkap `scenarios/FMS-63/pinjaman-alat.json`.
+2. Baca komponen v2 yang disentuh dan ambil teks tombol/label dari `Frontend/src/shared/i18n/locales/id.json` repo v2.
+3. Bila butuh rangkaian yang tidak bisa ditulis dengan aksi sederhana (perulangan, kondisi, DOM yang sulit), tambah aksi pustaka, bukan selector CSS di JSON.
+4. `bun run check:scenarios` sampai hijau. Panel menandai berkas tidak valid dan menolak memutarnya.
+5. Putar headless sampai lulus **dua kali berturut-turut** (data segar tiap jalan membuktikan bisa diulang).
+6. Tonton sekali di panel (headed) untuk memeriksa tempo dan banner.
 
-## Bentuk berkas
+## Memperbaiki dari temuan
 
-```ts
-import { defineScenario } from '../src/core/types.ts'
+- Saat menonton, catat temuan dengan `N`. Pilih **Skenario salah** bila yang keliru skenarionya (selector, urutan, data), **Bug aplikasi** bila aplikasinya, **Catatan** untuk hal lain.
+- Di layar Skenario, ubin **Catatan untuk AI** mengumpulkan temuan Skenario salah untuk versi berkas yang sekarang. **Salin sebagai instruksi untuk AI** menghasilkan teks berisi path berkas, langkah, aksi, catatan, galat, dan screenshot; tempel ke AI di lokal.
+- Begitu berkas JSON diubah, temuan lama dianggap sudah ditangani dan hilang dari ubin itu (tetap ada di riwayat).
+- Langkah gagal bisa diulang dari langkah itu ("Ulang dari langkah N"): panel memakai data jalan yang gagal bila jalan itu berhenti tepat sebelumnya, atau data segar ditambah `capai` langkah itu.
 
-interface Data {
-  docs: { label: string; nomor: string; url: string }[]
-  mr_id: string
-}
+## Standar yang direview manusia
 
-export default defineScenario<Data>({
-  meta: { id: 'retur-rusak', title, group: 'material', tickets: ['FMS-62'], estimasi: '6 menit',
-    tujuan, personas: [{ who: 'mbl.storekeeper', peran: 'menerima retur' }],
-    data: ['…'], setelan: [], prasyarat: [], catatan: [] },
-  async setup(ctx) { /* lewat API, data segar */ return { mr_id, docs } },
-  steps: [
-    { id: 'terima', who: 'mbl.storekeeper', title: 'Wati menerima retur', expect: 'Status Diterima',
-      reach: async (ctx, d) => { /* opsional: bawa data ke awal langkah ini */ },
-      run: async (ctx, d) => { /* aksi di layar */ } },
-  ],
-  async cleanup(ctx, d) { /* wajib bila meta.setelan terisi */ },
-})
-```
+Yang tidak bisa diperiksa otomatis:
 
-## Standar
-
-### 1. Satu skenario, satu berkas
-`scenarios/<id>.ts`, nama kebab-case tanpa awalan, `export default` bertipe `Scenario` lewat `defineScenario`. `meta.id` sama dengan nama berkas. **[otomatis]**
-
-### 2. `meta` lengkap
-`id`, `title`, `group` (`material`, `approval`, `wo`, `pb`, `akses`, `lingkungan`), `tickets` (format `FMS-123`), `estimasi` (`"<n> menit"`), `tujuan` (satu kalimat "Membuktikan …"), `personas` (setiap persona yang terlibat beserta perannya, termasuk yang hanya lewat API), `data` (yang dibuat `setup`), `setelan`, `prasyarat`, `catatan`. Field asing ditolak. **[otomatis]**
-
-### 3. Data segar tiap jalan
-`setup()` membuat barang dan dokumen baru lewat API. Skenario tidak boleh bergantung pada dokumen atau stok yang sudah ada, dan tidak boleh menulis id dari DB tertentu (**[otomatis]**: UUID di berkas skenario ditolak).
-- Barang: `ctx.kit.newItem(ctx, rc, whId, { sku, name, quantity | serials, kind })` dengan `ctx.kit.stamp()` di SKU dan nama. Saldo awal hanya sah untuk barang yang belum pernah masuk gudang; barang baru tidak bisa memakai pelacakan Batch.
-- Master yang memang dari seed dicari lewat API: `ctx.kit.findWarehouse(rc, 'WH-ALPHA')`, `findWorkshop(rc, 'Workshop Site Alpha')`, `findVehicle(rc, 'DT-014')`, `findApprovalFlow(rc, nama)`, `ctx.lib.personaUserId('mbl.mechanic')`.
-- Isi `docs: [{ label, nomor, url }]` supaya panel menampilkan dokumen yang dibuat. Langkah boleh menambah field data (mis. nomor ADJ); runner menyimpannya ke `data.json` setelah tiap langkah.
-
-### 4. DB hanya lewat API aplikasi
-Akses DB atau proses luar (`node:child_process`, `psql`, `DATABASE_URL`) ditolak kecuali `meta.pengecualian` berisi `{ aturan: 'db-lewat-api', alasan }` dengan alasan yang jelas. **[otomatis]** Pengecualian disepakati tim dulu. Saat ini hanya `sla-eskalasi`.
-
-### 5. Satu jendela
-Runner membuka satu jendela untuk persona langkah pertama. Ganti akun cukup dengan `who` pada langkah; runner memanggil `become()` dan menampilkan banner "Ganti akun". Persona lain di belakang layar memakai `ctx.as(who)` (sesi API tanpa jendela, ditutup otomatis). Jangan membuat browser atau konteks sendiri.
-
-### 6. Semua aksi lewat helper
-Aksi terlihat memakai `ctx.k.click`, `ctx.k.fill`, `ctx.k.pick` (combobox → opsi), `ctx.k.search` (ketik di autocomplete → opsi), `ctx.say`, dan `ctx.open`. Hanya helper ini yang melewati gerbang jeda dan satu aksi. Aksi Playwright mentah (`.click(`, `.fill(`, `.press(`, `.check(`, …) di `scenarios/` ditolak. **[otomatis]** Tahanan memakai `ctx.wait(ms)`; `waitForTimeout` ditolak. **[otomatis]** Membaca (`waitFor`, `innerText`, `count`, `isDisabled`) boleh langsung.
-
-### 7. Langkah
-Setiap langkah punya `id` kebab-case yang unik, `title` (kalimat aktif: siapa melakukan apa), dan `expect` (yang harus terlihat di layar). `who` harus persona yang dikenal dan tercantum di `meta.personas`. **[otomatis]**
-- Tiap langkah membuka sendiri halaman yang dipakainya (`ctx.open(route)`), supaya bisa diputar mulai dari langkah itu.
-- Beri `reach` bila keadaan awal langkah bisa dibangun lewat API. Tanpa `reach`, langkah hanya bisa dimulai memakai data jalan yang berhenti tepat sebelum langkah itu; panel menandainya.
-- Periksa hasil yang penting dan `throw new Error(…)` bila salah. Kejanggalan yang belum pasti salah dicatat dengan `ctx.note(teks)`.
-
-### 8. Setelan dikembalikan
-Bila skenario mengubah setelan (alur approval, preferensi, penomoran), tulis di `meta.setelan` dan kembalikan atau periksa di `cleanup()`, yang tetap berjalan saat jalan gagal atau dihentikan. Bila perubahan memang harus menetap (mis. prasyarat lingkungan), isi `meta.setelanMenetap` dengan alasannya. **[otomatis]**
-
-### 9. Bahasa dan selector
-Teks banner, judul, dan catatan berbahasa Indonesia. Selector memakai peran dan label (`getByRole`, `getByLabel`) dengan teks dari `Frontend/src/shared/i18n/locales/id.json` repo v2, bukan kelas CSS, kecuali tidak ada pilihan lain.
-
-### 10. Kualitas
-Sebelum commit: `bun run check`, `bun run typecheck`, `bun run test`, `bun run check:scenarios`, dan skenario lulus headless dua kali berturut-turut. Perubahan pada `controller` dan aturan meta disertai tes Vitest di `test/`.
-
-## Isi `ctx`
-
-Di `setup`, `reach`, dan `cleanup` (`BaseCtx`): `as(who)`, `api.get/send(target, …)`, `ok(res, label)`, `log`, `lib` (mis. `lib.rows(body)`, `lib.personaUserId`), `kit` (mis. `kit.newItem`, `kit.stamp`, `kit.find*`, `kit.photoUrl`).
-
-Di langkah (`StepCtx`), tambahan: `page` (jendela satu-satunya), `k` (helper aksi terlihat dan `k.panel(page)` untuk panel Persetujuan), `say(teks, ms)` (banner bernomor `n/total`), `wait(ms)`, `open(route)`, `shot(nama)`, `note(teks)`, `become(who)`, `n`, `total`.
-
-Foto lewat jalur "tempel URL" (penyimpanan media lokal biasanya tidak dikonfigurasi): `ctx.kit.addPhotoByUrl(page, scope, ctx.kit.photoUrl('nama'))`.
+- Judul langkah berupa kalimat aktif (siapa melakukan apa); `harusTerlihat` menyebut hal yang memang tampak di layar.
+- Hal penting terjadi **di layar** (approval di panel Persetujuan, serah terima di dialog). Hanya persiapan data yang membosankan boleh lewat API, dengan banner "(di belakang layar)".
+- Tiap langkah membuka sendiri halamannya dan, bila keadaan awalnya bisa dibangun lewat API, punya `capai`.
+- Pemeriksaan hasil yang penting memakai `pastikanTerlihat`/`pastikanTidakTerlihat` atau aksi pustaka yang memeriksa lewat API; kejanggalan yang belum pasti salah memakai `"lunak": true`.
+- Tempo: biarkan tahanan bawaan; kecepatan diatur dari panel.
+- Setelan yang diubah dikembalikan di langkah terakhir dan diperiksa lagi di `bersihkan`.

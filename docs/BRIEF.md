@@ -1,6 +1,6 @@
 # Brief uji skenario
 
-Untuk developer yang menulis atau memutar **skenario**: uji layar end-to-end yang diputar di browser terlihat dengan tempo lambat. Cara memasang dan menjalankan alat ada di [README](../README.md); format dan standar skenario di [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md).
+Untuk developer yang menulis atau memutar **skenario**: uji layar end-to-end yang diputar di browser terlihat dengan tempo lambat. Cara memasang dan menjalankan alat ada di [README](../README.md); format skenario JSON di [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md), alur menulis di [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md).
 
 ## Tujuan
 
@@ -15,11 +15,11 @@ Penonton melihat aplikasi dipakai seperti oleh orang sungguhan: tiap klik, isian
 ## Larangan
 
 - **Tidak ada restore DB.** Alat ini tidak punya opsi restore, dan skenario tidak boleh men-DROP atau me-reset database.
-- **DB hanya diubah lewat API aplikasi.** Pengecualian harus ditandai di `meta.pengecualian` beserta alasannya, dan disepakati tim dulu. Saat ini hanya `sla-eskalasi`, yang memajukan `due_at` satu request lewat SQL karena aplikasi tidak punya cara memajukan waktu.
+- **DB hanya diubah lewat API aplikasi.** Pengecualian hanya lewat aksi pustaka bertanda `pengecualianDb`, dan skenario yang memakainya wajib mengisi `pengecualian` beserta alasannya; disepakati tim dulu. Saat ini hanya aksi `majukan-tenggat-sla` (dipakai `sla-eskalasi`), yang memajukan `due_at` satu request lewat SQL karena aplikasi tidak punya cara memajukan waktu.
 - **Kredensial tidak disalin.** Akun admin hanya ada di `.env` lokal. Jangan menyalinnya ke skenario, log, laporan, atau commit.
-- **Satu jendela browser.** Runner membuat satu konteks untuk persona langkah pertama dan berganti akun di jendela yang sama (`become`). Pekerjaan di belakang layar untuk persona lain memakai `ctx.as(who)`: sesi API tanpa jendela.
+- **Satu jendela browser.** Runner membuat satu konteks untuk persona langkah pertama dan berganti akun di jendela yang sama (`sebagai` di langkah). Pekerjaan di belakang layar untuk persona lain memakai aksi `api` dari pustaka: sesi API tanpa jendela.
 - **Hanya server lokal.** Konfigurasi menolak URL selain `localhost`.
-- SQL baca-saja untuk mencari data saat menulis skenario boleh, tapi hasilnya tidak boleh ditulis sebagai id di skenario. Cari lewat API (`ctx.kit.findWarehouse`, `findVehicle`, `findWorkshop`, `findApprovalFlow`, `ctx.lib.personaUserId`).
+- SQL baca-saja untuk mencari data saat menulis skenario boleh, tapi hasilnya tidak boleh ditulis sebagai id di skenario. Cari lewat aksi pustaka (nama atau kode gudang, unit, bengkel, alur), bukan id.
 
 ## Aturan tontonan
 
@@ -27,21 +27,21 @@ Penonton melihat aplikasi dipakai seperti oleh orang sungguhan: tiap klik, isian
 2. **Semua langkah penting terjadi di layar**, termasuk:
    - **Approval.** Ganti akun ke approver, buka Kotak Masuk (`/approvals`) atau halaman dokumen, lalu klik **Setujui** di panel approval.
    - **Serah terima material.** Isi dialog "Keluarkan dari Stok" di layar.
-   - Hanya persiapan data yang membosankan yang boleh lewat API (di `setup` atau langkah bertanda "(di belakang layar)").
-3. **Data segar, bisa diulang tanpa batas.** Lihat [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md#3-data-segar-tiap-jalan).
+   - Hanya persiapan data yang membosankan yang boleh lewat API (di bagian `siapkan` atau langkah `diBelakangLayar`).
+3. **Data segar, bisa diulang tanpa batas.** Lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md#data-dan-placeholder).
 4. **Penonton bisa menghentikan kapan saja** dari panel (Hentikan) atau dengan menutup jendela browser.
-5. **Selector berbasis peran dan label** (`getByRole`, `getByLabel`) dengan teks bahasa Indonesia dari `Frontend/src/shared/i18n/locales/id.json` di repo v2. Baca komponennya sebelum menulis selector.
+5. **Selector berbasis peran dan label** (sasaran `tombol`, `label`, `combobox`, …) dengan teks bahasa Indonesia dari `Frontend/src/shared/i18n/locales/id.json` di repo v2. Baca komponennya sebelum menulis selector.
 6. Jalankan headless dulu sampai lulus, baru diputar headed dari panel.
 
 ## Kalau menemukan masalah
 
-- Bila aplikasi berperilaku tidak sesuai aturan bisnis, jangan memperbaiki kode v2 sambil menulis skenario. Catat temuan: skenario, langkah, yang terlihat, yang seharusnya, dan dugaan penyebab beserta `file:baris` bila jelas. Tombol **Catat temuan** di panel menulis entri dengan screenshot ke `docs/TEMUAN.md`. Teruskan ke tim lewat tiket.
+- Bila aplikasi berperilaku tidak sesuai aturan bisnis, jangan memperbaiki kode v2 sambil menulis skenario. Catat temuan: skenario, langkah, yang terlihat, yang seharusnya, dan dugaan penyebab beserta `file:baris` bila jelas. Tombol **Catat temuan** di panel (jenis Bug aplikasi, Skenario salah, atau Catatan) menulis entri dengan screenshot ke `docs/TEMUAN.md` dan ke hasil jalan. Temuan Skenario salah terkumpul di "Catatan untuk AI". Teruskan ke tim lewat tiket.
 - Bila yang gagal hanya skenarionya (selector salah, data habis), perbaiki skenarionya dan jalankan ulang.
-- Hasil yang terlihat aneh tapi belum pasti salah dicatat dengan `ctx.note(teks)`: muncul di hasil langkah tanpa menggagalkannya.
+- Hasil yang terlihat aneh tapi belum pasti salah dicatat dengan `pastikanTerlihat … "lunak": true` atau temuan jenis Catatan di panel: muncul di hasil tanpa menggagalkan langkah.
 
 ## Skenario yang sudah ada
 
-| Skenario | Isi | reach |
+| Skenario | Isi | capai |
 |---|---|---|
 | `siapkan-zona` | Persiapan lingkungan: zona waktu MBL terkonfirmasi (jalankan sekali per DB) | - |
 | `pinjaman-alat` | FMS-63: MR mandiri, pinjaman alat per peminjam, kembali sebagian, kembali dengan serial, catat tidak kembali | semua langkah |

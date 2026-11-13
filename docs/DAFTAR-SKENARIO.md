@@ -1,13 +1,13 @@
 # Daftar skenario lanjutan
 
-Skenario yang belum ditulis, berurutan mengikuti alur kerja nyata dari laporan kerusakan sampai dokumen keluar. Ambil satu, tulis dengan `bun run new <id>`, dan ikuti [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md) serta [BRIEF.md](BRIEF.md). Bila sudah selesai, pindahkan ke tabel "Skenario yang sudah ada" di BRIEF.
+Skenario yang belum ditulis, berurutan mengikuti alur kerja nyata dari laporan kerusakan sampai dokumen keluar. Ambil satu, tulis dengan `bun run new <task> <slug>`, dan ikuti [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md) serta [BRIEF.md](BRIEF.md). Bila sudah selesai, pindahkan ke tabel "Skenario yang sudah ada" di BRIEF.
 
 Pengingat singkat:
 
-- `setup()` membangun keadaan awal lewat API tiap jalan. Skenario boleh memakai alur dari skenario lain hanya dengan membangun ulang keadaannya, bukan dari nomor dokumen yang ditulis tangan.
+- Bagian `siapkan` membangun keadaan awal lewat aksi pustaka API tiap jalan. Skenario boleh memakai alur dari skenario lain hanya dengan membangun ulang keadaannya, bukan dari nomor dokumen yang ditulis tangan.
 - Approval dan pergantian akun terjadi di layar; persiapan data membosankan boleh lewat API dengan banner "(di belakang layar)".
-- Beri `reach` pada langkah yang keadaan awalnya bisa dibangun lewat API.
-- Setelan yang diubah dicatat di `meta.setelan`, dikembalikan di langkah terakhir, dan diperiksa lagi di `cleanup()`.
+- Beri `capai` pada langkah yang keadaan awalnya bisa dibangun lewat API.
+- Setelan yang diubah dicatat di `setelan`, dikembalikan di langkah terakhir, dan diperiksa lagi di `bersihkan`.
 - Skenario 4 di bawah sudah ada sebagai `tiket-order`; nomor dipertahankan supaya rujukan tim tetap cocok.
 
 ## Blok pagi: dari laporan sampai Work Order
@@ -16,7 +16,7 @@ Pengingat singkat:
 Dedi menyetujui tiket baru. Putri membuat Order tidak terjadwal dan memilih **Lewati pemeriksaan** dengan alasan, lalu menampilkan kartu pemeriksaan yang terkunci. Putri lalu menekan **Kembali ke pemeriksaan**. Surya menugaskan pemeriksaan ke Made. Made mengisi hasil dan RPL, lalu mengajukan. Approver menekan **Revisi**: kartu "Pemeriksaan ditolak" tampil. Pemeriksaan ulang dilakukan, lalu **Setujui**.
 
 ### 5. Penawaran, WO terbit, material awal (FMS-60, 48)
-Dari Order hasil skenario `tiket-order` (dibangun ulang di `setup`), Putri menyusun penawaran (harga part bengkel internal tampil baca saja mengikuti HPP), lalu mengajukan. Approval berlangsung di layar. WO terbit, dan MR awal otomatis Disetujui. Wati menyerahkan material lewat dialog **Keluarkan dari Stok** (penerima, jumlah, catatan, foto). Tunjukkan biaya aktual per baris di WO.
+Dari Order hasil skenario `tiket-order` (dibangun ulang di `siapkan`), Putri menyusun penawaran (harga part bengkel internal tampil baca saja mengikuti HPP), lalu mengajukan. Approval berlangsung di layar. WO terbit, dan MR awal otomatis Disetujui. Wati menyerahkan material lewat dialog **Keluarkan dari Stok** (penerima, jumlah, catatan, foto). Tunjukkan biaya aktual per baris di WO.
 
 ### 6. Sesi kerja, foto, verifikasi akhir (FMS-30, 33, 34, 35, 36, 55)
 Fajar membuat sesi dan memilih Made. Made mengerjakan item **atas nama** pelaksana, dengan foto (tunjukkan batas 3 foto aktif). Sesi diakhiri dan disetujui. Item yang belum selesai berlanjut di sesi berikutnya, dan foto terbawa. Setelah semua item disetujui, verifikasi akhir muncul otomatis di Kotak Masuk. Approver menyetujui, dan WO menjadi **Sudah diperiksa**. Tunjukkan chip status WO yang berpindah: Menunggu material, Menunggu penugasan, Menunggu mekanik, Sedang perbaikan, Menunggu verifikasi sesi, lalu Menunggu verifikasi perbaikan.
@@ -61,7 +61,7 @@ Jadwal Mendatang: tangga status (Mendatang, Jatuh tempo, Terlambat). Buat Order 
 Buat SPK Manual dari jadwal. Wati menyerahkan material. Putri melengkapi dokumentasi per baris dan nota, lalu Ajukan, dan Order Selesai. Tunjukkan status unit yang tidak berubah dan badge **SPK Manual** di riwayat unit.
 
 ### 18. Keputusan PB dan breakdown otomatis (FMS-95, 96, 97, 98)
-Ubah tanggal estimasi dengan alasan dan tunjukkan riwayatnya. Jalankan `bun run scripts/run-maintenance-scan.ts decision` dari folder Backend v2 (perlu `meta.pengecualian`): tugas keputusan muncul di Kotak Masuk, lalu putuskan **breakdown**. Jalankan `cutoff` dan tunjukkan unit berpindah ke Breakdown. Made melaporkan temuan dari WO PB, dan tiket temuan terpisah dari Order. **Kembalikan setiap setelan bertanda Wajib.**
+Ubah tanggal estimasi dengan alasan dan tunjukkan riwayatnya. Jalankan `bun run scripts/run-maintenance-scan.ts decision` dari folder Backend v2 (perlu aksi pustaka bertanda `pengecualianDb` dan `pengecualian`): tugas keputusan muncul di Kotak Masuk, lalu putuskan **breakdown**. Jalankan `cutoff` dan tunjukkan unit berpindah ke Breakdown. Made melaporkan temuan dari WO PB, dan tiket temuan terpisah dari Order. **Kembalikan setiap setelan bertanda Wajib.**
 
 ## Kalau waktu tersisa
 - Halaman Bottleneck (FMS-56): durasi status WO dari jalan hari ini.
