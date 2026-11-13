@@ -1,0 +1,30 @@
+{
+  "name": "fleetify-scenario-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pemutar skenario uji layar Fleetify v2 dengan panel kontrol",
+  "scripts": {
+    "panel": "bun src/server.ts",
+    "scenario": "bun src/cli.ts",
+    "new": "bun src/new.ts",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "check:scenarios": "bun src/check-scenarios.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "playwright": "1.64.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.0",
+    "@types/bun": "1.3.14",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  },
+  "patchedDependencies": {
+    "playwright-core@1.64.0": "patches/playwright-core@1.64.0.patch"
+  }
+}

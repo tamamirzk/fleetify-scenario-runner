@@ -1,0 +1,6 @@
+node_modules/
+runs/
+.cache/
+.env
+docs/TEMUAN.md
+.DS_Store

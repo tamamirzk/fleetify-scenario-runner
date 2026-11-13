@@ -1,0 +1,13 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+index 784c72f35ba86abda9d937b092f51078b559f4e3..a0a3ba157fbb1fab77e1ad4cf6d3cd19d733106f 100644
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -27927,7 +27927,7 @@ ${text2}`;
+             fetchLog(`\u2190 ${response2.statusCode} ${response2.statusMessage}`);
+             for (const [name, value2] of Object.entries(response2.headers))
+               fetchLog(`  ${name}: ${value2}`);
+-            const cookies = this._parseSetCookieHeader(response2.url || url3.toString(), response2.headers["set-cookie"]);
++            const cookies = this._parseSetCookieHeader(url3.toString(), response2.headers["set-cookie"]);
+             if (cookies.length) {
+               try {
+                 await this.addCookies(cookies);
