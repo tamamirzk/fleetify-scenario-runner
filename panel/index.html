@@ -232,6 +232,28 @@ ul.plain { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column
 .runrow .w b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .runrow .w span { display: block; font-size: 12px; color: var(--dim) }
 .runrow .s { flex: none; font-size: 12px; font-weight: 600; text-align: right }
+/* Pemeriksaan (invarian DB) */
+.pcard { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--inner); outline: 1px solid rgba(255,133,137,.5) }
+.pcard .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.pcard .hd b { font-size: 14px; font-weight: 600 }
+.pcard .hd code { color: var(--bad-t) }
+.pcard .ket { font-size: 12px; color: var(--dim); line-height: 1.5 }
+.ptbl { width: 100%; border-collapse: collapse; font: 500 11.5px/1.4 var(--mono); display: block; overflow: auto; max-height: 320px }
+.ptbl th, .ptbl td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; vertical-align: top }
+.ptbl th { color: var(--dim); font-weight: 500; position: sticky; top: 0; background: var(--inner) }
+.ptbl td { color: var(--text2) }
+.psum { cursor: pointer; font-size: 12px; color: var(--text2) }
+.pold { display: flex; flex-direction: column; gap: 8px }
+.pcard.lama { outline-color: var(--line-soft) }
+.pcard.lama .hd code { color: var(--text2) }
+.dbchip { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line-soft); font: 600 10.5px var(--sans); color: var(--dim); white-space: nowrap }
+.dbchip.ok { border-color: rgba(76,195,138,.5); color: var(--ok-t) }
+.dbchip.bad { border-color: rgba(255,133,137,.6); color: var(--bad-t); background: rgba(229,72,77,.12) }
+.dbchip.warn { border-color: rgba(245,158,11,.6); color: var(--warn) }
+.step.cur .dbchip, .step.pz .dbchip { border-color: rgba(26,29,33,.35); color: var(--ink) }
+.diff { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text2) }
+.diff b { font-weight: 600; color: var(--text) }
+.diff code { color: var(--accent) }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 18px; border-radius: 999px; background: var(--text); color: var(--bg); font-weight: 600; font-size: 13px; z-index: 50 }
 .toast.bad { background: var(--bad); color: #fff }
 
@@ -712,7 +734,7 @@ function renderJalanMain() {
   const errBox = gagal ? `<div class="errbox" role="alert"><b>${g ? `Gagal di langkah ${g.n}: ${esc(g.title)}` : 'Siapkan data gagal'}</b>${g ? `<div class="dim" style="font-size:12px">Harus terlihat: ${esc(g.expect)}${ga ? ` · aksi: ${esc(ga.teks)}` : ''}</div>` : ''}<div class="mono">${esc(g?.error ?? r.error ?? '')}</div>${g?.shot ? `<a href="/runs/${esc(r.run_id)}/${esc(g.shot)}" target="_blank" rel="noopener" class="dim" style="font-size:12px">Buka screenshot saat gagal</a>` : ''}</div>` : ''
   const okBox = r.status === 'selesai' ? `<div class="expect"><div class="k">Hasil</div><div class="v ok-t">Lulus: ${r.steps.length - (r.from_step ?? 0)} langkah dalam ${durasi(r.duration_ms)}.${r.cleanup_error ? ` <span class="warn-t">Pembersihan: ${esc(r.cleanup_error)}</span>` : ''}</div></div>` : r.status === 'dihentikan' ? `<div class="expect"><div class="k">Hasil</div><div class="v">Dihentikan${cur && r.started_at ? ` di langkah ${cur.n}` : ''}.</div></div>` : ''
   const fromN = g?.n ?? (r.status === 'dihentikan' && r.started_at ? cur?.n : null)
-  below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}
+  below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}${pemeriksaanBox(r, { catat: true })}
     <div class="ctlbar">
       ${fromN && fromN > 1 ? `<button type="button" class="btn primary lg" id="e-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
       <button type="button" class="btn ${fromN && fromN > 1 ? '' : 'primary '}lg" id="e-again">${svg('play', 14, 2)}Putar dari awal</button>
@@ -720,6 +742,7 @@ function renderJalanMain() {
       <a class="btn lg" href="#/riwayat/${esc(r.run_id)}">Lihat di riwayat</a>
       ${r.trace ? '<button type="button" class="btn lg" id="e-trace" title="Salin perintah untuk membuka trace Playwright">Salin perintah trace</button>' : ''}
     </div></div>`
+  wirePemeriksaan(below, r, renderJalanMain)
   $('#e-replay')?.addEventListener('click', () => replay(r.run_id, fromN, r.scenario))
   $('#e-again').onclick = () => api('/api/prepare', { scenario: r.scenario, autostart_step: 1, speed: r.speed }).catch((e) => toast(e.message, true))
   $('#e-trace')?.addEventListener('click', () => salin(`bunx playwright show-trace runs/${r.run_id}/${r.trace}`, 'Perintah trace disalin'))
@@ -738,7 +761,7 @@ function renderJalanSteps() {
     <div class="bar" style="grid-template-columns:repeat(${r.steps.length},minmax(0,1fr))" aria-hidden="true">${r.steps.map((s) => `<div class="${cls(s)}"></div>`).join('')}</div>
     ${r.steps.map((s) => {
       const k = s.status === 'berjalan' ? (paused ? 'pz' : 'cur') : s.status === 'lulus' ? 'done' : s.status === 'gagal' ? 'fail' : ''
-      return `<button type="button" class="step ${k} ${view === s.n && s.status !== 'berjalan' ? 'view' : ''}" data-n="${s.n}" aria-current="${s.status === 'berjalan' ? 'step' : 'false'}" title="Lihat aksi langkah ${s.n}"><span class="no">${s.status === 'lulus' ? '✓' : s.status === 'gagal' ? '✕' : s.n}</span><span class="tt">${esc(s.title)}${s.belakang ? '<small>di belakang layar</small>' : ''}</span><span class="st">${label[s.status] ?? s.status}</span></button>`
+      return `<button type="button" class="step ${k} ${view === s.n && s.status !== 'berjalan' ? 'view' : ''}" data-n="${s.n}" aria-current="${s.status === 'berjalan' ? 'step' : 'false'}" title="Lihat aksi langkah ${s.n}"><span class="no">${s.status === 'lulus' ? '✓' : s.status === 'gagal' ? '✕' : s.n}</span><span class="tt">${esc(s.title)}${s.belakang ? '<small>di belakang layar</small>' : ''}</span>${dbChip(s)}<span class="st">${label[s.status] ?? s.status}</span></button>`
     }).join('')}`
   for (const b of el.querySelectorAll('.step')) b.onclick = () => { const n = Number(b.dataset.n); S.viewStep = n === cur?.n ? null : n; renderJalanSteps() }
   renderAksi(r.steps[(view ?? 1) - 1], r)
@@ -756,7 +779,9 @@ function renderAksi(s, r) {
   }
   el.innerHTML = `<div class="thead"><h2>Aksi di langkah ${S.viewStep ? s.n : 'ini'}</h2><span class="meta">${s.aksi.filter((a) => a.status === 'selesai').length}/${s.aksi.length} selesai</span></div>
     <div class="aksigrid">${s.aksi.map((a) => `<div class="aksi"><div class="a">${esc(a.teks)}</div><div class="s">${st(a)}</div></div>`).join('') || '<div class="empty">-</div>'}</div>
-    ${s.notes?.length ? `<div class="inner" style="font-size:12px;line-height:1.5"><b class="warn-t">Catatan langkah</b><br>${s.notes.map(esc).join('<br>')}</div>` : ''}`
+    ${s.notes?.length ? `<div class="inner" style="font-size:12px;line-height:1.5"><b class="warn-t">Catatan langkah</b><br>${s.notes.map(esc).join('<br>')}</div>` : ''}
+    ${dbLangkahBox(s, r.run_id, { catat: true })}`
+  wirePemeriksaan(el, r, () => renderAksi(s, r))
 }
 function renderJalanTask() {
   const r = S.run
@@ -807,6 +832,79 @@ const togglePause = () => { if (!S.run || !['berjalan', 'jeda'].includes(S.run.s
 const stepOne = () => { if (S.run && ['berjalan', 'jeda'].includes(S.run.status)) api('/api/step', {}).catch((e) => toast(e.message, true)) }
 const stopRun = () => { if (S.run && ['menyiapkan', 'siap', 'berjalan', 'jeda'].includes(S.run.status)) api('/api/stop', {}).catch((e) => toast(e.message, true)) }
 
+// ── Pemeriksaan (invarian DB pasca-skenario, docs/PEMERIKSAAN.md) ──────────
+S.pLihat = new Set()
+function ptable(rows, key, semua) {
+  const kolom = Object.keys(rows[0] ?? {})
+  const tampil = semua ? rows : rows.slice(0, 5)
+  return `<table class="ptbl"><thead><tr>${kolom.map((k) => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>${tampil.map((r) => `<tr>${kolom.map((k) => `<td>${esc(r[k] ?? '-')}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length > 5 ? `<div><button type="button" class="btn" data-plihat="${esc(key)}">${semua ? 'Ringkas' : `Lihat semua (${rows.length} baris)`}</button></div>` : ''}`
+}
+function pcard(it, runId, { catat, lama }) {
+  const key = `${runId}:${it.id}:${it.langkah ?? ''}:${it.sembuh ?? ''}`
+  const di = it.langkah !== undefined ? `muncul di langkah ${it.langkah}${it.sembuh !== undefined ? ` · sembuh di langkah ${it.sembuh}` : ''}` : ''
+  return `<div class="pcard${lama ? ' lama' : ''}" data-pid="${esc(it.id)}"><div class="hd"><b>${esc(it.judul)}</b><code>${esc(it.id)}</code><span class="dim" style="font-size:12px">${it.baris.length} baris${di ? ` · ${di}` : ''}</span></div>
+    <div class="ket">${esc(it.keterangan)}</div>
+    ${it.baris.length ? ptable(it.baris, key, S.pLihat.has(key)) : ''}
+    ${catat ? `<div><button type="button" class="btn h40" data-pcatat="${esc(it.id)}">Catat temuan</button></div>` : ''}</div>`
+}
+function teksTemuanPemeriksaan(it) {
+  const kolom = Object.keys(it.baris[0] ?? {})
+  const baris = it.baris.slice(0, 5).map((r) => kolom.map((k) => `${k}=${r[k] ?? '-'}`).join(', '))
+  return [`Pemeriksaan ${it.id} (${it.judul}): ${it.baris.length} baris pelanggaran baru${it.langkah !== undefined ? ` muncul di langkah ${it.langkah}` : ''}${it.sembuh !== undefined ? `, sembuh di langkah ${it.sembuh}` : ''}.`, ...baris.map((b) => `- ${b}`), it.baris.length > 5 ? `- … ${it.baris.length - 5} baris lagi` : null].filter(Boolean).join('\n')
+}
+function pemeriksaanBox(r, { catat }) {
+  const h = r.pemeriksaan
+  if (!h) return ''
+  if (h.status === 'tidak_dikonfigurasi') return `<div class="expect"><div class="k">Pemeriksaan</div><div class="v dim" style="font-size:13px">Tidak dikonfigurasi · isi <code>V2_DATABASE_URL</code> di <code>.env</code> (DB lokal server v2) untuk memeriksa invarian DB setelah skenario.</div></div>`
+  const lama = h.sudahAda?.length ? `<details class="pold"><summary class="psum">${h.sudahAda.length} invarian punya pelanggaran yang sudah ada sebelumnya (${h.sudahAda.reduce((n, i) => n + i.baris.length, 0)} baris, bukan akibat skenario ini)</summary>${h.sudahAda.map((it) => pcard(it, r.run_id, { catat: false, lama: true })).join('')}</details>` : ''
+  const lewat = h.dilewati?.length ? `<div class="note">Dilewati: ${h.dilewati.map((d) => `<code>${esc(d.id)}</code> (${esc(d.alasan)})`).join(', ')}</div>` : ''
+  const galat = h.galat?.length ? `<div class="errbox"><b>Invarian gagal dijalankan</b>${h.galat.map((g) => `<div class="mono"><code>${esc(g.id)}</code> ${esc(g.pesan)}</div>`).join('')}</div>` : ''
+  let utama
+  if (h.status === 'pelanggaran') utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v bad-t">Pelanggaran baru di ${h.baru.length} invarian · ${h.baru.reduce((n, i) => n + i.baris.length, 0)} baris</div></div>${h.baru.map((it) => pcard(it, r.run_id, { catat })).join('')}`
+  else if (h.status === 'galat') utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v warn-t">Galat${h.pesan ? `: ${esc(h.pesan)}` : ''}</div></div>`
+  else utama = `<div class="expect"><div class="k">Pemeriksaan</div><div class="v ok-t">Semua invarian lulus (${h.diperiksa} diperiksa)<span class="dim" style="font-size:12px"> · ${h.snapshot ? `${h.snapshot.jumlah} snapshot, rata-rata ${h.snapshot.rataMs} ms` : ''}${h.pesan ? ` · ${esc(h.pesan)}` : ''}</span></div></div>`
+  return `<section class="tile" style="padding:0;background:transparent;gap:10px" aria-label="Pemeriksaan invarian DB">${utama}${galat}${lama}${lewat}</section>`
+}
+const nilaiDiff = (v) => (v == null ? '∅' : typeof v === 'object' ? JSON.stringify(v) : String(v))
+function teksDiff(d) {
+  if (d.jenis === 'dihapus') return `<b>${esc(d.label)}</b>: baris dihapus`
+  const isi = d.perubahan.map((p) => (d.jenis === 'dibuat' ? `${esc(p.kolom)}=<code>${esc(nilaiDiff(p.ke))}</code>` : `${esc(p.kolom)} <code>${esc(nilaiDiff(p.dari))}</code> → <code>${esc(nilaiDiff(p.ke))}</code>`)).join(', ')
+  return `<b>${esc(d.label)}</b>${d.jenis === 'dibuat' ? ' dibuat' : ''}: ${isi}`
+}
+/** Chip kecil status DB di baris langkah (live lewat SSE state). */
+function dbChip(s) {
+  const db = s.db
+  if (!db) return ''
+  if (db.status === 'memeriksa') return '<span class="dbchip" title="Pemeriksaan DB sedang berjalan">memeriksa…</span>'
+  if (db.status === 'ok') return `<span class="dbchip ok" title="Tidak ada pelanggaran invarian baru${db.durasiMs != null ? ` · ${db.durasiMs} ms` : ''}">DB ok</span>`
+  if (db.status === 'pelanggaran') return `<span class="dbchip bad" title="${esc(db.pelanggaran.map((x) => x.id).join(', '))}">DB ✗ ${db.pelanggaran.reduce((n, i) => n + i.baris.length, 0)}</span>`
+  return `<span class="dbchip warn" title="${esc(db.galat?.[0]?.pesan ?? db.status)}">DB ${esc(db.status)}</span>`
+}
+/** Panel per langkah: diff dokumen + pelanggaran baru/sembuh di langkah itu. */
+function dbLangkahBox(s, runId, { catat }) {
+  const db = s?.db
+  if (!db) return ''
+  const diff = db.dokumen?.length ? `<div class="diff">${db.dokumen.map((d) => `<div>${teksDiff(d)}</div>`).join('')}</div>` : ''
+  const sembuh = db.sembuh?.length ? `<div class="note">Sembuh di langkah ini: ${db.sembuh.map((x) => `<code>${esc(x.id)}</code> (${x.baris.length} baris)`).join(', ')}</div>` : ''
+  const galat = db.galat?.length ? `<div class="note warn-t">Galat: ${db.galat.map((g) => `${esc(g.id)} ${esc(g.pesan)}`).join('; ')}</div>` : ''
+  const judul = db.status === 'memeriksa' ? '<span class="dim">memeriksa…</span>' : db.status === 'ok' ? `<span class="ok-t">DB ok${db.durasiMs != null ? ` · ${db.durasiMs} ms` : ''}</span>` : db.status === 'pelanggaran' ? `<span class="bad-t">${db.pelanggaran.reduce((n, i) => n + i.baris.length, 0)} pelanggaran baru</span>` : `<span class="warn-t">DB ${esc(db.status)}</span>`
+  return `<div class="inner" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;font-size:13px"><b>Pemeriksaan DB</b>${judul}</div>${diff || (db.status !== 'memeriksa' ? '<div class="note">Tidak ada dokumen yang diikuti berubah.</div>' : '')}${sembuh}${galat}${(db.pelanggaran ?? []).map((it) => pcard(it, runId, { catat })).join('')}</div>`
+}
+function wirePemeriksaan(root, r, rerender) {
+  for (const b of root.querySelectorAll('[data-plihat]')) b.onclick = () => { const k = b.dataset.plihat; if (S.pLihat.has(k)) S.pLihat.delete(k); else S.pLihat.add(k); rerender() }
+  for (const b of root.querySelectorAll('[data-pcatat]')) b.onclick = () => {
+    const it = r.pemeriksaan?.baru.find((x) => x.id === b.dataset.pcatat) ?? r.steps.flatMap((s) => s.db?.pelanggaran ?? []).find((x) => x.id === b.dataset.pcatat)
+    if (!it) return
+    S.jenis = 'bug'
+    renderJenis()
+    const ta = $('#j-text')
+    if (!ta) return
+    ta.value = teksTemuanPemeriksaan(it)
+    ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    ta.focus()
+  }
+}
+
 // ── Layar riwayat ──────────────────────────────────────────────────────────
 async function renderRiwayat(runId) {
   let runs = []
@@ -852,20 +950,23 @@ async function renderRunDetail(id) {
       const stc = { lulus: 'ok-t', gagal: 'bad-t', dihentikan: 'warn-t' }[s.status] ?? 'dim'
       const fa = s.aksi.find((a) => a.status === 'gagal')
       return `<li><div class="rail"><span class="ic ${c}">${t}</span>${i < r.steps.length - 1 ? '<div class="line"></div>' : ''}</div><div class="body">
-        <div class="hd"><b>${s.n}. ${esc(s.title)}</b><span class="st ${stc}">${label[s.status] ?? s.status}</span>${s.ms ? `<span class="sub">${dtk(s.ms)}</span>` : ''}</div>
+        <div class="hd"><b>${s.n}. ${esc(s.title)}</b><span class="st ${stc}">${label[s.status] ?? s.status}</span>${s.ms ? `<span class="sub">${dtk(s.ms)}</span>` : ''}${dbChip(s)}</div>
         <div class="sub">Harus terlihat: ${esc(s.expect)}${s.who_name ? ` · ${esc(s.who_name)}` : ''}</div>
         ${s.status === 'gagal' ? `<div class="errbox"><b>${fa ? `Aksi gagal: ${esc(fa.teks)}` : 'Langkah gagal'}</b><div class="mono">${esc(s.error ?? '')}</div>${s.shot ? `<img src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot langkah ${s.n} gagal">` : ''}</div>` : ''}
         ${s.notes?.length ? `<div class="finding"><b class="warn-t">Catatan langkah</b>${s.notes.map(esc).join('<br>')}</div>` : ''}
+        ${s.db && (s.db.dokumen?.length || s.db.pelanggaran?.length || s.db.sembuh?.length || s.db.status === 'galat') ? dbLangkahBox(s, r.run_id, { catat: false }) : ''}
         ${fin(s.n).map((f) => `<div class="finding"><span><span class="chip ${f.jenis === 'bug' ? 'bad' : f.jenis === 'skenario' ? 'acc' : ''}">${LABEL_JENIS[f.jenis] ?? f.jenis}</span> <span class="dim" style="font-size:12px">${esc(jam(f.at))}${f.aksi ? ` · ${esc(f.aksi)}` : ''}</span></span><span>${esc(f.note)}</span>${f.screenshot ? `<a href="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" target="_blank" rel="noopener"><img class="thumb" src="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" alt="Screenshot temuan"></a>` : ''}</div>`).join('')}
         ${s.aksi?.length && !['menunggu', 'dilompati'].includes(s.status) ? `<details><summary>${s.aksi.length} aksi${s.shot && s.status === 'lulus' ? ' · screenshot akhir langkah' : ''}</summary><ol>${s.aksi.map((a) => `<li class="${a.status === 'gagal' ? 'bad-t' : ''}">${esc(a.teks)}${a.ms != null ? ` <span class="dim">· ${dtk(a.ms)}</span>` : ''}</li>`).join('')}</ol>${s.shot && s.status === 'lulus' ? `<a href="/runs/${esc(r.run_id)}/${esc(s.shot)}" target="_blank" rel="noopener"><img class="thumb" style="margin-top:8px" src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot akhir langkah ${s.n}" loading="lazy"></a>` : ''}</details>` : ''}
       </div></li>`
     }).join('')}</ol>
+    ${pemeriksaanBox(r, { catat: false })}
     ${r.cleanup_error ? `<div class="errbox"><b>Pembersihan bermasalah</b><div class="mono">${esc(r.cleanup_error)}</div></div>` : ''}
     <div class="ctlbar">
       ${fromN && fromN > 1 ? `<button type="button" class="btn primary h44" id="h-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
       <a class="btn h44" href="#/ringkasan/${esc(r.scenario)}">Ringkasan skenario</a>
       ${r.trace ? '<button type="button" class="btn h44" id="h-trace">Salin perintah trace</button>' : ''}
     </div>`
+  wirePemeriksaan(el, r, () => renderRunDetail(id))
   $('#h-replay')?.addEventListener('click', () => replay(r.run_id, fromN, r.scenario))
   $('#h-trace')?.addEventListener('click', () => salin(`bunx playwright show-trace runs/${r.run_id}/${r.trace}`, 'Perintah trace disalin'))
 }
