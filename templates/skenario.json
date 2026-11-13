@@ -1,0 +1,43 @@
+{
+  "slug": "contoh-skenario",
+  "judul": "Judul singkat skenario",
+  "tujuan": "Membuktikan … (satu kalimat: perilaku apa yang harus terlihat di layar).",
+  "modul": "material",
+  "tiket": ["FMS-0"],
+  "estimasi": "3 menit",
+  "persona": [{ "siapa": "mbl.storekeeper", "peran": "membuka barang baru" }],
+  "data": ["Satu barang baru \"Uji SR Contoh <stempel>\" dengan saldo awal 5 di WH-ALPHA"],
+  "setelan": [],
+  "prasyarat": [],
+  "catatan": [],
+  "siapkan": [
+    {
+      "siapkan": "barang",
+      "simpan": "barang",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-CTH",
+      "nama": "Uji SR Contoh",
+      "jumlah": 5
+    },
+    {
+      "dokumen": {
+        "label": "Barang",
+        "nomor": "{barang.sku}",
+        "url": "/inventory/items/{barang.id}"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "buka-barang",
+      "judul": "Wati membuka barang yang baru dibuat",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Detail barang tampil dengan SKU-nya",
+      "aksi": [
+        { "buka": "/inventory/items/{barang.id}" },
+        { "banner": "Wati membuka {barang.nama}", "tahan": 3000 },
+        { "pastikanTerlihat": "{barang.sku}" }
+      ]
+    }
+  ]
+}

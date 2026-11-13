@@ -8,6 +8,7 @@
     "panel": "bun src/server.ts",
     "scenario": "bun src/cli.ts",
     "new": "bun src/new.ts",
+    "docs:pustaka": "bun src/docs-pustaka.ts",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "check:scenarios": "bun src/check-scenarios.ts",

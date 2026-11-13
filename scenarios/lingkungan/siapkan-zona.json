@@ -1,0 +1,36 @@
+{
+  "slug": "siapkan-zona",
+  "judul": "Siapkan zona waktu MBL",
+  "tujuan": "Memastikan zona waktu perusahaan MBL terkonfirmasi (Asia/Jakarta) supaya dialog \"Mulai inspeksi\" bisa dikonfirmasi.",
+  "modul": "lingkungan",
+  "tiket": [],
+  "estimasi": "1 menit",
+  "persona": [{ "siapa": "mbl.superintendent", "peran": "mengonfirmasi zona waktu lewat API" }],
+  "data": ["Tidak ada dokumen baru"],
+  "setelan": ["Zona waktu perusahaan MBL dikonfirmasi Asia/Jakarta bila belum"],
+  "setelanMenetap": "Tanpa zona terkonfirmasi, alur pemeriksaan tidak bisa dimulai; perubahan ini memang prasyarat lingkungan.",
+  "prasyarat": [],
+  "catatan": ["Aman dijalankan berulang: bila zona sudah terkonfirmasi, tidak ada yang diubah."],
+  "siapkan": [{ "siapkan": "zona-waktu", "simpan": "sebelum", "sebagai": "mbl.superintendent" }],
+  "langkah": [
+    {
+      "id": "konfirmasi-zona",
+      "judul": "Bagus mengonfirmasi zona waktu Asia/Jakarta bila belum",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "Zona waktu MBL terkonfirmasi (CONFIRMED)",
+      "aksi": [
+        {
+          "api": "konfirmasi-zona-waktu",
+          "simpan": "sesudah",
+          "sebagai": "mbl.superintendent",
+          "zona": "Asia/Jakarta"
+        },
+        { "buka": "/" },
+        {
+          "banner": "Zona waktu MBL: {sesudah.default_time_zone} ({sesudah.confirmation_status})",
+          "tahan": 3000
+        }
+      ]
+    }
+  ]
+}

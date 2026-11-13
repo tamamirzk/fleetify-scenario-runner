@@ -1,14 +1,13 @@
-// Tipe tunggal untuk semua skenario. Skenario: `export default defineScenario({ meta, setup, steps })`.
+// Konteks yang diterima aksi pustaka (src/pustaka). Skenario sendiri berupa JSON (core/skema.ts).
 import type { APIRequestContext, Locator, Page } from 'playwright'
 import type { Controller } from './controller.ts'
 import type * as kitModule from './kit.ts'
 import type * as libModule from './lib.ts'
-import type { ScenarioMeta } from './meta.ts'
 import type { PersonaId } from './personas.ts'
 
 /**
  * Isi respons API v2. Alat uji ini tidak memakai klien tergenerasi v2, jadi respons
- * dibaca longgar dan skenario memeriksa sendiri isinya (mis. lewat `ok()` dan throw).
+ * dibaca longgar dan pustaka memeriksa sendiri isinya (mis. lewat `ok()` dan throw).
  */
 // biome-ignore lint/suspicious/noExplicitAny: respons API v2 tidak bertipe di alat uji eksternal
 export type Body = any
@@ -27,18 +26,18 @@ export interface Doc {
   url: string
 }
 
-/** Data hasil setup(); langkah boleh menambah field. `docs` tampil di panel. */
-export interface ScenarioData {
-  docs?: Doc[]
-}
-
 export type Kit = ReturnType<typeof kitModule.kit>
 
+/** Konteks aksi pustaka jenis "api" (tanpa jendela): siapkan, capai, bersihkan, langkah. */
 export interface BaseCtx {
   lib: typeof libModule
   kit: typeof kitModule
   ctl: Controller
+  /** Stempel waktu pendek, sama untuk seluruh jalan (untuk SKU/kode data uji). */
+  stempel: string
   log(line: string): void
+  /** Catatan di hasil langkah (mis. dugaan temuan) tanpa menggagalkan langkah. */
+  note(text: string): void
   /** Sesi API persona lain tanpa jendela; ditutup otomatis di akhir. */
   as(who: PersonaId): Promise<APIRequestContext>
   api: {
@@ -48,45 +47,15 @@ export interface BaseCtx {
   ok(res: ApiResult, label: string): Body
 }
 
+/** Konteks aksi pustaka jenis "layar": jendela satu-satunya dan helper aksi terlihat. */
 export interface StepCtx extends BaseCtx {
   page: Page
   k: Kit
-  n: number
-  total: number
-  /** Banner bernomor `n/total · teks`, lalu tahan. */
-  say(text: string, ms?: number): Promise<void>
   /** Tahan; mengikuti jeda, kecepatan, dan mode headless. */
   wait(ms: number): Promise<void>
-  shot(name: string): Promise<string | null>
-  become(who: PersonaId): Promise<void>
   open(route: string): Promise<void>
-  /** Catatan di hasil langkah (mis. dugaan temuan) tanpa menggagalkan langkah. */
-  note(text: string): void
+  say(text: string, ms?: number): Promise<void>
+  shot(name: string): Promise<string | null>
 }
-
-export interface Step<D extends ScenarioData> {
-  /** kebab-case, unik dalam skenario. */
-  id: string
-  /** Kalimat aktif: siapa melakukan apa. */
-  title: string
-  /** Yang harus terlihat di layar setelah langkah selesai. */
-  expect: string
-  /** Persona jendela untuk langkah ini; runner berganti akun bila berbeda. */
-  who?: PersonaId
-  /** Bawa data ke awal langkah ini lewat API, supaya panel bisa mulai dari sini. */
-  reach?(ctx: BaseCtx, data: D): Promise<void>
-  run(ctx: StepCtx, data: D): Promise<void>
-}
-
-export interface Scenario<D extends ScenarioData = ScenarioData> {
-  meta: ScenarioMeta
-  /** Buat data segar lewat API. Hasilnya disimpan ke data.json jalan. */
-  setup?(ctx: BaseCtx): Promise<D>
-  steps: Step<D>[]
-  /** Kembalikan setelan lewat API; berjalan juga saat gagal atau dihentikan. */
-  cleanup?(ctx: BaseCtx, data: D): Promise<void>
-}
-
-export const defineScenario = <D extends ScenarioData>(s: Scenario<D>): Scenario<D> => s
 
 export type { Locator, Page, PersonaId }

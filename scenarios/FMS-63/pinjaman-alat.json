@@ -1,0 +1,382 @@
+{
+  "slug": "pinjaman-alat",
+  "judul": "Pinjaman alat per peminjam",
+  "tujuan": "Membuktikan alat yang dipinjamkan lewat MR mandiri tercatat per peminjam: bisa kembali sebagian (nomor seri), kembali dengan nomor seri, dan sisanya dicatat tidak kembali dengan alasan.",
+  "modul": "material",
+  "tiket": ["FMS-63"],
+  "estimasi": "4 menit",
+  "persona": [
+    {
+      "siapa": "mbl.storekeeper",
+      "peran": "membuat dan mengajukan MR, menerima alat kembali, mencatat yang tidak kembali"
+    },
+    { "siapa": "mbl.foreman", "peran": "approver MR (lewat API, tanpa jendela)" },
+    { "siapa": "mbl.supervisor", "peran": "approver MR tahap berikutnya bila ada (lewat API)" },
+    { "siapa": "mbl.superintendent", "peran": "approver MR tahap berikutnya bila ada (lewat API)" },
+    {
+      "siapa": "mbl.plant-superintendent",
+      "peran": "approver MR tahap berikutnya bila ada (lewat API)"
+    },
+    { "siapa": "mbl.planner", "peran": "approver MR tahap berikutnya bila ada (lewat API)" },
+    { "siapa": "mbl.mechanic", "peran": "peminjam alat (penerima serah terima)" }
+  ],
+  "data": [
+    "Dua barang alat baru tiap jalan dengan saldo awal di Gudang Site Alpha: \"Uji SR Torque Wrench <stempel>\" (TOOL, 2 nomor seri) dan \"Uji SR Scanner <stempel>\" (TOOL, 1 nomor seri)",
+    "MR mandiri draf: 2 Torque Wrench dan 1 Scanner"
+  ],
+  "setelan": [],
+  "prasyarat": [
+    "Penjaga Gudang boleh membuat barang dan memasang saldo awal (inventory:items:create, post_opening_balance)"
+  ],
+  "catatan": [
+    "Semua baris diserahkan sekaligus ke Made (serah terima bertahap ke beberapa peminjam belum dicakup skenario ini).",
+    "Approval MR dan serah terima dilakukan lewat API (di belakang layar).",
+    "Torque Wrench memakai nomor seri, bukan batch: aplikasi menolak pelacakan Batch untuk barang baru. Pengembalian sebagian tetap terlihat (1 dari 2 seri)."
+  ],
+  "siapkan": [
+    {
+      "siapkan": "barang",
+      "simpan": "wrench",
+      "gudang": "Gudang Site Alpha",
+      "jenis": "TOOL",
+      "kode": "SR-TRQ",
+      "nama": "Uji SR Torque Wrench",
+      "seri": 2
+    },
+    {
+      "siapkan": "barang",
+      "simpan": "scanner",
+      "gudang": "Gudang Site Alpha",
+      "jenis": "TOOL",
+      "kode": "SR-SCN",
+      "nama": "Uji SR Scanner",
+      "seri": 1
+    },
+    {
+      "siapkan": "mr-mandiri",
+      "simpan": "mr",
+      "gudang": "Gudang Site Alpha",
+      "keterangan": "Uji skenario: pinjaman alat per peminjam",
+      "baris": [
+        { "barang": "{wrench}", "jenis": "TOOL", "jumlah": 2 },
+        { "barang": "{scanner}", "jenis": "TOOL", "jumlah": 1 }
+      ]
+    },
+    {
+      "dokumen": {
+        "label": "Barang Torque Wrench (2 seri)",
+        "nomor": "{wrench.sku}",
+        "url": "/inventory/items/{wrench.id}"
+      }
+    },
+    {
+      "dokumen": {
+        "label": "Barang Scanner (1 seri)",
+        "nomor": "{scanner.sku}",
+        "url": "/inventory/items/{scanner.id}"
+      }
+    },
+    {
+      "dokumen": {
+        "label": "Material Request (draf)",
+        "nomor": "{mr.nomor}",
+        "url": "/inventory/material-requests/{mr.id}"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "buka",
+      "judul": "Wati membuka MR mandiri yang baru dibuat",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "MR berstatus Draf berisi 2 Torque Wrench dan 1 Scanner",
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "Wati membuka {mr.nomor}: MR mandiri berisi 2 Torque Wrench dan 1 Scanner (draf dibuat di belakang layar)",
+          "tahan": 3500
+        },
+        { "pastikanTerlihat": "{mr.nomor}" }
+      ]
+    },
+    {
+      "id": "ajukan",
+      "judul": "Wati mengajukan MR mandiri",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Status berubah menjadi Menunggu persetujuan (atau langsung Disetujui bila tanpa pemetaan)",
+      "capai": [],
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        { "banner": "Wati mengajukan MR mandiri", "tahan": 2200 },
+        { "klik": { "tombol": "Ajukan", "persis": true }, "tahan": 1500 },
+        { "tahan": 2000 }
+      ]
+    },
+    {
+      "id": "approval",
+      "judul": "Approver menyetujui MR (di belakang layar)",
+      "sebagai": "mbl.storekeeper",
+      "diBelakangLayar": true,
+      "harusTerlihat": "MR Disetujui",
+      "capai": [{ "api": "ajukan-mr", "mr": "{mr.id}" }],
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "MR menunggu approval; approver menyetujui (di belakang layar)",
+          "tahan": 2500
+        },
+        {
+          "api": "setujui-semua",
+          "dokumen": "MATERIAL_REQUEST",
+          "id": "{mr.id}",
+          "persetuju": [
+            "mbl.foreman",
+            "mbl.supervisor",
+            "mbl.superintendent",
+            "mbl.plant-superintendent",
+            "mbl.planner"
+          ]
+        },
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        { "banner": "MR Disetujui", "tahan": 2500 }
+      ]
+    },
+    {
+      "id": "serah",
+      "judul": "Alat diserahkan ke Made (di belakang layar)",
+      "sebagai": "mbl.storekeeper",
+      "diBelakangLayar": true,
+      "harusTerlihat": "Baris \"Peminjam: Made\" tampil: Torque Wrench dipinjam 2, Scanner dipinjam 1",
+      "capai": [
+        { "api": "ajukan-mr", "mr": "{mr.id}" },
+        {
+          "api": "setujui-semua",
+          "dokumen": "MATERIAL_REQUEST",
+          "id": "{mr.id}",
+          "persetuju": [
+            "mbl.foreman",
+            "mbl.supervisor",
+            "mbl.superintendent",
+            "mbl.plant-superintendent",
+            "mbl.planner"
+          ]
+        }
+      ],
+      "aksi": [
+        {
+          "api": "serah-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "penerima": "Made",
+          "baris": [
+            { "baris": "{mr.baris.0}", "jumlah": 2, "seri": "{wrench.seri}" },
+            { "baris": "{mr.baris.1}", "jumlah": 1, "seri": "{scanner.seri}" }
+          ]
+        },
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "Diserahkan ke Made: 2 Torque Wrench dan 1 Scanner (di belakang layar). Perhatikan baris \"Peminjam\"",
+          "tahan": 1200
+        },
+        { "gulir": { "blok": ["Peminjam: Made", "dipinjam 2"] } },
+        { "pastikanTerlihat": { "blok": ["Peminjam: Made", "dipinjam 2"] } },
+        { "tahan": 2500 }
+      ]
+    },
+    {
+      "id": "kembali-sebagian",
+      "judul": "Made mengembalikan 1 dari 2 Torque Wrench (nomor seri)",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Pinjaman Made: dipinjam 2 · kembali 1 · sisa 1",
+      "capai": [
+        { "api": "ajukan-mr", "mr": "{mr.id}" },
+        {
+          "api": "setujui-semua",
+          "dokumen": "MATERIAL_REQUEST",
+          "id": "{mr.id}",
+          "persetuju": [
+            "mbl.foreman",
+            "mbl.supervisor",
+            "mbl.superintendent",
+            "mbl.plant-superintendent",
+            "mbl.planner"
+          ]
+        },
+        {
+          "api": "serah-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "penerima": "Made",
+          "baris": [
+            { "baris": "{mr.baris.0}", "jumlah": 2, "seri": "{wrench.seri}" },
+            { "baris": "{mr.baris.1}", "jumlah": 1, "seri": "{scanner.seri}" }
+          ]
+        }
+      ],
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "Made mengembalikan 1 dari 2 Torque Wrench (nomor seri)",
+          "tahan": 2200
+        },
+        {
+          "klik": {
+            "tombol": "Kembalikan alat",
+            "dalam": { "blok": ["Peminjam: Made", "dipinjam 2"] }
+          },
+          "tahan": 1500
+        },
+        {
+          "isi": { "label": "Jumlah diterima", "dalam": { "dialog": true } },
+          "nilai": "1",
+          "tahan": 1200
+        },
+        {
+          "isi": { "label": "Nomor seri / batch yang dikembalikan", "dalam": { "dialog": true } },
+          "nilai": "{wrench.seri.0}",
+          "tahan": 1200
+        },
+        { "klik": { "tombol": "Terima ke stok", "dalam": { "dialog": true } }, "tahan": 1500 },
+        { "tunggu": { "dialog": true }, "hilang": true },
+        { "banner": "Pinjaman Made: dipinjam 2 · kembali 1 · sisa 1", "tahan": 3000 }
+      ]
+    },
+    {
+      "id": "kembali-serial",
+      "judul": "Made mengembalikan Scanner (nomor seri)",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Pinjaman Scanner: kembali 1, sisa 0",
+      "capai": [
+        { "api": "ajukan-mr", "mr": "{mr.id}" },
+        {
+          "api": "setujui-semua",
+          "dokumen": "MATERIAL_REQUEST",
+          "id": "{mr.id}",
+          "persetuju": [
+            "mbl.foreman",
+            "mbl.supervisor",
+            "mbl.superintendent",
+            "mbl.plant-superintendent",
+            "mbl.planner"
+          ]
+        },
+        {
+          "api": "serah-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "penerima": "Made",
+          "baris": [
+            { "baris": "{mr.baris.0}", "jumlah": 2, "seri": "{wrench.seri}" },
+            { "baris": "{mr.baris.1}", "jumlah": 1, "seri": "{scanner.seri}" }
+          ]
+        },
+        {
+          "api": "kembalikan-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "baris": "{mr.baris.0}",
+          "seri": "{wrench.seri.0}"
+        }
+      ],
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        { "banner": "Made mengembalikan Scanner (nomor seri)", "tahan": 2200 },
+        {
+          "klik": {
+            "tombol": "Kembalikan alat",
+            "dalam": { "blok": ["Peminjam: Made", "dipinjam 1"] }
+          },
+          "tahan": 1500
+        },
+        {
+          "isi": { "label": "Nomor seri / batch yang dikembalikan", "dalam": { "dialog": true } },
+          "nilai": "{scanner.seri.0}",
+          "tahan": 1200
+        },
+        { "klik": { "tombol": "Terima ke stok", "dalam": { "dialog": true } }, "tahan": 1500 },
+        { "tunggu": { "dialog": true }, "hilang": true },
+        { "tahan": 1500 }
+      ]
+    },
+    {
+      "id": "catat-tidak-kembali",
+      "judul": "Sisa 1 Torque Wrench dicatat tidak kembali dengan alasan",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Torque Wrench: kembali 1, tidak kembali 1 · Scanner: kembali 1",
+      "capai": [
+        { "api": "ajukan-mr", "mr": "{mr.id}" },
+        {
+          "api": "setujui-semua",
+          "dokumen": "MATERIAL_REQUEST",
+          "id": "{mr.id}",
+          "persetuju": [
+            "mbl.foreman",
+            "mbl.supervisor",
+            "mbl.superintendent",
+            "mbl.plant-superintendent",
+            "mbl.planner"
+          ]
+        },
+        {
+          "api": "serah-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "penerima": "Made",
+          "baris": [
+            { "baris": "{mr.baris.0}", "jumlah": 2, "seri": "{wrench.seri}" },
+            { "baris": "{mr.baris.1}", "jumlah": 1, "seri": "{scanner.seri}" }
+          ]
+        },
+        {
+          "api": "kembalikan-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "baris": "{mr.baris.0}",
+          "seri": "{wrench.seri.0}"
+        },
+        {
+          "api": "kembalikan-alat",
+          "mr": "{mr.id}",
+          "gudang": "{mr.gudang_id}",
+          "baris": "{mr.baris.1}",
+          "seri": "{scanner.seri.0}"
+        }
+      ],
+      "aksi": [
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "Sisa 1 Torque Wrench Made tidak kembali: dicatat manual dengan alasan",
+          "tahan": 2200
+        },
+        {
+          "klik": {
+            "tombol": "Catat tidak kembali",
+            "dalam": { "blok": ["Peminjam: Made", "dipinjam 2"] }
+          },
+          "tahan": 1500
+        },
+        {
+          "isi": { "label": "Alasan alat tidak kembali", "dalam": { "dialog": true } },
+          "nilai": "Hilang di site saat pengerjaan malam",
+          "tahan": 1200
+        },
+        {
+          "klik": { "tombol": "Catat tidak kembali", "dalam": { "dialog": true } },
+          "tahan": 1500
+        },
+        { "tunggu": { "dialog": true }, "hilang": true },
+        {
+          "banner": "Selesai · Torque Wrench: kembali 1, tidak kembali 1 · Scanner: kembali 1",
+          "tahan": 4000
+        },
+        {
+          "api": "periksa-pinjaman",
+          "mr": "{mr.id}",
+          "baris": "{mr.baris.0}",
+          "kembali": 1,
+          "tidakKembali": 1
+        }
+      ]
+    }
+  ]
+}

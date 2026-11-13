@@ -1,13 +1,13 @@
 // CLI Scenario Runner (tanpa panel). Format skenario sama dengan panel.
-//   bun run scenario <id> [--headed] [--speed 1.5] [--from <n>] [--data <id>/<waktu>]
+//   bun run scenario <slug> [--headed] [--speed 1.5] [--from <n>] [--data <slug>/<waktu>]
 //   bun run scenario --list
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { Run } from './core/run.ts'
-import { describeScenario, listScenarios, loadScenario } from './core/scenarios.ts'
+import { bacaSemua, muatSkenario } from './core/scenarios.ts'
 
 const USAGE =
-  'Pakai: bun run scenario <id> [--headed] [--speed n] [--from n] [--data <id>/<waktu>] | --list'
+  'Pakai: bun run scenario <slug> [--headed] [--speed n] [--from n] [--data <slug>/<waktu>] | --list'
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
@@ -28,32 +28,28 @@ if (values.help) {
 }
 
 if (values.list) {
-  for (const s of await listScenarios()) {
-    const group = 'group' in s ? s.group : '-'
-    const err = 'error' in s ? `  [GALAT ${s.error}]` : ''
-    console.log(`${s.id.padEnd(18)} ${group.padEnd(11)} ${s.title}${err}`)
+  for (const b of bacaSemua()) {
+    const err = b.skenario ? '' : `  [TIDAK VALID: ${b.masalah[0]?.message ?? ''}]`
+    console.log(`${b.slug.padEnd(18)} ${b.task.padEnd(11)} ${b.skenario?.judul ?? b.path}${err}`)
   }
   process.exit(0)
 }
 
-const id = positionals[0]
-if (!id) {
+const slug = positionals[0]
+if (!slug) {
   console.error(USAGE)
   process.exit(2)
 }
 
-const desc = await describeScenario(id)
-const run = new Run(id, await loadScenario(id), {
-  headed: !!values.headed,
-  speed: Number(values.speed ?? 1),
-})
+const berkas = muatSkenario(slug)
+const run = new Run(berkas, { headed: !!values.headed, speed: Number(values.speed ?? 1) })
 run.on('log', (l: string) => console.log(l))
 process.on('SIGINT', () => {
   void run.stop()
 })
 
 console.log(
-  `Skenario ${desc.title} (${desc.steps.length} langkah) · ${values.headed ? 'headed' : 'headless'} · jalan ${run.runId}`,
+  `Skenario ${berkas.skenario.judul} (${berkas.path}, ${berkas.skenario.langkah.length} langkah) · ${values.headed ? 'headed' : 'headless'} · jalan ${run.runId}`,
 )
 await run.prepare({ fromRun: values.data })
 await run.start({ from: Math.max(0, Number(values.from ?? 1) - 1) })
@@ -68,5 +64,6 @@ const passed = r.steps.filter((s) => s.status === 'lulus').length
 console.log(
   `\nStatus: ${r.status} · ${passed}/${r.steps.length} lulus · bukti: ${path.relative(process.cwd(), run.dir)}`,
 )
+if (r.cleanup_error) console.log(`Pembersihan: ${r.cleanup_error}`)
 if (r.trace) console.log(`trace: bunx playwright show-trace ${path.join(run.dir, r.trace)}`)
-process.exit(r.status === 'selesai' ? 0 : 1)
+process.exit(r.status === 'selesai' && !r.cleanup_error ? 0 : 1)

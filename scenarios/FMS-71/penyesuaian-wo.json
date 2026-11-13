@@ -1,0 +1,296 @@
+{
+  "slug": "penyesuaian-wo",
+  "judul": "Penyesuaian WO dan retur material",
+  "tujuan": "Membuktikan penyesuaian WO berjalan (kurangi jumlah, ganti part) lewat approval, WO menampilkan bagian Penyesuaian dan peringatan \"Harus kembali ke gudang\", lalu peringatan hilang setelah retur diterima gudang.",
+  "modul": "wo",
+  "tiket": ["FMS-71", "FMS-61", "FMS-62"],
+  "estimasi": "8 menit",
+  "persona": [
+    { "siapa": "mbl.planner", "peran": "membuka WO dan mengajukan penyesuaian" },
+    { "siapa": "mbl.storekeeper", "peran": "menyerahkan material dan menerima retur" },
+    { "siapa": "mbl.plant-superintendent", "peran": "menyetujui penyesuaian" },
+    { "siapa": "mbl.foreman", "peran": "melihat WO dan mengajukan retur" },
+    { "siapa": "mbl.supervisor", "peran": "merilis WO (lewat API, tanpa jendela)" }
+  ],
+  "data": [
+    "Tiga barang part baru tiap jalan dengan saldo awal 10 di WH-ALPHA: \"Uji SR Kampas Rem <stempel>\", \"Uji SR Bearing Roda <stempel>\", dan part pengganti \"Uji SR Bearing Pengganti <stempel>\"",
+    "WO langsung untuk DT-014 di Workshop Site Alpha: Kampas ×5 dan Bearing ×4, dirilis sehingga MR awal Disetujui"
+  ],
+  "setelan": [],
+  "prasyarat": ["Penjaga Gudang boleh membuat barang dan memasang saldo awal"],
+  "catatan": [
+    "Foto bukti penerimaan retur memakai jalur tempel URL karena penyimpanan media lokal biasanya tidak dikonfigurasi."
+  ],
+  "siapkan": [
+    {
+      "siapkan": "barang",
+      "simpan": "kampas",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-KPS",
+      "nama": "Uji SR Kampas Rem",
+      "jumlah": 10
+    },
+    {
+      "siapkan": "barang",
+      "simpan": "bearing",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-BRG",
+      "nama": "Uji SR Bearing Roda",
+      "jumlah": 10
+    },
+    {
+      "siapkan": "barang",
+      "simpan": "pengganti",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-BRP",
+      "nama": "Uji SR Bearing Pengganti",
+      "jumlah": 10
+    },
+    {
+      "siapkan": "wo-dirilis",
+      "simpan": "wo",
+      "pembuat": "mbl.planner",
+      "perilis": "mbl.supervisor",
+      "unit": "DT-014",
+      "bengkel": "Workshop Site Alpha",
+      "gudang": "{kampas.gudang_id}",
+      "baris": [{ "barang": "{kampas}", "jumlah": 5 }, { "barang": "{bearing}", "jumlah": 4 }]
+    },
+    {
+      "dokumen": {
+        "label": "Work Order (dirilis)",
+        "nomor": "{wo.nomor}",
+        "url": "/work-orders/wo/{wo.id}"
+      }
+    },
+    {
+      "dokumen": {
+        "label": "Part pengganti",
+        "nomor": "{pengganti.sku}",
+        "url": "/inventory/items/{pengganti.id}"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "buka-wo",
+      "judul": "Putri membuka WO yang disiapkan di belakang layar",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "WO berisi Kampas Rem ×5 dan Bearing Roda ×4",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Putri membuka {wo.nomor}: {kampas.nama} ×5 dan {bearing.nama} ×4 (WO disiapkan di belakang layar)",
+          "tahan": 4000
+        },
+        { "pastikanTerlihat": "{kampas.nama}" }
+      ]
+    },
+    {
+      "id": "serah-material",
+      "judul": "Wati mengeluarkan material dari stok untuk Fajar",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "MR berstatus Dikeluarkan",
+      "capai": [],
+      "aksi": [
+        { "api": "mr-disetujui-wo", "wo": "{wo.id}", "simpan": "mr" },
+        { "buka": "/inventory/material-requests/{mr.id}" },
+        {
+          "banner": "Wati membuka {mr.nomor}, lalu mengeluarkan material dari stok untuk Fajar",
+          "tahan": 4000
+        },
+        { "klik": { "tombol": "Keluarkan dari Stok" } },
+        { "tunggu": { "dialog": true } },
+        { "tahan": 1500 },
+        {
+          "cari": { "combobox": "/Diterima oleh/", "dalam": { "dialog": true } },
+          "ketik": "Fajar",
+          "opsi": "Fajar"
+        },
+        {
+          "isi": { "label": "/^Catatan pengambilan/", "dalam": { "dialog": true } },
+          "nilai": "Diserahkan lengkap ke Foreman Fajar"
+        },
+        { "klik": { "tombol": "Keluarkan dari Stok", "dalam": { "dialog": true } } },
+        { "tunggu": { "dialog": true }, "hilang": true, "batas": 20000 },
+        { "banner": "Material sudah diserahkan; MR berstatus Dikeluarkan", "tahan": 4000 }
+      ]
+    },
+    {
+      "id": "sesuaikan",
+      "judul": "Putri menyesuaikan WO: kurangi Kampas Rem, ganti Bearing",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Pratinjau \"Yang akan terjadi\" tampil; ADJ terbit dengan status Menunggu persetujuan",
+      "capai": [
+        {
+          "api": "serah-mr-wo",
+          "wo": "{wo.id}",
+          "gudang": "{kampas.gudang_id}",
+          "penerima": "mbl.foreman"
+        }
+      ],
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Putri membuka {wo.nomor} dan memilih Sesuaikan Work Order",
+          "tahan": 4000
+        },
+        { "klik": { "tombol": "Sesuaikan Work Order" } },
+        { "tungguUrl": "/adjustments\\/new/" },
+        { "tahan": 2000 },
+        { "banner": "{kampas.nama}: dikurangi dari 5 menjadi 3", "tahan": 2500 },
+        {
+          "pilih": { "combobox": "/Tindakan/", "dalam": { "baris": "{kampas.nama}" } },
+          "opsi": "Kurangi jumlah"
+        },
+        {
+          "isi": { "label": "/Jumlah baru/", "dalam": { "baris": "{kampas.nama}" } },
+          "nilai": "3",
+          "tahan": 2500
+        },
+        {
+          "banner": "{bearing.nama}: diganti dengan part pengganti (SKU {pengganti.sku}), jumlah 4",
+          "tahan": 2500
+        },
+        {
+          "pilih": { "combobox": "/Tindakan/", "dalam": { "baris": "{bearing.nama}" } },
+          "opsi": "Ganti part"
+        },
+        {
+          "cari": { "combobox": "/Part pengganti/", "dalam": { "baris": "{bearing.nama}" } },
+          "ketik": "{pengganti.sku}",
+          "opsi": "{pengganti.sku}"
+        },
+        {
+          "isi": { "label": "/^Jumlah pengganti/", "dalam": { "baris": "{bearing.nama}" } },
+          "nilai": "4",
+          "tahan": 2500
+        },
+        { "pilih": { "combobox": "/^Alasan/" }, "opsi": "Jumlah berlebih", "tahan": 1500 },
+        { "tunggu": { "teks": "Yang akan terjadi" } },
+        {
+          "banner": "Pratinjau \"Yang akan terjadi\": jumlah, nilai, dan barang yang harus kembali",
+          "tahan": 6000
+        },
+        { "screenshot": "pratinjau-penyesuaian" },
+        { "klik": { "tombol": "Ajukan penyesuaian" } },
+        { "tungguUrl": "/\\/work-orders\\/wo\\/adjustments\\/[0-9a-f-]{36}$/" },
+        { "tahan": 2500 },
+        { "simpan": "adj_nomor", "dariTeks": "/ADJ-\\d{6}-\\d{3}/" },
+        { "simpan": "adj_id", "dariUrl": "/adjustments\\/([0-9a-f-]{36})/" },
+        {
+          "dokumen": {
+            "label": "Penyesuaian WO",
+            "nomor": "{adj_nomor}",
+            "url": "/work-orders/wo/adjustments/{adj_id}"
+          }
+        },
+        { "banner": "{adj_nomor} diajukan: Menunggu persetujuan", "tahan": 4000 }
+      ]
+    },
+    {
+      "id": "setujui",
+      "judul": "Andi menyetujui penyesuaian dari Kotak Masuk",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Penyesuaian berstatus Diterapkan",
+      "aksi": [
+        { "buka": "/approvals" },
+        { "banner": "Andi membuka Kotak Masuk dan {adj_nomor}", "tahan": 4000 },
+        { "klik": { "teks": "{adj_nomor}" } },
+        { "tungguUrl": "/\\/work-orders\\/wo\\/adjustments\\//" },
+        { "tahan": 2500 },
+        { "klik": { "tombol": "Setujui" } },
+        { "pastikanTerlihat": "Diterapkan", "batas": 20000 },
+        { "banner": "{adj_nomor}: Diterapkan", "tahan": 4000 }
+      ]
+    },
+    {
+      "id": "lihat-wo",
+      "judul": "Fajar melihat bagian Penyesuaian, Adendum, dan peringatan \"Harus kembali ke gudang\"",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Bagian Penyesuaian tampil; peringatan \"Harus kembali ke gudang\" tampil",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "tahan": 2000 },
+        {
+          "banner": "Fajar melihat WO: bagian Penyesuaian, Adendum bila ada, dan peringatan \"Harus kembali ke gudang\"",
+          "tahan": 2000
+        },
+        { "gulir": { "teks": "Penyesuaian", "persis": true }, "opsional": true },
+        { "banner": "Bagian Penyesuaian", "tahan": 4500 },
+        { "gulir": { "teks": "Adendum", "persis": true }, "opsional": true },
+        { "gulir": { "teks": "/Harus kembali ke gudang/" } },
+        { "pastikanTerlihat": "/Harus kembali ke gudang/" },
+        {
+          "banner": "Peringatan \"Harus kembali ke gudang\": material sisa penyesuaian harus diretur",
+          "tahan": 5000
+        }
+      ]
+    },
+    {
+      "id": "ajukan-retur",
+      "judul": "Fajar mengajukan retur material",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Dialog Ajukan retur material tertutup; retur terbit",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "banner": "Fajar mengajukan retur material", "tahan": 2000 },
+        { "klik": { "tombol": "Ajukan retur" } },
+        { "tunggu": { "teks": "Ajukan retur material", "dalam": { "dialog": true } } },
+        { "tahan": 4000 },
+        {
+          "isi": { "label": "/^Catatan/", "dalam": { "dialog": true } },
+          "nilai": "Sisa tidak terpakai setelah penyesuaian WO"
+        },
+        { "screenshot": "dialog-retur" },
+        { "klik": { "tombol": "Ajukan retur", "dalam": { "dialog": true } } },
+        { "tunggu": { "dialog": true }, "hilang": true },
+        { "tahan": 3000 }
+      ]
+    },
+    {
+      "id": "terima-retur",
+      "judul": "Wati menerima material yang diretur",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "Retur diterima: Layak, dengan catatan dan foto bukti",
+      "aksi": [
+        { "api": "retur-wo", "nomorWo": "{wo.nomor}", "simpan": "retur" },
+        { "buka": "/inventory/return-material-requests/{retur.id}" },
+        {
+          "banner": "Wati menerima material yang diretur: Layak terisi, catatan dan foto bukti",
+          "tahan": 4000
+        },
+        { "klik": { "tombol": "Terima material" } },
+        { "tunggu": { "teks": "Terima material yang diretur", "dalam": { "dialog": true } } },
+        { "tahan": 3500 },
+        {
+          "isi": { "label": "/^Catatan penerimaan/", "dalam": { "dialog": true } },
+          "nilai": "Diterima utuh dan layak pakai"
+        },
+        {
+          "layar": "tambah-foto",
+          "dalam": { "dialog": true },
+          "url": "/api/v1/media/work-order/demo/demo-foto.jpg"
+        },
+        { "klik": { "tombol": "Konfirmasi penerimaan", "dalam": { "dialog": true } } },
+        { "tunggu": { "dialog": true }, "hilang": true, "batas": 20000 },
+        { "tahan": 3000 }
+      ]
+    },
+    {
+      "id": "cek-akhir",
+      "judul": "Peringatan \"Harus kembali ke gudang\" hilang dari WO",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Tidak ada lagi peringatan \"Harus kembali ke gudang\"",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "tahan": 2500 },
+        { "pastikanTidakTerlihat": "/Harus kembali ke gudang/" },
+        {
+          "banner": "Selesai · Peringatan \"Harus kembali ke gudang\" sudah hilang dari WO",
+          "tahan": 6000
+        }
+      ]
+    }
+  ]
+}

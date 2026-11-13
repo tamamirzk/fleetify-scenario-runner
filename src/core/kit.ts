@@ -65,7 +65,12 @@ export function kit({ total }: { total?: number } = {}) {
 type Kit = ReturnType<typeof kit>
 
 /** Pilih satu mekanik di multi-select "Mekanik" pada dialog; memastikan pilihan tercatat. */
-export async function chooseMechanic(page: Page, k: Kit, dlg: Locator, name = /Made Mekanik/) {
+export async function chooseMechanic(
+  page: Page,
+  k: Kit,
+  dlg: Locator,
+  name: string | RegExp = /Made Mekanik/,
+) {
   const crew = dlg.getByRole('combobox', { name: /^Mekanik/ }).last()
   for (let attempt = 0; attempt < 3; attempt++) {
     await k.click(page, crew, 2200)

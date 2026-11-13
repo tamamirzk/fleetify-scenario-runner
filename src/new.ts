@@ -1,22 +1,26 @@
-// bun run new <id> — buat kerangka scenarios/<id>.ts dari templates/scenario.ts.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+// bun run new <task> <slug> — buat kerangka scenarios/<task>/<slug>.json dari templates/skenario.json.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { ROOT } from './core/config.ts'
-import { ID_PATTERN, scenarioFile } from './core/scenarios.ts'
+import { config, ROOT } from './core/config.ts'
+import { SLUG, TASK } from './core/scenarios.ts'
 
-const id = Bun.argv[2]
-if (!id || !ID_PATTERN.test(id)) {
-  console.error('Pakai: bun run new <id>   (huruf kecil, angka, tanda hubung, mis. retur-rusak)')
+const [task, slug] = Bun.argv.slice(2)
+if (!task || !slug || !TASK.test(task) || !SLUG.test(slug)) {
+  console.error('Pakai: bun run new <task> <slug>   (mis. bun run new FMS-62 retur-rusak)')
   process.exit(2)
 }
-const target = scenarioFile(id)
+const dir = path.join(config.scenariosDir, task)
+const target = path.join(dir, `${slug}.json`)
 if (existsSync(target)) {
-  console.error(`scenarios/${id}.ts sudah ada`)
+  console.error(`${path.relative(ROOT, target)} sudah ada`)
   process.exit(1)
 }
-const template = readFileSync(path.join(ROOT, 'templates/scenario.ts'), 'utf8')
+mkdirSync(dir, { recursive: true })
+const template = readFileSync(path.join(ROOT, 'templates/skenario.json'), 'utf8')
 writeFileSync(
   target,
-  template.replace(/^\/\/ TEMPLAT.*\n/m, '').replaceAll("'contoh-skenario'", `'${id}'`),
+  template
+    .replaceAll('"contoh-skenario"', `"${slug}"`)
+    .replaceAll('"FMS-0"', `"${/^[A-Z]+-\d+$/.test(task) ? task : 'FMS-0'}"`),
 )
-console.log(`Dibuat scenarios/${id}.ts. Lengkapi meta, lalu: bun run check:scenarios`)
+console.log(`Dibuat ${path.relative(ROOT, target)}. Lengkapi, lalu: bun run check:scenarios`)

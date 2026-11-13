@@ -1,0 +1,245 @@
+{
+  "slug": "sesi-ditolak",
+  "judul": "Sesi kerja ditolak lalu diulang",
+  "tujuan": "Membuktikan sesi yang ditolak membawa dokumentasi lama ke sesi berikutnya, mekanik bisa mengubahnya, dan Riwayat item mencatat versi dokumentasi dari kedua sesi.",
+  "modul": "wo",
+  "tiket": ["FMS-31", "FMS-32", "FMS-34"],
+  "estimasi": "9 menit",
+  "persona": [
+    {
+      "siapa": "mbl.foreman",
+      "peran": "mengakhiri sesi, menolak lalu menyetujui, membuka Riwayat item"
+    },
+    { "siapa": "mbl.mechanic", "peran": "mendokumentasikan pekerjaan di kedua sesi" },
+    { "siapa": "mbl.planner", "peran": "membuat WO (lewat API)" },
+    { "siapa": "mbl.supervisor", "peran": "merilis WO (lewat API)" },
+    { "siapa": "mbl.storekeeper", "peran": "menyerahkan material (lewat API)" }
+  ],
+  "data": [
+    "Barang part baru tiap jalan \"Uji SR Bearing Roda <stempel>\" (saldo awal 5 di WH-ALPHA)",
+    "WO langsung DT-014: Bearing ×3, dirilis, material diserahkan ke Fajar",
+    "Sesi 1 dibuka untuk Made dan pekerjaan dimulai (lewat API)"
+  ],
+  "setelan": [],
+  "prasyarat": ["Penjaga Gudang boleh membuat barang dan memasang saldo awal"],
+  "catatan": [
+    "Pengamatan terbuka: entri dokumentasi terbawa menampilkan \"Foto ditambahkan (1)\" atas nama Fajar, bukan Made (belum diputuskan sebagai temuan)."
+  ],
+  "siapkan": [
+    {
+      "siapkan": "barang",
+      "simpan": "bearing",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-BRG",
+      "nama": "Uji SR Bearing Roda",
+      "jumlah": 5
+    },
+    {
+      "siapkan": "wo-dirilis",
+      "simpan": "wo",
+      "pembuat": "mbl.planner",
+      "perilis": "mbl.supervisor",
+      "unit": "DT-014",
+      "bengkel": "Workshop Site Alpha",
+      "gudang": "{bearing.gudang_id}",
+      "baris": [{ "barang": "{bearing}", "jumlah": 3 }]
+    },
+    {
+      "siapkan": "serah-mr-wo",
+      "simpan": "mr",
+      "sebagai": "mbl.storekeeper",
+      "wo": "{wo.id}",
+      "gudang": "{bearing.gudang_id}",
+      "penerima": "mbl.foreman"
+    },
+    {
+      "siapkan": "buka-sesi",
+      "sebagai": "mbl.foreman",
+      "wo": "{wo.id}",
+      "nama": "Sesi 1",
+      "mekanik": "mbl.mechanic"
+    },
+    {
+      "dokumen": {
+        "label": "Work Order (Sesi 1 berjalan)",
+        "nomor": "{wo.nomor}",
+        "url": "/work-orders/wo/{wo.id}"
+      }
+    },
+    {
+      "dokumen": {
+        "label": "Material Request (dikeluarkan)",
+        "nomor": "{mr.nomor}",
+        "url": "/inventory/material-requests/{mr.id}"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "buka",
+      "judul": "Fajar membuka WO dengan Sesi 1 berjalan",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Material sudah diserahkan; Sesi 1 untuk Made aktif",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Fajar membuka {wo.nomor}: {bearing.nama} ×3, material sudah diserahkan, Sesi 1 dibuka untuk Made (disiapkan di belakang layar)",
+          "tahan": 6000
+        }
+      ]
+    },
+    {
+      "id": "dokumentasi-1",
+      "judul": "Made mendokumentasikan item: catatan awal dan satu foto",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Dokumentasi Sesi 1 terkirim",
+      "capai": [],
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Made mulai mengerjakan item dan mendokumentasikannya: catatan awal dan satu foto",
+          "tahan": 6000
+        },
+        {
+          "layar": "dokumentasi-kerja",
+          "wo": "{wo.id}",
+          "item": "{bearing.nama}",
+          "catatan": "Catatan awal: bearing lama aus",
+          "foto": "made-1"
+        },
+        { "banner": "Dokumentasi Sesi 1 terkirim", "tahan": 4000 }
+      ]
+    },
+    {
+      "id": "akhiri-1",
+      "judul": "Fajar mengakhiri Sesi 1",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Sesi 1 menunggu keputusan",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "banner": "Fajar mengakhiri Sesi 1", "tahan": 2500 },
+        { "layar": "akhiri-sesi", "wo": "{wo.id}", "catatan": "Akhir Sesi 1" }
+      ]
+    },
+    {
+      "id": "tolak-1",
+      "judul": "Fajar menolak Sesi 1 dengan catatan dan foto",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Kartu sesi bertuliskan Ditolak",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "banner": "Fajar menolak Sesi 1 dengan catatan dan foto pemeriksaan", "tahan": 2500 },
+        {
+          "layar": "putuskan-sesi",
+          "wo": "{wo.id}",
+          "keputusan": "tolak",
+          "catatan": "Foto kurang jelas dan catatan kurang rinci, ulangi",
+          "foto": "tolak-1"
+        },
+        { "pastikanTerlihat": "Ditolak" },
+        { "banner": "Sesi 1 ditolak (tertulis Ditolak di kartu sesi)", "tahan": 5000 }
+      ]
+    },
+    {
+      "id": "sesi-2",
+      "judul": "Sesi 2 dibuka untuk Made (di belakang layar)",
+      "sebagai": "mbl.foreman",
+      "diBelakangLayar": true,
+      "harusTerlihat": "Sesi 2 aktif; dokumentasi lama ikut terbawa",
+      "aksi": [
+        {
+          "api": "buka-sesi",
+          "sebagai": "mbl.foreman",
+          "wo": "{wo.id}",
+          "nama": "Sesi 2",
+          "mekanik": "mbl.mechanic"
+        },
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Sesi 2 dibuka untuk Made (di belakang layar). Dokumentasi lama ikut terbawa ke sesi baru",
+          "tahan": 3000
+        }
+      ]
+    },
+    {
+      "id": "dokumentasi-2",
+      "judul": "Made mengubah catatan yang terbawa lalu mengirim ulang",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Catatan sudah terisi dari Sesi 1 sebelum diubah",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Made membuka item: catatan lama sudah terisi. Ia mengubah catatannya lalu mengirim ulang",
+          "tahan": 3000
+        },
+        {
+          "layar": "dokumentasi-kerja",
+          "simpan": "dok2",
+          "wo": "{wo.id}",
+          "item": "{bearing.nama}",
+          "catatan": "Catatan kedua: bearing lama aus, as roda dibersihkan, bearing baru terpasang",
+          "catatanLamaWajib": true
+        },
+        {
+          "banner": "Catatan terisi dari sesi lama: \"{dok2.catatanAwal}\" lalu diubah",
+          "tahan": 4000
+        }
+      ]
+    },
+    {
+      "id": "akhiri-2",
+      "judul": "Fajar mengakhiri Sesi 2",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Sesi 2 menunggu keputusan",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "banner": "Fajar mengakhiri Sesi 2", "tahan": 2500 },
+        { "layar": "akhiri-sesi", "wo": "{wo.id}", "catatan": "Akhir Sesi 2" }
+      ]
+    },
+    {
+      "id": "setujui-2",
+      "judul": "Fajar menyetujui Sesi 2",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Kartu Sesi 2 bertuliskan Disetujui",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        { "banner": "Fajar menyetujui Sesi 2 dengan catatan", "tahan": 2500 },
+        {
+          "layar": "putuskan-sesi",
+          "wo": "{wo.id}",
+          "keputusan": "setujui",
+          "catatan": "Dokumentasi sudah lengkap dan jelas"
+        }
+      ]
+    },
+    {
+      "id": "riwayat",
+      "judul": "Fajar membuka Riwayat item",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Riwayat memuat Didokumentasikan, Ditolak, dan perubahan \"Catatan kerja\" antar versi",
+      "aksi": [
+        { "buka": "/work-orders/wo/{wo.id}" },
+        {
+          "banner": "Fajar membuka Riwayat item: versi dokumentasi dari kedua sesi",
+          "tahan": 2500
+        },
+        { "klik": { "tombol": "Riwayat item" }, "tahan": 4000 },
+        { "tunggu": { "dialog": "Riwayat {bearing.nama}" }, "batas": 10000 },
+        { "tahan": 3000 },
+        {
+          "banner": "Riwayat item: Didokumentasikan, Ditolak, dan perubahan Catatan kerja antar versi",
+          "tahan": 12000
+        },
+        {
+          "pastikanTerlihat": {
+            "teks": "Catatan kerja:",
+            "dalam": { "dialog": "Riwayat {bearing.nama}" }
+          },
+          "lunak": true,
+          "batas": 3000
+        }
+      ]
+    }
+  ]
+}

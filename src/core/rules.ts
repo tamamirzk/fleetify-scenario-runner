@@ -1,103 +1,154 @@
-// Aturan standar skenario yang dicek otomatis (bun run check:scenarios). Murni, bisa diuji.
-import { MetaSchema } from './meta.ts'
+// Pemeriksaan berkas skenario JSON: skema, aksi pustaka, dan aturan standar. Dipakai panel
+// (status skema, berkas tidak valid tidak bisa diputar), check:scenarios, dan tes. Murni.
+import { KUNCI_PUSTAKA, PUSTAKA, periksaAksiPustaka } from '../pustaka/index.ts'
 import { PERSONA_IDS } from './personas.ts'
-import type { Scenario } from './types.ts'
+import { rujukan } from './placeholder.ts'
+import {
+  type Aksi,
+  formatPath,
+  jenisAksi,
+  type MasalahSkema,
+  type Skenario,
+  SkenarioSchema,
+} from './skema.ts'
 
-const STEP_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/
+export interface Masalah extends MasalahSkema {
+  aturan: string
+}
 
-/** Aksi Playwright mentah tidak melewati gerbang jeda. Pakai ctx.k.click/fill/pick/search. */
-const RAW_ACTION =
-  /([\w$]+|\)|\])\s*\.(click|fill|press|pressSequentially|type|check|uncheck|selectOption|setInputFiles|dblclick|tap)\(/g
-const RAW_WAIT = /\.waitForTimeout\(/
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-const DIRECT_DB = /node:child_process|\bpsql\b|DATABASE_URL/
+/** Kunci data bawaan yang selalu ada. */
+const BAWAAN = new Set(['docs', 'stempel'])
+const PERSONA = new Set<string>(PERSONA_IDS)
 
-export interface Problem {
-  rule: string
-  message: string
-  line?: number
+export interface HasilPeriksa {
+  skenario: Skenario | null
+  masalah: Masalah[]
 }
 
-/** Periksa teks berkas skenario per baris (komentar ikut diperiksa, kecuali baris komentar penuh). */
-export function lintSource(source: string, { pengecualianDb = false } = {}): Problem[] {
-  const out: Problem[] = []
-  source.split('\n').forEach((raw, idx) => {
-    const line = idx + 1
-    if (raw.trim().startsWith('//') || raw.trim().startsWith('*')) return
-    if ([...raw.matchAll(RAW_ACTION)].some((m) => m[1] !== 'k'))
-      out.push({
-        rule: 'aksi-lewat-helper',
-        line,
-        message: 'aksi Playwright mentah; pakai ctx.k.click/fill/pick/search supaya bisa dijeda',
-      })
-    if (RAW_WAIT.test(raw))
-      out.push({
-        rule: 'tahan-lewat-ctx',
-        line,
-        message: 'waitForTimeout tidak mengikuti jeda/kecepatan; pakai ctx.wait(ms)',
-      })
-    if (UUID.test(raw))
-      out.push({
-        rule: 'tanpa-id-tertulis',
-        line,
-        message: 'id dari DB tertentu; cari lewat API (ctx.kit.findWarehouse/findVehicle/…)',
-      })
-    if (DIRECT_DB.test(raw) && !pengecualianDb)
-      out.push({
-        rule: 'db-lewat-api',
-        line,
-        message: 'akses DB/proses luar; DB hanya lewat API kecuali meta.pengecualian db-lewat-api',
-      })
-  })
-  return out
+/** Baris (1-based) untuk posisi karakter, supaya galat JSON bisa ditunjuk. */
+function barisDari(raw: string, pos: number) {
+  return raw.slice(0, pos).split('\n').length
 }
 
-/** Periksa struktur skenario yang sudah dimuat. */
-export function checkScenario(id: string, s: Scenario): Problem[] {
-  const out: Problem[] = []
-  const meta = MetaSchema.safeParse(s.meta)
-  if (!meta.success) {
-    for (const i of meta.error.issues)
-      out.push({ rule: 'meta-lengkap', message: `meta.${i.path.join('.')}: ${i.message}` })
-    return out
+/** Semua string di dalam nilai (rekursif), untuk mencari nama persona di argumen pustaka. */
+function semuaTeks(v: unknown): string[] {
+  if (typeof v === 'string') return [v]
+  if (Array.isArray(v)) return v.flatMap(semuaTeks)
+  if (v && typeof v === 'object') return Object.values(v).flatMap(semuaTeks)
+  return []
+}
+
+export function periksaSkenario(raw: string, { slug }: { slug: string }): HasilPeriksa {
+  let json: unknown
+  try {
+    json = JSON.parse(raw)
+  } catch (e) {
+    const m = (e as Error).message
+    const pos = Number(m.match(/position (\d+)/)?.[1])
+    return {
+      skenario: null,
+      masalah: [
+        {
+          aturan: 'json',
+          path: Number.isFinite(pos) ? `baris ${barisDari(raw, pos)}` : '',
+          message: `JSON tidak sah: ${m}`,
+        },
+      ],
+    }
   }
-  const m = meta.data
-  if (m.id !== id)
-    out.push({
-      rule: 'satu-berkas',
-      message: `meta.id "${m.id}" harus sama dengan nama berkas "${id}"`,
-    })
-  if (m.setelan.length > 0 && !s.cleanup && !m.setelanMenetap)
-    out.push({
-      rule: 'setelan-dikembalikan',
-      message:
-        'meta.setelan terisi: kembalikan di cleanup(), atau isi meta.setelanMenetap dengan alasan',
-    })
-  if (!Array.isArray(s.steps) || s.steps.length === 0) {
-    out.push({ rule: 'langkah', message: 'skenario tanpa langkah' })
-    return out
-  }
-  const personaIds = new Set<string>(PERSONA_IDS)
-  const declared = new Set(m.personas.map((p) => p.who))
-  const seen = new Set<string>()
-  s.steps.forEach((step, i) => {
-    const at = `langkah ${i + 1}`
-    if (!STEP_ID.test(step.id ?? ''))
-      out.push({ rule: 'langkah', message: `${at}: id harus kebab-case` })
-    if (seen.has(step.id)) out.push({ rule: 'langkah', message: `${at}: id "${step.id}" ganda` })
-    seen.add(step.id)
-    if (!step.title?.trim()) out.push({ rule: 'langkah', message: `${at}: title kosong` })
-    if (!step.expect?.trim())
-      out.push({ rule: 'langkah', message: `${at}: expect (yang harus terlihat) kosong` })
-    if (typeof step.run !== 'function')
-      out.push({ rule: 'langkah', message: `${at}: run bukan fungsi` })
-    if (step.who && !personaIds.has(step.who))
-      out.push({ rule: 'persona', message: `${at}: persona ${step.who} tidak dikenal` })
-    else if (step.who && !declared.has(step.who))
-      out.push({
-        rule: 'persona',
-        message: `${at}: persona ${step.who} belum ada di meta.personas`,
-      })
+  const parsed = SkenarioSchema.safeParse(json)
+  if (!parsed.success)
+    return {
+      skenario: null,
+      masalah: parsed.error.issues.map((i) => ({
+        aturan: 'skema',
+        path: formatPath(i.path),
+        message: i.message,
+      })),
+    }
+  const s = parsed.data
+  const masalah: Masalah[] = []
+  const tambah = (aturan: string, path: string, message: string) =>
+    masalah.push({ aturan, path, message })
+
+  if (s.slug !== slug)
+    tambah('satu-berkas', 'slug', `slug "${s.slug}" harus sama dengan nama berkas "${slug}"`)
+
+  raw.split('\n').forEach((l, i) => {
+    if (UUID.test(l))
+      tambah(
+        'tanpa-id-tertulis',
+        `baris ${i + 1}`,
+        'id dari DB tertentu; cari lewat aksi pustaka dan simpan ke data',
+      )
   })
-  return out
+
+  if (s.setelan.length > 0 && !s.bersihkan?.length && !s.setelanMenetap)
+    tambah(
+      'setelan-dikembalikan',
+      'setelan',
+      'setelan terisi: kembalikan di "bersihkan", atau isi "setelanMenetap" dengan alasan',
+    )
+
+  const dideklarasi = new Set<string>(s.persona.map((p) => p.siapa))
+  const pakaiDb: string[] = []
+  const tersimpan = new Set(BAWAAN)
+
+  const periksaAksi = (aksi: Aksi, path: string) => {
+    const jenis = jenisAksi(aksi)
+    if (jenis in KUNCI_PUSTAKA) {
+      for (const m of periksaAksiPustaka(aksi, jenis as keyof typeof KUNCI_PUSTAKA, path))
+        tambah('pustaka', m.path, m.message)
+      if (PUSTAKA[String(aksi[jenis])]?.pengecualianDb)
+        pakaiDb.push(`${path} (${String(aksi[jenis])})`)
+      for (const v of new Set(semuaTeks(aksi)))
+        if (PERSONA.has(v) && !dideklarasi.has(v))
+          tambah('persona', path, `persona ${v} belum ada di "persona"`)
+    }
+    if (jenis === 'sebagai' && !dideklarasi.has(String(aksi.sebagai)))
+      tambah('persona', path, `persona ${String(aksi.sebagai)} belum ada di "persona"`)
+    for (const r of rujukan(aksi))
+      if (!tersimpan.has(r))
+        tambah(
+          'data-ada',
+          path,
+          `{${r}} dirujuk sebelum disimpan (simpan dulu dengan "simpan": "${r}")`,
+        )
+    if (typeof aksi.simpan === 'string') tersimpan.add(aksi.simpan)
+    const tangkap = aksi.tangkap as { simpan?: Record<string, string> } | undefined
+    for (const k of Object.keys(tangkap?.simpan ?? {})) tersimpan.add(k)
+  }
+
+  s.siapkan.forEach((a, i) => {
+    periksaAksi(a, `siapkan[${i}]`)
+  })
+  const ids = new Set<string>()
+  s.langkah.forEach((l, i) => {
+    const at = `langkah[${i}]`
+    if (ids.has(l.id)) tambah('langkah', `${at}.id`, `id "${l.id}" ganda`)
+    ids.add(l.id)
+    if (l.sebagai && !dideklarasi.has(l.sebagai))
+      tambah('persona', `${at}.sebagai`, `persona ${l.sebagai} belum ada di "persona"`)
+    l.capai?.forEach((a, j) => {
+      periksaAksi(a, `${at}.capai[${j}]`)
+    })
+    l.aksi.forEach((a, j) => {
+      periksaAksi(a, `${at}.aksi[${j}]`)
+    })
+  })
+  s.bersihkan?.forEach((a, i) => {
+    periksaAksi(a, `bersihkan[${i}]`)
+  })
+
+  const izinDb = s.pengecualian?.some((p) => p.aturan === 'db-lewat-api')
+  if (pakaiDb.length && !izinDb)
+    for (const p of pakaiDb)
+      tambah(
+        'db-lewat-api',
+        p,
+        'aksi ini menyentuh DB/proses luar; isi "pengecualian" db-lewat-api dengan alasan yang disepakati tim',
+      )
+
+  return { skenario: masalah.length ? null : s, masalah }
 }

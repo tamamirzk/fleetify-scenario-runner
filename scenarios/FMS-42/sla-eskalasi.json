@@ -1,0 +1,313 @@
+{
+  "slug": "sla-eskalasi",
+  "judul": "Approval dengan batas waktu dan eskalasi",
+  "tujuan": "Membuktikan tahap approval yang lewat tenggat diteruskan otomatis, tahap terakhir diserahkan ke peran eskalasi \"oleh Sistem\", dan penerima pengalihan bisa menyetujui.",
+  "modul": "approval",
+  "tiket": ["FMS-42", "FMS-43"],
+  "estimasi": "10 menit",
+  "persona": [
+    {
+      "siapa": "mbl.plant-superintendent",
+      "peran": "mengatur SLA alur, membuat dan memesan PO, menyetujui sebagai penerima eskalasi"
+    }
+  ],
+  "data": ["PO baru tanpa PR (dibuat di layar pada langkah 3), satu barang Filter, Rp 10.000"],
+  "setelan": [
+    "Alur \"Approval Purchase Order\": tahap 1 SLA 4 jam + ingatkan 1 jam, tahap 2 SLA 1 hari, eskalasi ke Plant Superintendent",
+    "Dikembalikan kosong di langkah terakhir; bersihkan memeriksa ulang lewat API dan gagal bila masih terisi"
+  ],
+  "prasyarat": [
+    "V2_BACKEND_DIR di .env menunjuk folder Backend server v2 yang menyala (untuk bun run scripts/run-approval-sla-scan.ts)",
+    "psql terpasang; MIGRATE_DATABASE_URL ada di .env Backend"
+  ],
+  "catatan": [
+    "Pemindaian SLA berlaku untuk semua request yang lewat tenggat di DB, bukan hanya PO ini.",
+    "Bila jalan berhenti sebelum langkah terakhir, kosongkan setelan alur lewat /config/approval-flows."
+  ],
+  "pengecualian": [
+    {
+      "aturan": "db-lewat-api",
+      "alasan": "Aksi pustaka majukan-tenggat-sla memajukan tenggat dengan UPDATE SQL yang hanya mengenai request PO ini, karena aplikasi tidak punya cara memajukan waktu."
+    }
+  ],
+  "siapkan": [
+    {
+      "siapkan": "alur-persetujuan",
+      "simpan": "alur",
+      "sebagai": "mbl.plant-superintendent",
+      "nama": "Approval Purchase Order"
+    },
+    {
+      "dokumen": {
+        "label": "Alur persetujuan",
+        "nomor": "{alur.nama}",
+        "url": "/config/approval-flows"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "buka-alur",
+      "judul": "Andi membuka Alur Persetujuan \"Approval Purchase Order\"",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Daftar alur persetujuan tampil",
+      "aksi": [
+        { "buka": "/config/approval-flows" },
+        {
+          "banner": "Andi membuka Alur Persetujuan \"Approval Purchase Order\" untuk memasang batas waktu",
+          "tahan": 3000
+        },
+        { "pastikanTerlihat": { "teks": "Approval Purchase Order", "persis": true } }
+      ]
+    },
+    {
+      "id": "pasang-sla",
+      "judul": "Andi memasang SLA, pengingat, dan peran eskalasi",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Alur tersimpan dengan SLA tahap 1 4 jam dan tahap 2 1 hari",
+      "capai": [],
+      "aksi": [
+        { "layar": "buka-ubah-alur", "nama": "Approval Purchase Order" },
+        { "banner": "Tahap 1: batas waktu 4 jam, ingatkan 1 jam sebelum", "tahan": 2500 },
+        {
+          "isi": {
+            "peran": "textbox",
+            "nama": "/Batas waktu \\(SLA\\)/",
+            "dalam": { "dialog": "Ubah alur" }
+          },
+          "nilai": "4",
+          "tahan": 4000
+        },
+        {
+          "pilih": { "combobox": "/^Satuan/", "dalam": { "dialog": "Ubah alur" } },
+          "opsi": "Jam"
+        },
+        {
+          "isi": { "peran": "textbox", "nama": "/Ingatkan/", "dalam": { "dialog": "Ubah alur" } },
+          "nilai": "1",
+          "tahan": 4000
+        },
+        {
+          "banner": "Tahap 2: batas waktu 1 hari; bila habis, diserahkan ke Plant Superintendent",
+          "tahan": 2500
+        },
+        {
+          "isi": {
+            "peran": "textbox",
+            "nama": "/Batas waktu \\(SLA\\)/",
+            "dalam": { "dialog": "Ubah alur" },
+            "ke": 1
+          },
+          "nilai": "1",
+          "tahan": 4000
+        },
+        {
+          "pilih": { "combobox": "/^Satuan/", "dalam": { "dialog": "Ubah alur" }, "ke": 1 },
+          "opsi": "Hari"
+        },
+        {
+          "pilih": { "combobox": "/serahkan ke/", "dalam": { "dialog": "Ubah alur" } },
+          "opsi": "Plant Superintendent"
+        },
+        { "screenshot": "setelan-sla" },
+        { "banner": "Menyimpan alur", "tahan": 1500 },
+        { "layar": "simpan-alur" }
+      ]
+    },
+    {
+      "id": "buat-po",
+      "judul": "Andi membuat PO tanpa PR",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "PO tersimpan sebagai draf",
+      "aksi": [
+        { "buka": "/procurement/purchase-orders/new" },
+        { "tahan": 2500 },
+        {
+          "banner": "Andi membuat PO tanpa PR: pemasok, alamat pengiriman, satu barang",
+          "tahan": 2500
+        },
+        { "pilih": { "combobox": "/^Pemasok/" }, "opsi": "/.+/" },
+        {
+          "isi": { "peran": "textbox", "nama": "/^Alamat pengiriman/" },
+          "nilai": "Gudang Site Alpha (uji skenario SLA)",
+          "tahan": 4000
+        },
+        { "cari": { "combobox": "/^Produk/" }, "ketik": "Filter", "opsi": "/\\S/" },
+        { "isi": { "peran": "textbox", "nama": "/^Qty/" }, "nilai": "1", "tahan": 4000 },
+        { "isi": { "peran": "textbox", "nama": "/^Harga/" }, "nilai": "10000", "tahan": 4000 },
+        {
+          "klik": { "tombol": "Simpan", "persis": true },
+          "tahan": 4000,
+          "tangkap": {
+            "url": "/\\/procurement\\/purchase-orders$/",
+            "metode": "POST",
+            "simpan": { "po_id": "id" }
+          }
+        },
+        { "api": "po", "id": "{po_id}", "simpan": "po" },
+        {
+          "dokumen": {
+            "label": "Purchase Order",
+            "nomor": "{po.nomor}",
+            "url": "/procurement/purchase-orders/{po.id}"
+          }
+        },
+        { "tahan": 3000 }
+      ]
+    },
+    {
+      "id": "pesan",
+      "judul": "Andi memesan PO; panel Persetujuan menampilkan Tenggat",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Tahap 1 berjalan dengan Tenggat",
+      "aksi": [
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "banner": "{po.nomor} dibuat sebagai draf. Andi memesannya (Pesan)", "tahan": 3000 },
+        { "klik": { "tombol": "Pesan", "persis": true }, "tahan": 4000 },
+        {
+          "klik": {
+            "tombol": "/^(Pesan|Ya|Konfirmasi|Lanjut)/",
+            "dalam": { "dialog": true },
+            "ke": "terakhir"
+          },
+          "opsional": true
+        },
+        { "tahan": 3000 },
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "gulir": { "kartuPersetujuan": true } },
+        {
+          "banner": "Panel Persetujuan {po.nomor}: tahap 1 berjalan dengan Tenggat",
+          "tahan": 8000
+        }
+      ]
+    },
+    {
+      "id": "lewat-tenggat-1",
+      "judul": "Tenggat tahap 1 dimajukan, pemindaian SLA pertama",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Tahap 1 Diteruskan (\"Tahap ini belum menyetujui\"); tahap 2 aktif dengan tenggat baru",
+      "aksi": [
+        {
+          "banner": "Tenggat tahap 1 dimajukan lewat SQL (hanya request PO ini), lalu pemindaian SLA dijalankan",
+          "tahan": 3000
+        },
+        { "api": "majukan-tenggat-sla", "judulRequest": "{po.nomor}" },
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "gulir": { "kartuPersetujuan": true } },
+        {
+          "banner": "Tahap 1 Diteruskan (\"Tahap ini belum menyetujui\"); tahap 2 aktif dengan tenggat baru",
+          "tahan": 9000
+        }
+      ]
+    },
+    {
+      "id": "lewat-tenggat-2",
+      "judul": "Tenggat tahap 2 dimajukan: tahap terakhir diserahkan ke Plant Superintendent",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Riwayat pengalihan approver: dialihkan oleh Sistem karena batas waktu terlewati",
+      "aksi": [
+        {
+          "banner": "Tenggat tahap 2 dimajukan, pemindaian dijalankan lagi: tahap terakhir diserahkan ke Plant Superintendent",
+          "tahan": 3000
+        },
+        { "api": "majukan-tenggat-sla", "judulRequest": "{po.nomor}" },
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "gulir": { "kartuPersetujuan": true } },
+        {
+          "banner": "Riwayat pengalihan approver: dialihkan oleh Sistem karena batas waktu terlewati",
+          "tahan": 11000
+        },
+        {
+          "pastikanTerlihat": { "teks": "Sistem", "dalam": { "kartuPersetujuan": true } },
+          "lunak": true,
+          "batas": 3000
+        }
+      ]
+    },
+    {
+      "id": "setujui",
+      "judul": "Andi, penerima pengalihan, menyetujui PO",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Status PO berubah (Dipesan)",
+      "aksi": [
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "gulir": { "kartuPersetujuan": true } },
+        { "banner": "Andi, penerima pengalihan, menyetujui PO", "tahan": 2500 },
+        {
+          "klik": { "tombol": "Setujui", "persis": true, "dalam": { "kartuPersetujuan": true } },
+          "tahan": 4000
+        },
+        {
+          "klik": {
+            "tombol": "/^(Setujui|Ya|Konfirmasi)/",
+            "dalam": { "dialog": true },
+            "ke": "terakhir"
+          },
+          "opsional": true
+        },
+        { "tahan": 3500 },
+        { "buka": "/procurement/purchase-orders/{po.id}" },
+        { "api": "po", "id": "{po.id}", "simpan": "po_akhir" },
+        { "banner": "{po.nomor}: status {po_akhir.status}", "tahan": 5000 }
+      ]
+    },
+    {
+      "id": "kembalikan",
+      "judul": "Mengembalikan setelan alur: SLA, pengingat, dan peran eskalasi dikosongkan",
+      "sebagai": "mbl.plant-superintendent",
+      "harusTerlihat": "Alur kembali tanpa batas waktu (diperiksa lewat API)",
+      "capai": [],
+      "aksi": [
+        {
+          "banner": "Mengembalikan setelan: SLA, pengingat, dan peran eskalasi dikosongkan",
+          "tahan": 3000
+        },
+        { "layar": "buka-ubah-alur", "nama": "Approval Purchase Order" },
+        {
+          "isi": { "peran": "textbox", "nama": "/Ingatkan/", "dalam": { "dialog": "Ubah alur" } },
+          "nilai": "",
+          "tahan": 1500,
+          "opsional": true
+        },
+        {
+          "isi": {
+            "peran": "textbox",
+            "nama": "/Batas waktu \\(SLA\\)/",
+            "dalam": { "dialog": "Ubah alur" }
+          },
+          "nilai": "",
+          "tahan": 1500
+        },
+        {
+          "isi": {
+            "peran": "textbox",
+            "nama": "/Ingatkan/",
+            "dalam": { "dialog": "Ubah alur" },
+            "ke": 1
+          },
+          "nilai": "",
+          "tahan": 1500,
+          "opsional": true
+        },
+        {
+          "isi": {
+            "peran": "textbox",
+            "nama": "/Batas waktu \\(SLA\\)/",
+            "dalam": { "dialog": "Ubah alur" },
+            "ke": 1
+          },
+          "nilai": "",
+          "tahan": 1500
+        },
+        {
+          "pilih": { "combobox": "/serahkan ke/", "dalam": { "dialog": "Ubah alur" } },
+          "opsi": "Superadmin perusahaan"
+        },
+        { "layar": "simpan-alur" },
+        { "api": "periksa-alur-kosong", "alur": "{alur.id}" },
+        { "banner": "Selesai · alur kembali tanpa batas waktu", "tahan": 5000 }
+      ]
+    }
+  ],
+  "bersihkan": [{ "api": "periksa-alur-kosong", "alur": "{alur.id}" }]
+}

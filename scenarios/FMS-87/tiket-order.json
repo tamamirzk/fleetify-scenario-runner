@@ -1,0 +1,334 @@
+{
+  "slug": "tiket-order",
+  "judul": "Tiket sampai Order dan pemeriksaan ulang",
+  "tujuan": "Membuktikan Order bisa dibuat dengan melewati pemeriksaan (alasan wajib, kartu terkunci), dikembalikan ke pemeriksaan, dan pemeriksaan yang ditolak bisa diulang lewat pemeriksaan baru sampai disetujui.",
+  "modul": "wo",
+  "tiket": ["FMS-87", "FMS-88", "FMS-39"],
+  "estimasi": "14 menit",
+  "persona": [
+    { "siapa": "mbl.mcr", "peran": "pelapor tiket (lewat API)" },
+    { "siapa": "mbl.dispatcher", "peran": "menyetujui tiket" },
+    { "siapa": "mbl.planner", "peran": "membuat Order, melewati lalu meminta pemeriksaan" },
+    { "siapa": "mbl.supervisor", "peran": "menugaskan pemeriksaan ke Made" },
+    { "siapa": "mbl.mechanic", "peran": "mengisi dan mengajukan pemeriksaan" },
+    {
+      "siapa": "mbl.superintendent",
+      "peran": "meminta revisi, membuat pemeriksaan ulang, menyetujui"
+    }
+  ],
+  "data": ["Tiket baru \"rem DT-014 berdecit\" dari pelapor Mira, berstatus menunggu persetujuan"],
+  "setelan": [],
+  "prasyarat": [
+    "Zona waktu perusahaan MBL sudah terkonfirmasi (jalankan skenario siapkan-zona sekali); tanpa itu dialog Mulai inspeksi tidak bisa dikonfirmasi",
+    "Pemetaan approval tiket (VEHICLE_COMPLAINT) aktif dengan Dedi sebagai approver"
+  ],
+  "catatan": [
+    "Tidak ada capai: tiap langkah bergantung pada dokumen yang dibuat langkah sebelumnya di layar."
+  ],
+  "siapkan": [
+    {
+      "siapkan": "tiket",
+      "simpan": "tiket",
+      "sebagai": "mbl.mcr",
+      "unit": "DT-014",
+      "judul": "Uji skenario {stempel}: rem DT-014 berdecit",
+      "deskripsi": "Rem terdengar berdecit dan terasa dalam saat dipakai turun di jalan tambang."
+    },
+    {
+      "dokumen": {
+        "label": "Tiket",
+        "nomor": "{tiket.nomor}",
+        "url": "/work-orders/complaints/{tiket.id}"
+      }
+    }
+  ],
+  "langkah": [
+    {
+      "id": "setujui-tiket",
+      "judul": "Dedi menyetujui tiket baru dari Kotak Masuk",
+      "sebagai": "mbl.dispatcher",
+      "harusTerlihat": "Tiket Disetujui (Terbuka)",
+      "aksi": [
+        { "buka": "/approvals" },
+        {
+          "banner": "Tiket baru {tiket.nomor} (rem DT-014 berdecit) dilaporkan pelapor (disiapkan di belakang layar). Dedi membuka Kotak Masuk",
+          "tahan": 3000
+        },
+        { "tunggu": { "teks": "{tiket.nomor}" }, "batas": 20000 },
+        { "klik": { "teks": "{tiket.nomor}" } },
+        { "tungguUrl": "/complaints\\//", "opsional": true },
+        { "tunggu": { "kartuPersetujuan": true }, "batas": 20000 },
+        { "banner": "Dedi menyetujui tiket di panel Persetujuan", "tahan": 2500 },
+        { "klik": { "tombol": "Setujui", "persis": true, "dalam": { "kartuPersetujuan": true } } },
+        { "tahan": 3500 }
+      ]
+    },
+    {
+      "id": "order-lewati",
+      "judul": "Putri membuat Order dan memilih Lewati pemeriksaan dengan alasan",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Tombol Simpan mati sampai alasan diisi; Order terbit",
+      "aksi": [
+        { "buka": "/work-orders/complaints/{tiket.id}" },
+        { "banner": "Putri membuka tiket {tiket.nomor} dan menekan Buat Order", "tahan": 2500 },
+        { "klik": { "tombol": "Buat Order" } },
+        { "tunggu": { "dialog": "Tiket yang dijadikan order" }, "batas": 10000 },
+        { "tahan": 1500 },
+        {
+          "pilih": {
+            "combobox": "/^Bengkel/",
+            "dalam": { "dialog": "Tiket yang dijadikan order" }
+          },
+          "opsi": "Workshop Site Alpha"
+        },
+        {
+          "banner": "Kerusakan sudah jelas, jadi Putri mencentang Lewati pemeriksaan. Tombol Simpan mati sampai alasan diisi",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "kotakCentang": "Lewati pemeriksaan",
+            "dalam": { "dialog": "Tiket yang dijadikan order" }
+          }
+        },
+        {
+          "pastikanNonaktif": {
+            "tombol": "Simpan",
+            "dalam": { "dialog": "Tiket yang dijadikan order" }
+          },
+          "lunak": true
+        },
+        { "tahan": 3000 },
+        {
+          "isi": {
+            "label": "/^Alasan melewati/",
+            "dalam": { "dialog": "Tiket yang dijadikan order" }
+          },
+          "nilai": "Kerusakan sudah jelas dari laporan: kampas rem tipis, tidak perlu pemeriksaan terpisah"
+        },
+        { "klik": { "tombol": "Simpan", "dalam": { "dialog": "Tiket yang dijadikan order" } } },
+        { "tunggu": { "dialog": "Lewati pemeriksaan?" }, "batas": 10000 },
+        { "tahan": 3500 },
+        {
+          "klik": { "tombol": "Lewati pemeriksaan", "dalam": { "dialog": "Lewati pemeriksaan?" } },
+          "tahan": 2500
+        },
+        { "tungguUrl": "/\\/work-orders\\/orders\\/[0-9a-f-]{36}/", "batas": 20000 },
+        { "tahan": 3000 },
+        { "simpan": "order_id", "dariUrl": "/orders\\/([0-9a-f-]{36})/" },
+        { "api": "order", "id": "{order_id}", "simpan": "order" },
+        {
+          "dokumen": {
+            "label": "Order",
+            "nomor": "{order.nomor}",
+            "url": "/work-orders/orders/{order.id}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "kartu-terkunci",
+      "judul": "Kartu Pemeriksaan terkunci dengan alasan",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "\"Pemeriksaan dilewati pada Order ini\" tampil; langkah berikutnya Susun penawaran",
+      "aksi": [
+        { "buka": "/work-orders/orders/{order.id}" },
+        { "gulir": { "teks": "/Pemeriksaan dilewati pada Order ini/" }, "opsional": true },
+        {
+          "banner": "{order.nomor} terbit: Pemeriksaan dilewati, kartu Pemeriksaan terkunci dengan alasan, langkah berikutnya Susun penawaran",
+          "tahan": 7500
+        },
+        { "pastikanTerlihat": "/Pemeriksaan dilewati pada Order ini/" }
+      ]
+    },
+    {
+      "id": "minta-pemeriksaan",
+      "judul": "Putri berubah pikiran: Minta pemeriksaan dengan alasan",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Order kembali menunggu pemeriksaan; pemeriksaan siap ditugaskan",
+      "aksi": [
+        { "buka": "/work-orders/orders/{order.id}" },
+        {
+          "banner": "Putri berubah pikiran dan menekan Minta pemeriksaan dengan alasan",
+          "tahan": 2500
+        },
+        { "klik": { "tombol": "Minta pemeriksaan" } },
+        { "tunggu": { "dialog": "Kembali ke pemeriksaan?" }, "batas": 10000 },
+        { "tahan": 2500 },
+        {
+          "isi": { "label": "/^Alasan/", "dalam": { "dialog": "Kembali ke pemeriksaan?" } },
+          "nilai": "Setelah dipikir ulang, penyebab bunyi rem perlu dipastikan mekanik"
+        },
+        {
+          "klik": {
+            "tombol": "Minta pemeriksaan",
+            "dalam": { "dialog": "Kembali ke pemeriksaan?" }
+          },
+          "tahan": 2500
+        },
+        { "tunggu": { "dialog": "Kembali ke pemeriksaan?" }, "hilang": true, "batas": 20000 },
+        { "tahan": 3500 },
+        {
+          "banner": "Order kembali menunggu pemeriksaan: tombol Minta/Lewati menyesuaikan, pemeriksaan siap ditugaskan",
+          "tahan": 3000
+        }
+      ]
+    },
+    {
+      "id": "tugaskan",
+      "judul": "Surya menugaskan pemeriksaan ke Made",
+      "sebagai": "mbl.supervisor",
+      "harusTerlihat": "Pemeriksaan (DGN) terbit untuk Made",
+      "aksi": [
+        { "buka": "/work-orders/orders/{order.id}" },
+        { "banner": "Surya menugaskan pemeriksaan ke Made", "tahan": 2500 },
+        { "klik": { "tombol": "Tugaskan pemeriksaan" } },
+        { "tunggu": { "dialog": "Tugaskan pemeriksaan" }, "batas": 10000 },
+        { "tahan": 2000 },
+        { "layar": "pilih-mekanik", "dalam": { "dialog": "Tugaskan pemeriksaan" } },
+        {
+          "klik": {
+            "tombol": "Tugaskan pemeriksaan",
+            "dalam": { "dialog": "Tugaskan pemeriksaan" },
+            "ke": "terakhir"
+          },
+          "tahan": 2500
+        },
+        { "tunggu": { "dialog": "Tugaskan pemeriksaan" }, "hilang": true, "batas": 20000 },
+        { "tahan": 3500 },
+        { "api": "pemeriksaan-order", "order": "{order.id}", "simpan": "dgn1" },
+        {
+          "dokumen": {
+            "label": "Pemeriksaan pertama",
+            "nomor": "{dgn1.nomor}",
+            "url": "/work-orders/mechanic-inspections/{dgn1.id}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "isi-pertama",
+      "judul": "Made mengisi pemeriksaan pertama lalu mengajukan",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Pemeriksaan terkirim, menunggu keputusan",
+      "aksi": [
+        { "buka": "/work-orders/mechanic-inspections" },
+        {
+          "banner": "Made membuka {dgn1.nomor}, mulai inspeksi, mengisi odometer, temuan, dan RPL jasa lalu mengajukan",
+          "tahan": 2500
+        },
+        {
+          "layar": "isi-pemeriksaan",
+          "nomor": "{dgn1.nomor}",
+          "odometer": "58100",
+          "temuan": "Kampas rem depan tipis, perlu servis rem"
+        }
+      ]
+    },
+    {
+      "id": "revisi",
+      "judul": "Bagus meminta revisi pemeriksaan",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "Status Ditolak, kartu \"Pemeriksaan ditolak\", tombol Buat pemeriksaan ulang muncul",
+      "aksi": [
+        { "buka": "/work-orders/mechanic-inspections/{dgn1.id}" },
+        {
+          "banner": "Bagus meninjau pemeriksaan: kartu biru Menunggu keputusan pemeriksaan, tombol Revisi dan Setujui",
+          "tahan": 2500
+        },
+        { "tunggu": { "kartuPersetujuan": true }, "batas": 20000 },
+        {
+          "isi": { "label": "/Catatan/", "dalam": { "kartuPersetujuan": true } },
+          "nilai": "Foto dan rincian temuan belum cukup, mohon diulang"
+        },
+        { "klik": { "tombol": "Revisi", "persis": true, "dalam": { "kartuPersetujuan": true } } },
+        { "tahan": 3500 },
+        {
+          "banner": "Status Ditolak: kartu RPL kuning \"Pemeriksaan ditolak\", tombol Buat pemeriksaan ulang muncul",
+          "tahan": 2500
+        },
+        { "tunggu": { "tombol": "Buat pemeriksaan ulang" }, "batas": 20000 },
+        { "tahan": 4000 }
+      ]
+    },
+    {
+      "id": "pemeriksaan-ulang",
+      "judul": "Bagus membuat pemeriksaan ulang untuk Made",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "Pemeriksaan ulang (DGN baru) terbit",
+      "aksi": [
+        { "buka": "/work-orders/mechanic-inspections/{dgn1.id}" },
+        { "banner": "Bagus membuat pemeriksaan ulang dan memilih Made", "tahan": 2500 },
+        { "klik": { "tombol": "Buat pemeriksaan ulang" } },
+        { "tunggu": { "dialog": true, "ke": "terakhir" }, "batas": 10000 },
+        { "tahan": 2000 },
+        { "layar": "pilih-mekanik", "dalam": { "dialog": true, "ke": "terakhir" } },
+        {
+          "klik": {
+            "tombol": "/Tugaskan|Buat|Simpan/",
+            "dalam": { "dialog": true, "ke": "terakhir" },
+            "ke": "terakhir"
+          },
+          "tahan": 2500
+        },
+        { "tunggu": { "dialog": true }, "hilang": true, "batas": 20000, "opsional": true },
+        { "tahan": 3500 },
+        {
+          "api": "pemeriksaan-order",
+          "order": "{order.id}",
+          "selain": "{dgn1.id}",
+          "simpan": "dgn2"
+        },
+        {
+          "dokumen": {
+            "label": "Pemeriksaan ulang",
+            "nomor": "{dgn2.nomor}",
+            "url": "/work-orders/mechanic-inspections/{dgn2.id}"
+          }
+        },
+        { "banner": "Pemeriksaan ulang {dgn2.nomor} terbit untuk Made", "tahan": 3000 }
+      ]
+    },
+    {
+      "id": "isi-ulang",
+      "judul": "Made mengisi ulang pemeriksaan dengan temuan lebih rinci",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Pemeriksaan ulang terkirim",
+      "aksi": [
+        { "buka": "/work-orders/mechanic-inspections" },
+        {
+          "banner": "Made mengisi ulang {dgn2.nomor} dengan temuan yang lebih rinci",
+          "tahan": 2500
+        },
+        {
+          "layar": "isi-pemeriksaan",
+          "nomor": "{dgn2.nomor}",
+          "odometer": "58120",
+          "temuan": "Kampas rem depan tipis 2 mm, cakram bergaris; ganti kampas dan servis rem"
+        }
+      ]
+    },
+    {
+      "id": "setujui-ulang",
+      "judul": "Bagus menyetujui pemeriksaan ulang",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "\"Rekomendasi ini sudah disetujui\"; pemeriksaan pertama tetap Ditolak",
+      "aksi": [
+        { "buka": "/work-orders/mechanic-inspections/{dgn2.id}" },
+        { "tunggu": { "kartuPersetujuan": true }, "batas": 20000 },
+        { "banner": "Bagus menyetujui pemeriksaan ulang", "tahan": 2500 },
+        {
+          "isi": { "label": "/Catatan/", "dalam": { "kartuPersetujuan": true } },
+          "nilai": "Sudah lengkap, disetujui"
+        },
+        { "klik": { "tombol": "Setujui", "persis": true, "dalam": { "kartuPersetujuan": true } } },
+        { "pastikanTerlihat": "Rekomendasi ini sudah disetujui", "batas": 20000 },
+        { "tahan": 3000 },
+        {
+          "banner": "Pemeriksaan ulang Disetujui; pemeriksaan pertama tetap tertulis Ditolak. Order siap disusun penawarannya",
+          "tahan": 4000
+        }
+      ]
+    }
+  ]
+}
