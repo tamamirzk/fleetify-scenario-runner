@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font-family: Inter, Arial, sans-serif; background: #F7F8FA; color: #1A1D21 }
+  .box { margin: 8px; padding: 8px; width: 300px }
+</style>
+</head>
+<body>
+  <!-- Sah: token, turunan alpha, radius token, kartu datar -->
+  <div id="sah-token" class="box" style="background:#FFFFFF;border:1px solid rgba(26,29,33,0.10);border-radius:16px">Kartu sah</div>
+  <div id="sah-alpha" class="box" style="background:rgba(255,219,14,0.14);border-radius:8px">Tint kuning alpha</div>
+  <button type="button" id="sah-primary" class="box MuiButton-root" style="background:#FFDB0E;color:#1A1D21;border:none;border-radius:8px">Ajukan</button>
+  <div id="sah-pill" class="box" style="background:#EEF0F3;border-radius:9999px">Pill</div>
+  <div class="box MuiCard-root MuiPaper-root" style="background:#FFFFFF;border-radius:16px">Card datar</div>
+  <div class="MuiDialog-root"><div class="box MuiPaper-root" style="background:#FFFFFF;border-radius:16px;box-shadow:0 8px 28px rgba(26,29,33,0.12)">Dialog berbayang sah</div></div>
+  <div style="position:sticky;bottom:0"><div class="box MuiPaper-root" style="background:#FFFFFF;border-radius:16px;box-shadow:0 8px 28px rgba(26,29,33,0.12)">Bar mengambang sah</div></div>
+  <svg width="40" height="20"><title>Ikon dikecualikan</title><rect width="40" height="20" fill="#123456"/></svg>
+  <div class="highcharts-container"><span style="color:#9C27B0">Grafik dikecualikan</span></div>
+
+  <!-- Melanggar -->
+  <div id="langgar-warna" class="box" style="background:#9C27B0;color:#FFFFFF;border-radius:8px">Ungu bukan token</div>
+  <div id="langgar-radius" class="box" style="background:#FFFFFF;border:1px solid #CBD0D8;border-radius:5px">Radius 5px</div>
+  <div id="langgar-bayangan" class="box MuiCard-root MuiPaper-root" style="background:#FFFFFF;border-radius:16px;box-shadow:0 4px 16px rgba(26,29,33,0.06)">Kartu berbayang</div>
+  <div id="langgar-font" class="box" style="font-family:'Comic Sans MS', cursive">Font lain</div>
+  <div id="langgar-kuning" class="box" style="background:#FFFFFF"><span style="color:#FFDB0E">Teks kuning di atas putih</span></div>
+  <div id="langgar-putih" class="box" style="background:#FFDB0E;color:#FFFFFF;border-radius:8px">Teks putih di atas kuning</div>
+</body>
+</html>

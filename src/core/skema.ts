@@ -2,6 +2,8 @@
 // Skema ini memeriksa bentuk; nama dan argumen aksi pustaka diperiksa terpisah (pustaka/index.ts).
 import { z } from 'zod'
 import { INVARIAN_IDS } from '../pemeriksaan/invarian.ts'
+import { ATURAN_DOM } from '../pemeriksaan/ui-dom.ts'
+import { ATURAN_STATIS } from '../pemeriksaan/ui-statis.ts'
 import { PERSONA_IDS } from './personas.ts'
 
 export const MODUL = ['material', 'approval', 'wo', 'pb', 'akses', 'lingkungan'] as const
@@ -235,6 +237,25 @@ export const SkenarioSchema = z
         alasan: z.string().trim().min(20),
       })
       .strict()
+      .optional(),
+    /** Pemeriksaan UI (docs/PEMERIKSAAN.md): aturan yang dimatikan dan halaman yang dilewati, dengan alasan. */
+    pemeriksaanUi: z
+      .object({
+        nonaktif: z.array(z.enum([...ATURAN_STATIS, ...ATURAN_DOM])).optional(),
+        /** Awalan pathname yang tidak diperiksa, mis. "/tires/used" (prototipe). */
+        abaikanHalaman: z.array(z.string().regex(/^\/[^\s?#]*$/, 'pathname diawali /')).optional(),
+        alasan: z.string().trim().min(20).optional(),
+      })
+      .strict()
+      .superRefine((p, ctx) => {
+        if ((p.nonaktif?.length || p.abaikanHalaman?.length) && !p.alasan)
+          ctx.addIssue({
+            code: 'custom',
+            path: ['alasan'],
+            message:
+              'alasan wajib (min. 20 huruf) bila ada aturan yang dinonaktifkan atau halaman yang diabaikan',
+          })
+      })
       .optional(),
   })
   .strict()

@@ -29,6 +29,128 @@ export interface StepResult extends StepInfo {
   aksi: AksiResult[]
   /** Pemeriksaan DB setelah langkah ini (docs/PEMERIKSAAN.md). */
   db?: DbLangkah
+  /** Pemeriksaan UI setelah langkah ini (docs/PEMERIKSAAN.md, bagian UI). */
+  ui?: UiLangkah
+  /** Request tulis (POST/PUT/PATCH/DELETE ke /api/v1) selama langkah ini, urut waktu. */
+  requests?: RequestTulis[]
+}
+
+// ── Request tulis per langkah ────────────────────────────────────────────────
+export interface RequestTulis {
+  method: string
+  /** Path untuk tampilan: UUID diganti `{id}`. */
+  path: string
+  /** Path asli (dengan UUID). */
+  pathAsli: string
+  status: number
+  durasiMs: number | null
+  /** Waktu selesai (ISO). */
+  waktu: string
+  /** `browser` = dari jendela skenario; `api` = aksi pustaka lewat klien API (di belakang layar). */
+  sumber: 'browser' | 'api'
+}
+
+// ── Pemeriksaan UI ───────────────────────────────────────────────────────────
+/** Satu pelanggaran statis dari check:design (berkas relatif terhadap Frontend/). */
+export interface PelanggaranStatis {
+  file: string
+  line: number
+  col: number
+  rule: string
+  message: string
+  /** Satu baris kode pada posisi itu, bila terbaca. */
+  cuplikan?: string
+}
+
+/** Pelanggaran statis dikelompokkan per (berkas, aturan) — satuan yang dipakai baseline. */
+export interface KelompokStatis {
+  file: string
+  rule: string
+  /** Pasal DESIGN.md yang dirujuk aturan. */
+  pasal: string
+  /** Jumlah pelanggaran saat ini dan jumlah di baseline. */
+  jumlah: number
+  baseline: number
+  /** Kelebihan terhadap baseline (0 = semua sudah ada). */
+  baru: number
+  /** Semua baris pelanggaran untuk pasangan ini (baseline tidak menyimpan posisi). */
+  baris: PelanggaranStatis[]
+  /** Langkah tempat pertama muncul (ringkasan akhir). */
+  langkah?: number
+}
+
+export interface TemuanDom {
+  aturan: string
+  pesan: string
+  /** tag + class MUI utama + teks ≤ 30 huruf. */
+  selector: string
+  bbox: { x: number; y: number; w: number; h: number }
+  nilai: string
+  /** Jumlah elemen serupa yang dilipat ke temuan ini (dedup per aturan, nilai, class). */
+  jumlah: number
+}
+
+export type StatusUiLangkah =
+  | 'memeriksa'
+  | 'ok'
+  | 'peringatan'
+  | 'pelanggaran'
+  | 'galat'
+  | 'dilewati'
+  | 'tidak_dikonfigurasi'
+
+/** Hasil Pemeriksaan UI untuk satu langkah. `peringatan` = hanya temuan DOM; `pelanggaran` = ada statis baru. */
+export interface UiLangkah {
+  status: StatusUiLangkah
+  url: string | null
+  /** Pola rute dari PAGE_TABLE dan berkas halaman, bila cocok. */
+  pattern: string | null
+  page: string | null
+  statis: {
+    berkas: number
+    baru: KelompokStatis[]
+    sudahAda: KelompokStatis[]
+    durasiMs: number
+    /** Hasil dipakai ulang dari langkah lain dengan pola rute yang sama. */
+    cache: boolean
+  } | null
+  dom: {
+    temuan: TemuanDom[]
+    /** Lama evaluasi di dalam halaman. */
+    evalMs: number
+    /** Lama seluruh pemeriksaan DOM termasuk screenshot bersorot. */
+    durasiMs: number
+    /** Jumlah elemen yang dinilai. */
+    elemen: number
+    terpotong: boolean
+  } | null
+  /** Screenshot langkah dengan kotak merah di temuan DOM. */
+  shotUi: string | null
+  galat: string[]
+}
+
+export type StatusPemeriksaanUi =
+  | 'lulus'
+  | 'peringatan'
+  | 'pelanggaran'
+  | 'tidak_dikonfigurasi'
+  | 'galat'
+
+export interface HasilPemeriksaanUi {
+  status: StatusPemeriksaanUi
+  /** Kelompok (berkas, aturan) yang jumlahnya melebihi baseline, dengan langkah pertama muncul. */
+  baru: KelompokStatis[]
+  /** Kelompok yang jumlahnya ≤ baseline (dilipat di panel). */
+  sudahAda: KelompokStatis[]
+  /** Ringkasan temuan DOM: per aturan, jumlah total dan langkah yang memuatnya. */
+  dom: { aturan: string; jumlah: number; langkah: number[] }[]
+  /** Halaman yang dilewati karena `pemeriksaanUi.abaikanHalaman`. */
+  dilewati: { langkah: number; url: string }[]
+  galat: { langkah: number; pesan: string }[]
+  statis: { jumlah: number; rataMs: number; cache: number }
+  domWaktu: { jumlah: number; rataEvalMs: number; rataMs: number }
+  durasiMs: number
+  pesan?: string
 }
 
 export const JENIS_TEMUAN = ['bug', 'skenario', 'catatan'] as const
@@ -134,4 +256,7 @@ export interface RunResult {
   steps: StepResult[]
   findings: Finding[]
   pemeriksaan?: HasilPemeriksaan
+  pemeriksaanUi?: HasilPemeriksaanUi
+  /** Laporan gabungan Markdown di folder jalan (laporan.md), ditulis di akhir jalan. */
+  laporan?: string
 }

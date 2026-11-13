@@ -52,6 +52,8 @@ const Schema = z
     V2_BACKEND_DIR: z.string().optional(),
     /** DB Postgres lokal v2 untuk Pemeriksaan (hanya SELECT); pagar host ada di core/db.ts. */
     V2_DATABASE_URL: z.string().min(1).optional(),
+    /** Akar repo v2 yang memuat Frontend/scripts/check-design.ts (Pemeriksaan UI statis). */
+    V2_DIR: z.string().optional(),
   })
   .superRefine((c, ctx) => {
     if (c.ALLOW_NON_LOCAL) return
@@ -95,6 +97,7 @@ export function loadConfig(env: Record<string, string | undefined>) {
     ticketUrl: c.TICKET_URL ?? null,
     v2BackendDir: c.V2_BACKEND_DIR ? path.resolve(ROOT, c.V2_BACKEND_DIR) : null,
     v2DatabaseUrl: c.V2_DATABASE_URL ?? null,
+    v2Dir: c.V2_DIR ? path.resolve(ROOT, c.V2_DIR) : null,
     cacheDir: path.join(ROOT, '.cache'),
     runsDir: path.join(ROOT, 'runs'),
     scenariosDir: path.join(ROOT, 'scenarios'),
