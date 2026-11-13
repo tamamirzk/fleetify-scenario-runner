@@ -53,11 +53,13 @@ const KAKI_MOVEMENT = `
          m.qty_before_current AS sebelum, m.qty_after_current AS sesudah,
          CASE m.direction::text WHEN 'OUT' THEN -m.quantity ELSE m.quantity END AS delta
     FROM warehouse_stock_movements m WHERE m.company_id = $1::uuid
+     AND coalesce((to_jsonb(m)->>'physical_effect')::boolean, true)
   UNION ALL
   SELECT m.id, m.previous_warehouse_id, m.part_id, m.created_at, 'TRANSFER-ASAL',
          m.qty_before_previous, m.qty_after_previous, -m.quantity
     FROM warehouse_stock_movements m
-   WHERE m.company_id = $1::uuid AND m.direction = 'TRANSFER' AND m.previous_warehouse_id IS NOT NULL`
+   WHERE m.company_id = $1::uuid AND m.direction = 'TRANSFER' AND m.previous_warehouse_id IS NOT NULL
+     AND coalesce((to_jsonb(m)->>'physical_effect')::boolean, true)`
 
 /** Satu cabang approval-yatim: request PENDING yang dokumennya tidak lagi menunggu. */
 interface CabangYatim {
@@ -229,7 +231,7 @@ export const INVARIAN: readonly Invarian[] = [
     id: 'stok-ledger',
     judul: 'Ledger movement menyambung dan cocok dengan on hand',
     keterangan:
-      'Tiga pemeriksaan atas warehouse_stock_movements per (gudang, barang), TRANSFER dihitung dua kaki (kolom *_current = gudang tujuan, *_previous = gudang asal): (aritmetika) qty_after = qty_before ± quantity sesuai arah; (rantai) qty_after baris sebelumnya = qty_before baris berikutnya, urut created_at lalu id — baris yang created_at-nya kembar dengan baris lain di pasangan yang sama dilewati karena urutannya tak terjamin; (saldo-akhir) warehouse_stock.quantity_on_hand sama dengan qty_after movement terakhir. Baris tanpa qty_before/qty_after (data lama) tidak dinilai. Ini bentuk yang pasti benar; rekonsiliasi penuh "selisih on hand = jumlah movement selama jalan" tidak dipakai karena baseline tidak menyimpan saldo per baris.',
+      'Tiga pemeriksaan atas warehouse_stock_movements per (gudang, barang), TRANSFER dihitung dua kaki (kolom *_current = gudang tujuan, *_previous = gudang asal): (aritmetika) qty_after = qty_before ± quantity sesuai arah; (rantai) qty_after baris sebelumnya = qty_before baris berikutnya, urut created_at lalu id — baris yang created_at-nya kembar dengan baris lain di pasangan yang sama dilewati karena urutannya tak terjamin; (saldo-akhir) warehouse_stock.quantity_on_hand sama dengan qty_after movement terakhir. Baris tanpa qty_before/qty_after (data lama) tidak dinilai. Baris pencatat reservasi (physical_effect = false, recordReservationEvent di applyStockMovement.ts) tidak menggerakkan stok fisik, jadi dikeluarkan. Ini bentuk yang pasti benar; rekonsiliasi penuh "selisih on hand = jumlah movement selama jalan" tidak dipakai karena baseline tidak menyimpan saldo per baris.',
     sql: `WITH kaki AS (${KAKI_MOVEMENT}),
       urut AS (
         SELECT k.*, lag(k.sesudah) OVER (PARTITION BY k.warehouse_id, k.part_id ORDER BY k.created_at, k.id) AS sesudah_sebelumnya,
@@ -352,7 +354,7 @@ export const INVARIAN: readonly Invarian[] = [
     judul: 'Pinjaman alat: kembali + dihapusbukukan ≤ dipinjam ≤ diserahkan',
     keterangan:
       'Per pinjaman alat (material_request_tool_loans, FMS-63): returned_quantity + written_off_quantity ≤ quantity dan tidak negatif; per baris MR TOOL: jumlah quantity pinjaman ≤ material_request_lines.issued_qty. Tabel pinjaman per peminjam hanya ada di skema cabang yang memuat FMS-63; di DB tanpa tabel itu invarian dilewati.',
-    sql: `SELECT 'pinjaman' AS masalah, mr.request_number AS mr, l.description AS baris, t.borrower_name AS peminjam,
+    sql: `SELECT 'pinjaman' AS masalah, mr.mr_number AS mr, l.description AS baris, t.borrower_name AS peminjam,
                  t.id::text AS loan_id, t.quantity::text AS dipinjam, t.returned_quantity::text AS kembali,
                  t.written_off_quantity::text AS dihapusbukukan, l.issued_qty::text AS diserahkan
             FROM material_request_tool_loans t
@@ -362,13 +364,13 @@ export const INVARIAN: readonly Invarian[] = [
              AND (t.returned_quantity + t.written_off_quantity > t.quantity
                   OR t.quantity < 0 OR t.returned_quantity < 0 OR t.written_off_quantity < 0)
           UNION ALL
-          SELECT 'baris', mr.request_number, l.description, NULL, l.id::text, sum(t.quantity)::text,
+          SELECT 'baris', mr.mr_number, l.description, NULL, l.id::text, sum(t.quantity)::text,
                  sum(t.returned_quantity)::text, sum(t.written_off_quantity)::text, l.issued_qty::text
             FROM material_request_lines l
             JOIN material_requests mr ON mr.id = l.request_id
             JOIN material_request_tool_loans t ON t.request_line_id = l.id
            WHERE l.company_id = $1::uuid AND l.item_kind::text = 'TOOL'
-           GROUP BY mr.request_number, l.id, l.description, l.issued_qty
+           GROUP BY mr.mr_number, l.id, l.description, l.issued_qty
           HAVING sum(t.quantity) > l.issued_qty
            ORDER BY 1, 2, 3`,
     kolomKunci: ['masalah', 'loan_id'],
