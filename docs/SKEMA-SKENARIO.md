@@ -71,6 +71,7 @@ Field yang tidak tercantum ditolak (salah ketik ketahuan).
 | `siapkan` | ya | Aksi API sebelum putar (lihat di bawah); boleh `[]` |
 | `langkah` | ya | Minimal satu langkah |
 | `bersihkan` | | Aksi API yang selalu berjalan di akhir, juga saat gagal atau dihentikan |
+| `pemeriksaan` | | `{ "nonaktif": ["approval-yatim"], "alasan": "…" }`: mematikan invarian DB tertentu untuk skenario ini (id dari [PEMERIKSAAN.md](PEMERIKSAAN.md)); `alasan` wajib (min. 20 huruf) |
 
 Persona yang dikenal: `mbl.superintendent` (Bagus), `mbl.plant-superintendent` (Andi), `mbl.planner` (Putri), `mbl.foreman` (Fajar), `mbl.foreman.beta` (Bima), `mbl.supervisor` (Surya), `mbl.mechanic` (Made), `mbl.storekeeper` (Wati), `mbl.purchasing` (Purnomo), `mbl.dispatcher` (Dedi), `mbl.mcr` (Mira). Sumber: `src/core/personas.ts`.
 
@@ -167,7 +168,7 @@ Juga: skenario JSON tidak punya percabangan atau perulangan. Bila perlu kondisi 
 
 ## Menambah aksi pustaka
 
-1. Tulis di `src/pustaka/<domain>.ts` dengan `api({...})` (tanpa jendela, `ctx: BaseCtx`) atau `layar({...})` (jendela, `ctx: StepCtx`): `ringkasan`, `argumen` (zod `.strict()`, pakai `.describe()` dan `.default()`), `hasil` bila mengembalikan nilai, `urai` (teks untuk "Aksi di langkah ini"), `jalankan`.
+1. Tulis di `src/pustaka/<domain>.ts` dengan `api({...})` (tanpa jendela, `ctx: BaseCtx`) atau `layar({...})` (jendela, `ctx: StepCtx`): `ringkasan`, `argumen` (zod `.strict()`, pakai `.describe()` dan `.default()`), `hasil` bila mengembalikan nilai, `urai` (teks untuk "Aksi di langkah ini"), `jalankan`, dan `dokumen(hasil)` bila hasilnya mewakili baris DB yang layak diikuti Pemeriksaan (`[{ tabel, where: { id } }]`, lihat [PEMERIKSAAN.md](PEMERIKSAAN.md)).
 2. Aksi `layar` memakai `ctx.k.click/fill/pick/search` dan `ctx.wait` (bukan aksi Playwright mentah atau `waitForTimeout`) supaya bisa dijeda.
 3. Aksi yang menyentuh DB atau proses luar diberi `pengecualianDb: true` dan disepakati tim dulu.
 4. Daftarkan di `src/pustaka/index.ts`, lalu `bun run docs:pustaka` untuk memperbarui daftar di bawah.

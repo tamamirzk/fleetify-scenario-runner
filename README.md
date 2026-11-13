@@ -35,9 +35,13 @@ bun run scenario pinjaman-alat      # CLI, headless
 bun run scenario pinjaman-alat --headed --speed 1.5
 bun run scenario pinjaman-alat --from 5                                  # mulai di langkah 5 (pakai capai)
 bun run scenario pinjaman-alat --from 5 --data pinjaman-alat/2026-11-13T07-54-22   # pakai data jalan lain
+bun run scenario pinjaman-alat --tanpa-pemeriksaan                       # lewati Pemeriksaan invarian DB
+bun run pemeriksaan                 # semua invarian DB sekali, tanpa skenario
 ```
 
 Bukti tiap jalan ada di `runs/<slug>/<waktu>/`: `data.json`, `result.json`, screenshot per langkah, dan `trace.zip` (`bunx playwright show-trace runs/<…>/trace.zip`). Folder `runs/` tidak di-commit.
+
+Tiap jalan juga melewati **Pemeriksaan**: serangkaian SQL hanya-SELECT ke DB lokal v2 — baseline sebelum siapkan data, lalu snapshot setelah tiap langkah (asinkron, diantre) — yang melaporkan **pelanggaran invarian baru per langkah** (stok vs ledger movement, saldo akun vs ledger, total WO, request approval yatim, pinjaman alat, tabel append-only) dan **kolom dokumen yang berubah** antar langkah (MR, WO, stok barang, …). Butuh `V2_DATABASE_URL`; tanpa itu dilewati. Hasil tampil langsung di baris langkah, di layar Selesai/Gagal, di Riwayat, dan di CLI (pelanggaran baru = exit code ≠ 0). Rincian: [docs/PEMERIKSAAN.md](docs/PEMERIKSAAN.md).
 
 ## Panel (mode lokal)
 
@@ -65,18 +69,19 @@ Jeda berlaku sebelum aksi terlihat berikutnya (banner, klik, isian, ganti akun, 
 | `HEADLESS_HOLD` | Pengali tahanan saat headless (bawaan 0,15) |
 | `TEMUAN_FILE` | Berkas temuan (bawaan `docs/TEMUAN.md`) |
 | `TICKET_URL` | Awalan tautan tiket di panel |
-| `V2_BACKEND_DIR` | Folder Backend v2 yang menyala; hanya untuk `sla-eskalasi` |
+| `V2_BACKEND_DIR` | Folder Backend v2 yang menyala; untuk `sla-eskalasi` dan cadangan alamat DB Pemeriksaan |
+| `V2_DATABASE_URL` | DB Postgres lokal v2 untuk Pemeriksaan (hanya SELECT, hanya host lokal). Kosong = dibaca dari `.env` Backend (`MIGRATE_DATABASE_URL`), bila tidak ada Pemeriksaan dilewati |
 
 ## Menulis skenario
 
 ```bash
 bun run new FMS-62 retur-rusak   # kerangka scenarios/FMS-62/retur-rusak.json
 bun run check:scenarios          # skema dan aturan
-bun run docs:pustaka             # perbarui daftar aksi pustaka di docs/SKEMA-SKENARIO.md
+bun run docs:pustaka             # perbarui daftar aksi pustaka (SKEMA-SKENARIO.md) dan invarian (PEMERIKSAAN.md)
 bun run check && bun run typecheck && bun run test
 ```
 
-Skema dan daftar aksi: [docs/SKEMA-SKENARIO.md](docs/SKEMA-SKENARIO.md). Alur menulis dan memperbaiki: [docs/MENULIS-SKENARIO.md](docs/MENULIS-SKENARIO.md). Konteks dan larangan: [docs/BRIEF.md](docs/BRIEF.md). Skenario berikutnya: [docs/DAFTAR-SKENARIO.md](docs/DAFTAR-SKENARIO.md). Alur kontribusi: [CONTRIBUTING.md](CONTRIBUTING.md).
+Skema dan daftar aksi: [docs/SKEMA-SKENARIO.md](docs/SKEMA-SKENARIO.md). Invarian DB pasca-skenario: [docs/PEMERIKSAAN.md](docs/PEMERIKSAAN.md). Alur menulis dan memperbaiki: [docs/MENULIS-SKENARIO.md](docs/MENULIS-SKENARIO.md). Konteks dan larangan: [docs/BRIEF.md](docs/BRIEF.md). Skenario berikutnya: [docs/DAFTAR-SKENARIO.md](docs/DAFTAR-SKENARIO.md). Alur kontribusi: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Struktur
 
@@ -89,7 +94,8 @@ Skema dan daftar aksi: [docs/SKEMA-SKENARIO.md](docs/SKEMA-SKENARIO.md). Alur me
 | `src/core/lib.ts`, `kit.ts` | Browser, sesi admin, impersonasi persona, API, aksi terlihat dengan gerbang jeda |
 | `src/core/controller.ts` | Jeda, satu aksi, kecepatan, hentikan |
 | `src/core/run.ts` | Satu jalan: siapkan → langkah → bersihkan, temuan, bukti, screencast |
-| `src/core/config.ts` | Baca dan validasi `.env` (zod) |
+| `src/core/config.ts`, `db.ts` | Baca dan validasi `.env` (zod); alamat DB lokal v2 dengan pagar host |
+| `src/pemeriksaan/` | Lapisan Pemeriksaan: `invarian.ts` (definisi SQL), `banding.ts` (baseline vs akhir), `jalankan.ts` (Bun.sql, transaksi READ ONLY) |
 | `src/server.ts`, `panel/index.html` | Panel (http + SSE `/events`, tampilan langsung `/live`) |
-| `src/cli.ts`, `src/new.ts`, `src/check-scenarios.ts`, `src/docs-pustaka.ts` | CLI, kerangka, pemeriksa, generator docs pustaka |
+| `src/cli.ts`, `src/new.ts`, `src/check-scenarios.ts`, `src/docs-pustaka.ts`, `src/pemeriksaan.ts` | CLI, kerangka, pemeriksa, generator docs (pustaka + invarian), Pemeriksaan mandiri |
 | `templates/skenario.json` | Templat untuk `bun run new` |

@@ -1,10 +1,12 @@
 // bun run docs:pustaka — tulis ulang daftar aksi pustaka di docs/SKEMA-SKENARIO.md
-// (di antara penanda pustaka:mulai dan pustaka:akhir), dari src/pustaka/index.ts.
+// (di antara penanda pustaka:mulai dan pustaka:akhir), dari src/pustaka/index.ts, dan daftar
+// invarian Pemeriksaan di docs/PEMERIKSAAN.md (penanda invarian:mulai/akhir) dari src/pemeriksaan/invarian.ts.
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { ZodType } from 'zod'
 import { ROOT } from './core/config.ts'
 import { PERSONA_IDS } from './core/personas.ts'
+import { INVARIAN } from './pemeriksaan/invarian.ts'
 import { PUSTAKA } from './pustaka/index.ts'
 
 type Def = {
@@ -53,15 +55,30 @@ for (const [nama, p] of Object.entries(PUSTAKA)) {
   if (p.hasil) baris.push(`Hasil (untuk \`simpan\`): \`${p.hasil}\``, '')
 }
 
-const file = path.join(ROOT, 'docs/SKEMA-SKENARIO.md')
-const doc = readFileSync(file, 'utf8')
-const out = doc.replace(
-  /(<!-- pustaka:mulai -->\n)[\s\S]*?(<!-- pustaka:akhir -->)/,
-  `$1${baris.join('\n')}\n$2`,
-)
-if (out === doc && !doc.includes('<!-- pustaka:mulai -->')) {
-  console.error('Penanda pustaka:mulai/akhir tidak ada di docs/SKEMA-SKENARIO.md')
-  process.exit(1)
+/** Tulis ulang isi di antara penanda `<!-- nama:mulai -->` dan `<!-- nama:akhir -->`. */
+function tulisAntara(relFile: string, nama: string, isi: string[]) {
+  const file = path.join(ROOT, relFile)
+  const doc = readFileSync(file, 'utf8')
+  const mulai = `<!-- ${nama}:mulai -->`
+  if (!doc.includes(mulai)) {
+    console.error(`Penanda ${nama}:mulai/akhir tidak ada di ${relFile}`)
+    process.exit(1)
+  }
+  const re = new RegExp(`(${mulai}\\n)[\\s\\S]*?(<!-- ${nama}:akhir -->)`)
+  writeFileSync(file, doc.replace(re, `$1${isi.join('\n')}\n$2`))
 }
-writeFileSync(file, out)
+
+tulisAntara('docs/SKEMA-SKENARIO.md', 'pustaka', baris)
 console.log(`docs/SKEMA-SKENARIO.md: ${Object.keys(PUSTAKA).length} aksi pustaka`)
+
+const inv: string[] = []
+for (const i of INVARIAN) {
+  inv.push(`### \`${i.id}\` — ${i.judul}`, '')
+  inv.push(i.keterangan, '')
+  inv.push(
+    `Mode: ${i.mode === 'kenaikan' ? 'kenaikan penghitung' : 'baris pelanggaran'} · kunci baris: ${i.kolomKunci.map((k) => `\`${k}\``).join(', ')}${i.kolomAngka ? ` · kolom angka: ${i.kolomAngka.map((k) => `\`${k}\``).join(', ')}` : ''}${i.tabel.length ? ` · tabel wajib: ${i.tabel.map((t) => `\`${t}\``).join(', ')}` : ''}`,
+    '',
+  )
+}
+tulisAntara('docs/PEMERIKSAAN.md', 'invarian', inv)
+console.log(`docs/PEMERIKSAAN.md: ${INVARIAN.length} invarian`)
