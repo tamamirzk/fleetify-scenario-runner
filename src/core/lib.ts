@@ -70,9 +70,19 @@ export async function sharedBrowser({ headed = false }: { headed?: boolean } = {
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
+/** Pendengar request API (dipasang Run untuk mencatat request tulis per langkah). */
+type PendengarApi = (x: { method: string; url: string; status: number; durasiMs: number }) => void
+let pendengarApi: PendengarApi | null = null
+export const setApiListener = (p: PendengarApi | null) => {
+  pendengarApi = p
+}
+
 async function api(target: ApiTarget, method: string, url: string, data?: unknown) {
   const req: APIRequestContext = 'request' in target ? target.request : target
-  const res = await req.fetch(`${config.apiUrl}${url}`, { method, data })
+  const t0 = Date.now()
+  const full = `${config.apiUrl}${url}`
+  const res = await req.fetch(full, { method, data })
+  pendengarApi?.({ method, url: full, status: res.status(), durasiMs: Date.now() - t0 })
   let body: Body = null
   try {
     body = await res.json()

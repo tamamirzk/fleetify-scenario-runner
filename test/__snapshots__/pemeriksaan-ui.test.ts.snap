@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`susunLaporan > menyusun KPI, tabel langkah, pelanggaran UI/DB, tersangka, diff 1`] = `
+"# Laporan jalan: Contoh skenario
+
+- **Skenario:** \`scenarios/FMS-1/contoh.json\` (task FMS-1)
+- **Jalan:** \`contoh/2026-11-13T10-00-00\` · 2026-11-13 10:00 · headless
+- **Hasil:** **Selesai**
+
+## KPI
+
+| Langkah lulus | Pelanggaran DB | Pelanggaran UI | Temuan DOM | Durasi |
+|---|---|---|---|---|
+| 1/1 | 1 baru · 1 lama | 1 baru · 0 lama | 0 | 1:05 |
+
+## Langkah
+
+| # | Langkah | Status | URL | UI | DB | Request tulis |
+|---|---|---|---|---|---|---|
+| 1 | Wati membuka MR | lulus | \`/x/1\` | ✗ 27 berkas, 1 baru, 0 DOM | ✗ 1 baru (stok-available) | POST /mr/{id}/submit 200<br>POST /mr/{id}/issue 200 |
+
+## Pelanggaran UI baru
+
+### sx-tema · \`src/X.tsx\` — 1 pelanggaran, baseline 0, **1 baru** (langkah 1, DESIGN.md §1, §7.2)
+
+Baseline hanya menyimpan jumlah per (berkas, aturan); semua baris pasangan ini ditampilkan supaya yang baru bisa ditemukan.
+
+- \`src/X.tsx:12:3\` — sx-tema di 12 ([buka](vscode://file/v2/Frontend/src/X.tsx:12:3))
+
+### Temuan DOM (peringatan, tidak menggagalkan)
+
+_Tidak ada._
+
+## Pelanggaran DB baru
+
+### stok-available — Stok tersedia · 1 baris · muncul di langkah 1
+
+ket
+
+**Transaksi tersangka** (request tulis langkah 1, terakhir sebelum snapshot paling atas):
+
+1. \`POST /mr/1/issue\` → 200 (40 ms) · lewat API
+2. \`POST /mr/1/submit\` → 200 (30 ms)
+
+| gudang | sku |
+| --- | --- |
+| WH | S1 |
+
+## Diff dokumen per langkah
+
+- Langkah 1: mr: status DRAFT → PENDING
+
+## Sudah ada sebelumnya (ringkas)
+
+DB: wo-nilai (1 baris)
+
+_Bukti: \`runs/contoh/2026-11-13T10-00-00/\` (result.json, screenshot per langkah dan *-ui.png bersorot, trace.zip)._
+"
+`;

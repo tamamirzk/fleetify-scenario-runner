@@ -18,6 +18,7 @@ import {
   stepInfo,
 } from './core/scenarios.ts'
 import { Pemeriksa } from './pemeriksaan/jalankan.ts'
+import { PemeriksaUi } from './pemeriksaan/ui.ts'
 
 const HOST = '127.0.0.1'
 const HEADED = !config.headless
@@ -136,6 +137,7 @@ const TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.json': 'application/json; charset=utf-8',
   '.zip': 'application/zip',
+  '.md': 'text/markdown; charset=utf-8',
 }
 
 function requireRun(): Run {
@@ -238,6 +240,9 @@ const routes: Record<string, Handler> = {
     scenarios_dir: path.relative(ROOT, config.scenariosDir),
     // Lapisan Pemeriksaan (docs/PEMERIKSAAN.md): false = V2_DATABASE_URL kosong, hasil "tidak dikonfigurasi".
     pemeriksaan: new Pemeriksa().dikonfigurasi,
+    // Pemeriksaan UI: false = V2_DIR kosong atau tidak memuat Frontend/scripts/check-design.ts.
+    pemeriksaan_ui: new PemeriksaUi().dikonfigurasi,
+    v2_dir: config.v2Dir,
   }),
   'GET /api/scenarios': async () => bacaSemua().map(kartu),
   'GET /api/state': async () => ({ ...snapshot(), logs }),

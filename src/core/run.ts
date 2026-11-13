@@ -14,15 +14,18 @@ import path from 'node:path'
 import type { APIRequestContext, BrowserContext, CDPSession, Page } from 'playwright'
 import { teksDiff } from '../pemeriksaan/banding.ts'
 import { Pemeriksa } from '../pemeriksaan/jalankan.ts'
+import { PemeriksaUi, teksUiLangkah } from '../pemeriksaan/ui.ts'
 import { PUSTAKA } from '../pustaka/index.ts'
 import { config } from './config.ts'
 import { Controller, Stopped } from './controller.ts'
 import { readRun } from './history.ts'
 import { jalankanAksi, type Layar, type Lingkungan, uraiAksi } from './interpreter.ts'
 import * as kitModule from './kit.ts'
+import { susunLaporan } from './laporan.ts'
 import { layarPlaywright } from './layar.ts'
 import * as lib from './lib.ts'
 import { type PersonaId, personaName } from './personas.ts'
+import { PencatatRequest } from './requests.ts'
 import {
   type Finding,
   type JenisTemuan,
@@ -64,10 +67,14 @@ export class Run extends EventEmitter {
   private stepIdx: number | null = null
   /** Lapisan Pemeriksaan (docs/PEMERIKSAAN.md); null bila dimatikan lewat opsi. */
   private pemeriksa: Pemeriksa | null
+  /** Lapisan Pemeriksaan UI (docs/PEMERIKSAAN.md, bagian UI); null bila dimatikan (--tanpa-ui). */
+  private pemeriksaUi: PemeriksaUi | null
+  /** Request tulis per langkah (transaksi tersangka untuk pelanggaran DB). */
+  private readonly pencatat: PencatatRequest
 
   constructor(
     berkas: BerkasSkenario & { skenario: Skenario },
-    { headed = false, speed = 1, pemeriksaan = true } = {},
+    { headed = false, speed = 1, pemeriksaan = true, ui = true } = {},
   ) {
     super()
     this.berkas = berkas
@@ -76,6 +83,18 @@ export class Run extends EventEmitter {
     this.pemeriksa = pemeriksaan
       ? new Pemeriksa({ nonaktif: this.sk.pemeriksaan?.nonaktif, log: (l) => this.log(l) })
       : null
+    this.pemeriksaUi = ui
+      ? new PemeriksaUi({
+          nonaktif: this.sk.pemeriksaanUi?.nonaktif,
+          abaikanHalaman: this.sk.pemeriksaanUi?.abaikanHalaman,
+          log: (l) => this.log(l),
+        })
+      : null
+    this.pencatat = new PencatatRequest((n, r) => {
+      const step = this.result.steps[n - 1]
+      if (!step) return
+      step.requests = [...(step.requests ?? []), r]
+    })
     this.ctl = new Controller({ scale: headed ? 1 : config.headlessHold, speed })
     this.runId = `${berkas.slug}/${runStamp()}`
     this.dir = path.join(config.runsDir, this.runId)
@@ -264,7 +283,9 @@ export class Run extends EventEmitter {
 
   private async shot(name: string): Promise<string | null> {
     if (!this.page) return null
-    const n = readdirSync(this.dir).filter((f) => f.endsWith('.png')).length + 1
+    // Screenshot bersorot Pemeriksaan UI (*-ui.png) menempel ke screenshot langkahnya, tidak dihitung.
+    const n =
+      readdirSync(this.dir).filter((f) => f.endsWith('.png') && !f.endsWith('-ui.png')).length + 1
     const file = `${String(n).padStart(2, '0')}-${name.replaceAll(/[^a-z0-9]+/gi, '-').slice(0, 60)}.png`
     await this.page
       .screenshot({ path: path.join(this.dir, file), fullPage: false, timeout: SHOT_TIMEOUT })
@@ -336,6 +357,10 @@ export class Run extends EventEmitter {
       this.ctx = p.ctx
       this.page = p.page
       this.persona = first
+      this.pencatat.pasangBrowser(p.page)
+      lib.setApiListener(this.pencatat.dariApi)
+      if (this.pemeriksaUi?.dikonfigurasi) this.pemeriksaUi.siapkan()
+      else if (this.pemeriksaUi) this.log('Pemeriksaan UI: tidak dikonfigurasi (V2_DIR kosong)')
       // Menutup jendela (atau browser) sama dengan Hentikan.
       p.page.on('close', () => {
         if (!this.finished) this.ctl.stop()
@@ -344,6 +369,7 @@ export class Run extends EventEmitter {
       this.log(`Jendela dibuka sebagai ${personaName(first)}`)
       for (; i < steps.length; i++) {
         await this.runStep(i, p.page)
+        await this.periksaUiLangkah(i)
         await this.periksaLangkah(i)
       }
       this.result.current_step = null
@@ -358,7 +384,8 @@ export class Run extends EventEmitter {
         const a = this.result.current_aksi == null ? null : r.aksi[this.result.current_aksi]
         if (a && a.status === 'berjalan') a.status = stopped ? 'dihentikan' : 'gagal'
         if (!stopped) r.shot = await this.shot(`${i + 1}-gagal`)
-        // Keadaan DB saat langkah ini berhenti ikut diperiksa dan diatribusikan ke langkah ini.
+        // Keadaan layar dan DB saat langkah ini berhenti ikut diperiksa dan diatribusikan ke langkah ini.
+        if (!stopped) await this.periksaUiLangkah(i)
         await this.periksaLangkah(i)
       }
       if (!stopped) {
@@ -368,6 +395,8 @@ export class Run extends EventEmitter {
       this.finish(stopped ? 'dihentikan' : 'gagal')
     } finally {
       this.result.duration_ms = Date.now() - t0
+      this.pencatat.aktif(null)
+      lib.setApiListener(null)
       // Pemeriksaan akhir: tunggu semua snapshot langkah, lalu ringkas — sebelum bersihkan
       // (yang mengubah data lagi), supaya hasil dan skenario selesai bersama.
       if (this.pemeriksa) {
@@ -383,6 +412,21 @@ export class Run extends EventEmitter {
         this.save()
         this.emit('change')
       }
+      if (this.pemeriksaUi) {
+        this.result.pemeriksaanUi = await this.pemeriksaUi.akhir()
+        const h = this.result.pemeriksaanUi
+        this.log(
+          h.status === 'pelanggaran'
+            ? `Pemeriksaan UI: PELANGGARAN STATIS BARU di ${h.baru.map((b) => `${b.rule} ${path.basename(b.file)}`).join(', ')}`
+            : h.status === 'peringatan'
+              ? `Pemeriksaan UI: ${h.dom.reduce((a, d) => a + d.jumlah, 0)} temuan DOM (${h.dom.map((d) => d.aturan).join(', ')}), 0 statis baru`
+              : h.status === 'lulus'
+                ? `Pemeriksaan UI: lulus (statis ${h.statis.jumlah}× rata-rata ${h.statis.rataMs} ms, DOM rata-rata ${h.domWaktu.rataEvalMs} ms)`
+                : `Pemeriksaan UI: ${h.status}${h.pesan ? ` — ${h.pesan}` : ''}`,
+        )
+        this.save()
+        this.emit('change')
+      }
       if (this.sk.bersihkan?.length) {
         // Pembersihan lewat API (mis. mengembalikan setelan), juga saat gagal atau dihentikan.
         try {
@@ -392,8 +436,25 @@ export class Run extends EventEmitter {
           this.log(`PERINGATAN pembersihan: ${this.result.cleanup_error}`)
         }
       }
+      this.tulisLaporan()
       this.save()
       await this.close()
+    }
+  }
+
+  /** Laporan gabungan Markdown di folder jalan; tidak pernah menggagalkan jalan. */
+  private tulisLaporan() {
+    try {
+      writeFileSync(
+        path.join(this.dir, 'laporan.md'),
+        susunLaporan(this.result, {
+          v2Dir: this.pemeriksaUi?.v2Dir ?? config.v2Dir,
+          webUrl: config.webUrl,
+        }),
+      )
+      this.result.laporan = 'laporan.md'
+    } catch (e) {
+      this.log(`Laporan tidak tertulis: ${firstLine(e)}`)
     }
   }
 
@@ -407,6 +468,7 @@ export class Run extends EventEmitter {
     ]
     r.aksi = daftar.map((a) => ({ teks: uraiAksi(a, this.data), status: 'menunggu', ms: null }))
     this.stepIdx = i
+    this.pencatat.aktif(i + 1)
     this.result.current_step = i
     this.result.current_aksi = null
     r.status = 'berjalan'
@@ -480,6 +542,45 @@ export class Run extends EventEmitter {
       this.emit('change')
     })
     await mulai.dimulai
+  }
+
+  /**
+   * Pemeriksaan UI langkah `i`: DOM langsung di halaman yang tampil (diawait — harus sebelum aksi
+   * berikutnya) + screenshot bersorot; pemeriksa statis diantre dan hasilnya masuk lewat event.
+   */
+  private async periksaUiLangkah(i: number) {
+    const r = this.result.steps[i]
+    if (!this.pemeriksaUi || !r || r.ui) return
+    if (!this.pemeriksaUi.dikonfigurasi) {
+      r.ui = {
+        status: 'tidak_dikonfigurasi',
+        url: null,
+        pattern: null,
+        page: null,
+        statis: null,
+        dom: null,
+        shotUi: null,
+        galat: [],
+      }
+      return
+    }
+    const mulai = await this.pemeriksaUi.mulaiLangkah(i + 1, this.page, this.dir, r.shot)
+    if (!mulai) return
+    r.ui = mulai.awal
+    this.save()
+    this.emit('change')
+    const n = i + 1
+    if (mulai.awal.dom?.temuan.length)
+      this.log(
+        `Langkah ${n}: UI ${mulai.awal.dom.temuan.reduce((a, t) => a + t.jumlah, 0)} temuan DOM (${[...new Set(mulai.awal.dom.temuan.map((t) => t.aturan))].join(', ')}, ${mulai.awal.dom.evalMs} ms, ${mulai.awal.dom.elemen} elemen)`,
+      )
+    void mulai.selesai.then((ui) => {
+      r.ui = ui
+      const t = teksUiLangkah(ui)
+      if (t) this.log(`Langkah ${n}: ${t}`)
+      this.save()
+      this.emit('change')
+    })
   }
 
   finish(status: RunStatus) {
