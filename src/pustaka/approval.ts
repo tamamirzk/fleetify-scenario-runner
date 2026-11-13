@@ -1,9 +1,10 @@
 // Aksi pustaka alur persetujuan, SLA, dan PO.
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { config } from '../core/config.ts'
+import { dbUrlDariBackend, pastikanDbLokal } from '../core/db.ts'
 import { PERSONA_IDS } from '../core/personas.ts'
 import type { Body } from '../core/types.ts'
 import { api, layar } from './types.ts'
@@ -19,6 +20,7 @@ export const alurPersetujuan = api({
   ringkasan:
     'Cari alur persetujuan berdasarkan nama; mencatat peringatan bila alur sudah punya SLA atau eskalasi.',
   hasil: '{ id, nama }',
+  dokumen: (h) => [{ tabel: 'approval_flows', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({ sebagai: persona.default('mbl.plant-superintendent'), nama: z.string().min(3) })
     .strict(),
@@ -89,6 +91,7 @@ export const simpanAlur = layar({
 export const po = api({
   ringkasan: 'Baca Purchase Order lewat API.',
   hasil: '{ id, nomor, status }',
+  dokumen: (h) => [{ tabel: 'purchase_orders', where: { id: (h as { id: string }).id } }],
   argumen: z.object({ sebagai: persona.default('mbl.plant-superintendent'), id }).strict(),
   urai: () => 'Baca PO',
   async jalankan(ctx, a) {
@@ -109,12 +112,11 @@ function backendDir(): string {
     )
   return dir
 }
+/** DB server v2 yang menyala (dari .env Backend), dipagari ke host lokal (core/db.ts). */
 function dbUrl(): string {
-  const line = readFileSync(path.join(backendDir(), '.env'), 'utf8').match(
-    /^MIGRATE_DATABASE_URL=(.*)$/m,
-  )?.[1]
-  if (!line) throw new Error('MIGRATE_DATABASE_URL tidak ada di .env Backend')
-  return line.replaceAll('"', '').replace('?schema=public', '')
+  const url = dbUrlDariBackend(backendDir())
+  if (!url) throw new Error('MIGRATE_DATABASE_URL tidak ada di .env Backend')
+  return pastikanDbLokal(url)
 }
 
 export const majukanTenggatSla = api({
