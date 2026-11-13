@@ -11,6 +11,7 @@ const mrUrl = (mr: string) => `/inventory/material-requests/${mr}`
 export const mrMandiri = api({
   ringkasan: 'Buat MR mandiri (draf) di satu gudang dengan baris barang ber-part.',
   hasil: '{ id, nomor, gudang_id, baris: string[] } (id baris MR, urut sama dengan argumen baris)',
+  dokumen: (h) => [{ tabel: 'material_requests', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({
       sebagai: persona.default('mbl.storekeeper'),
@@ -222,6 +223,7 @@ export const periksaPinjaman = api({
 export const mrDisetujuiWo = api({
   ringkasan: 'Cari MR berstatus Disetujui milik sebuah WO.',
   hasil: '{ id, nomor }',
+  dokumen: (h) => [{ tabel: 'material_requests', where: { id: (h as { id: string }).id } }],
   argumen: z.object({ sebagai: persona.default('mbl.storekeeper'), wo: id }).strict(),
   urai: () => 'Cari MR Disetujui milik WO',
   async jalankan(ctx, a) {
@@ -245,6 +247,7 @@ export const serahMrWo = api({
   ringkasan:
     'Keluarkan seluruh MR Disetujui milik WO ke seorang persona (dengan foto bukti lewat URL).',
   hasil: '{ id, nomor } MR yang dikeluarkan',
+  dokumen: (h) => [{ tabel: 'material_requests', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({
       sebagai: persona.default('mbl.storekeeper'),
@@ -274,6 +277,9 @@ export const returWo = api({
   ringkasan:
     'Cari permintaan retur material milik sebuah WO (yang belum selesai diterima bila ada).',
   hasil: '{ id }',
+  dokumen: (h) => [
+    { tabel: 'work_order_material_return_requests', where: { id: (h as { id: string }).id } },
+  ],
   argumen: z
     .object({ sebagai: persona.default('mbl.storekeeper'), nomorWo: z.string().min(3) })
     .strict(),

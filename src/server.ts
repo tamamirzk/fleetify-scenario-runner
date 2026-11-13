@@ -17,6 +17,7 @@ import {
   muatSkenario,
   stepInfo,
 } from './core/scenarios.ts'
+import { Pemeriksa } from './pemeriksaan/jalankan.ts'
 
 const HOST = '127.0.0.1'
 const HEADED = !config.headless
@@ -235,6 +236,8 @@ const routes: Record<string, Handler> = {
     ticket_url: config.ticketUrl,
     headed: HEADED,
     scenarios_dir: path.relative(ROOT, config.scenariosDir),
+    // Lapisan Pemeriksaan (docs/PEMERIKSAAN.md): false = V2_DATABASE_URL kosong, hasil "tidak dikonfigurasi".
+    pemeriksaan: new Pemeriksa().dikonfigurasi,
   }),
   'GET /api/scenarios': async () => bacaSemua().map(kartu),
   'GET /api/state': async () => ({ ...snapshot(), logs }),

@@ -12,6 +12,7 @@ export const woDirilis = api({
   ringkasan:
     'Buat WO langsung (bengkel internal) dengan baris part, lalu rilis sehingga MR awal Disetujui.',
   hasil: '{ id, nomor }',
+  dokumen: (h) => [{ tabel: 'work_orders', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({
       pembuat: persona.default('mbl.planner'),

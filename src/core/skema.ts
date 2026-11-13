@@ -1,6 +1,7 @@
 // Skema berkas skenario JSON (scenarios/<task>/<slug>.json). Dokumentasi: docs/SKEMA-SKENARIO.md.
 // Skema ini memeriksa bentuk; nama dan argumen aksi pustaka diperiksa terpisah (pustaka/index.ts).
 import { z } from 'zod'
+import { INVARIAN_IDS } from '../pemeriksaan/invarian.ts'
 import { PERSONA_IDS } from './personas.ts'
 
 export const MODUL = ['material', 'approval', 'wo', 'pb', 'akses', 'lingkungan'] as const
@@ -227,6 +228,14 @@ export const SkenarioSchema = z
     langkah: z.array(LangkahSchema).min(1),
     /** Aksi API yang selalu berjalan di akhir (juga saat gagal atau dihentikan). */
     bersihkan: z.array(AksiApiSchema).optional(),
+    /** Invarian Pemeriksaan yang dimatikan untuk skenario ini (docs/PEMERIKSAAN.md), dengan alasan. */
+    pemeriksaan: z
+      .object({
+        nonaktif: z.array(z.enum(INVARIAN_IDS)).min(1),
+        alasan: z.string().trim().min(20),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 

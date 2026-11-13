@@ -41,8 +41,8 @@ export interface Lingkungan {
   /** Tidak ada untuk siapkan, capai, dan bersihkan (tanpa jendela). */
   layar?: Layar
   data: Record<string, unknown>
-  /** Jalankan aksi pustaka; argumen sudah terisi placeholder. */
-  pustaka(nama: string, args: Record<string, unknown>): Promise<unknown>
+  /** Jalankan aksi pustaka; argumen sudah terisi placeholder. `simpan` = kunci data tujuan hasil. */
+  pustaka(nama: string, args: Record<string, unknown>, simpan?: string): Promise<unknown>
   catat(teks: string): void
   log(teks: string): void
 }
@@ -279,8 +279,9 @@ export async function jalankanAksi(aksi: Aksi, env: Lingkungan): Promise<void> {
       const p = PUSTAKA[nama]
       if (!p) throw new Error(`Aksi pustaka "${nama}" tidak ada`)
       if (p.jenis === 'layar') perluLayar(env, `layar: ${nama}`)
-      const hasil = await env.pustaka(nama, argumenAksi(a, jenis))
-      if (typeof a.simpan === 'string') env.data[a.simpan] = hasil
+      const simpan = typeof a.simpan === 'string' ? a.simpan : undefined
+      const hasil = await env.pustaka(nama, argumenAksi(a, jenis), simpan)
+      if (simpan) env.data[simpan] = hasil
     }
   }
 }

@@ -4,7 +4,7 @@ import { PERSONA_IDS } from '../core/personas.ts'
 import { pola } from '../core/placeholder.ts'
 import { cariLocator } from '../core/sasaran.ts'
 import { type Sasaran, SasaranSchema } from '../core/skema.ts'
-import { api, layar } from './types.ts'
+import { api, type DokumenRujukan, layar } from './types.ts'
 
 const persona = z.enum(PERSONA_IDS)
 
@@ -12,6 +12,17 @@ export const barang = api({
   ringkasan:
     'Buat barang baru dengan saldo awal di satu gudang. SKU = <kode>-<stempel>, nama = <nama> <stempel>; nomor seri = <kode>-<stempel>-<n>.',
   hasil: '{ id, sku, nama, seri: string[], gudang_id }',
+  dokumen: (h): DokumenRujukan[] => {
+    const b = h as { id: string; gudang_id: string }
+    return [
+      { tabel: 'parts', where: { id: b.id } },
+      {
+        tabel: 'warehouse_stock',
+        where: { warehouse_id: b.gudang_id, part_id: b.id },
+        label: 'stok',
+      },
+    ]
+  },
   argumen: z
     .object({
       sebagai: persona.default('mbl.storekeeper'),

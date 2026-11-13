@@ -1,13 +1,14 @@
 // CLI Scenario Runner (tanpa panel). Format skenario sama dengan panel.
-//   bun run scenario <slug> [--headed] [--speed 1.5] [--from <n>] [--data <slug>/<waktu>]
+//   bun run scenario <slug> [--headed] [--speed 1.5] [--from <n>] [--data <slug>/<waktu>] [--tanpa-pemeriksaan]
 //   bun run scenario --list
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { Run } from './core/run.ts'
 import { bacaSemua, muatSkenario } from './core/scenarios.ts'
+import { teksDiff, teksHasil } from './pemeriksaan/banding.ts'
 
 const USAGE =
-  'Pakai: bun run scenario <slug> [--headed] [--speed n] [--from n] [--data <slug>/<waktu>] | --list'
+  'Pakai: bun run scenario <slug> [--headed] [--speed n] [--from n] [--data <slug>/<waktu>] [--tanpa-pemeriksaan] | --list'
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
@@ -18,6 +19,7 @@ const { values, positionals } = parseArgs({
     speed: { type: 'string' },
     from: { type: 'string' },
     data: { type: 'string' },
+    'tanpa-pemeriksaan': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 })
@@ -42,7 +44,11 @@ if (!slug) {
 }
 
 const berkas = muatSkenario(slug)
-const run = new Run(berkas, { headed: !!values.headed, speed: Number(values.speed ?? 1) })
+const run = new Run(berkas, {
+  headed: !!values.headed,
+  speed: Number(values.speed ?? 1),
+  pemeriksaan: !values['tanpa-pemeriksaan'],
+})
 run.on('log', (l: string) => console.log(l))
 process.on('SIGINT', () => {
   void run.stop()
@@ -56,14 +62,30 @@ await run.start({ from: Math.max(0, Number(values.from ?? 1) - 1) })
 
 const r = run.result
 console.log('\nHasil per langkah:')
-for (const s of r.steps)
+for (const s of r.steps) {
   console.log(
     `  ${String(s.n).padStart(2)}. ${s.status.padEnd(10)} ${s.title}${s.error ? `  → ${s.error}` : ''}${s.notes ? `  [${s.notes.join('; ')}]` : ''}`,
   )
+  const db = s.db
+  if (!db) continue
+  if (db.status === 'ok')
+    console.log(`      ✓ DB ok${db.durasiMs != null ? ` (${db.durasiMs} ms)` : ''}`)
+  else if (db.status === 'pelanggaran')
+    console.log(
+      `      ✗ ${db.pelanggaran.reduce((a, b) => a + b.baris.length, 0)} pelanggaran: ${db.pelanggaran.map((x) => x.id).join(', ')}`,
+    )
+  else console.log(`      ! DB ${db.status}${db.galat[0] ? `: ${db.galat[0].pesan}` : ''}`)
+  if (db.sembuh.length) console.log(`      ↺ sembuh: ${db.sembuh.map((x) => x.id).join(', ')}`)
+  for (const d of db.dokumen) console.log(`      · ${teksDiff(d)}`)
+}
 const passed = r.steps.filter((s) => s.status === 'lulus').length
 console.log(
   `\nStatus: ${r.status} · ${passed}/${r.steps.length} lulus · bukti: ${path.relative(process.cwd(), run.dir)}`,
 )
 if (r.cleanup_error) console.log(`Pembersihan: ${r.cleanup_error}`)
 if (r.trace) console.log(`trace: bunx playwright show-trace ${path.join(run.dir, r.trace)}`)
-process.exit(r.status === 'selesai' && !r.cleanup_error ? 0 : 1)
+console.log(
+  `\n${values['tanpa-pemeriksaan'] ? 'Pemeriksaan: dilewati (--tanpa-pemeriksaan)' : teksHasil(r.pemeriksaan)}`,
+)
+const pelanggaran = r.pemeriksaan?.status === 'pelanggaran'
+process.exit(r.status === 'selesai' && !r.cleanup_error && !pelanggaran ? 0 : 1)

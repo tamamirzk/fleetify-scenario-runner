@@ -12,6 +12,8 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import type { APIRequestContext, BrowserContext, CDPSession, Page } from 'playwright'
+import { teksDiff } from '../pemeriksaan/banding.ts'
+import { Pemeriksa } from '../pemeriksaan/jalankan.ts'
 import { PUSTAKA } from '../pustaka/index.ts'
 import { config } from './config.ts'
 import { Controller, Stopped } from './controller.ts'
@@ -60,12 +62,20 @@ export class Run extends EventEmitter {
   private apis = new Map<PersonaId, APIRequestContext>()
   private finished = false
   private stepIdx: number | null = null
+  /** Lapisan Pemeriksaan (docs/PEMERIKSAAN.md); null bila dimatikan lewat opsi. */
+  private pemeriksa: Pemeriksa | null
 
-  constructor(berkas: BerkasSkenario & { skenario: Skenario }, { headed = false, speed = 1 } = {}) {
+  constructor(
+    berkas: BerkasSkenario & { skenario: Skenario },
+    { headed = false, speed = 1, pemeriksaan = true } = {},
+  ) {
     super()
     this.berkas = berkas
     this.sk = berkas.skenario
     this.headed = headed
+    this.pemeriksa = pemeriksaan
+      ? new Pemeriksa({ nonaktif: this.sk.pemeriksaan?.nonaktif, log: (l) => this.log(l) })
+      : null
     this.ctl = new Controller({ scale: headed ? 1 : config.headlessHold, speed })
     this.runId = `${berkas.slug}/${runStamp()}`
     this.dir = path.join(config.runsDir, this.runId)
@@ -190,7 +200,7 @@ export class Run extends EventEmitter {
       data: this.data,
       catat: (t) => this.note(t),
       log: (l) => this.log(l),
-      pustaka: async (nama, args) => {
+      pustaka: async (nama, args, simpan) => {
         const p = PUSTAKA[nama]
         if (!p) throw new Error(`Aksi pustaka "${nama}" tidak ada`)
         const parsed = p.argumen.safeParse(args)
@@ -198,9 +208,16 @@ export class Run extends EventEmitter {
           const i = parsed.error.issues[0]
           throw new Error(`Argumen ${nama} tidak sah: ${i?.path.join('.')} ${i?.message}`)
         }
-        if (p.jenis === 'api') return p.jalankan(this.baseCtx(), parsed.data)
-        if (!this.page) throw new Error(`Aksi ${nama} butuh jendela`)
-        return p.jalankan(this.stepCtx(this.page, (this.stepIdx ?? 0) + 1), parsed.data)
+        let hasil: unknown
+        if (p.jenis === 'api') hasil = await p.jalankan(this.baseCtx(), parsed.data)
+        else {
+          if (!this.page) throw new Error(`Aksi ${nama} butuh jendela`)
+          hasil = await p.jalankan(this.stepCtx(this.page, (this.stepIdx ?? 0) + 1), parsed.data)
+        }
+        // Dokumen yang dihasilkan aksi diikuti Pemeriksaan (diff kolom antar langkah).
+        if (p.dokumen && hasil && this.pemeriksa)
+          this.pemeriksa.daftarkanDokumen(p.dokumen(hasil), simpan, nama)
+        return hasil
       },
     }
   }
@@ -217,6 +234,9 @@ export class Run extends EventEmitter {
     lib.setController(this.ctl)
     this.setStatus('menyiapkan')
     try {
+      // Baseline invarian DB sebelum ada data yang disentuh; galat tidak menggagalkan jalan.
+      if (this.pemeriksa?.dikonfigurasi) await this.pemeriksa.ambilBaseline()
+      else if (this.pemeriksa) this.log('Pemeriksaan: tidak dikonfigurasi (V2_DATABASE_URL kosong)')
       if (fromRun) {
         readRun(fromRun)
         const target = path.join(this.dir, 'data.json')
@@ -322,7 +342,10 @@ export class Run extends EventEmitter {
       })
       await this.startScreencast(p.page)
       this.log(`Jendela dibuka sebagai ${personaName(first)}`)
-      for (; i < steps.length; i++) await this.runStep(i, p.page)
+      for (; i < steps.length; i++) {
+        await this.runStep(i, p.page)
+        await this.periksaLangkah(i)
+      }
       this.result.current_step = null
       this.result.current_aksi = null
       this.finish('selesai')
@@ -335,6 +358,8 @@ export class Run extends EventEmitter {
         const a = this.result.current_aksi == null ? null : r.aksi[this.result.current_aksi]
         if (a && a.status === 'berjalan') a.status = stopped ? 'dihentikan' : 'gagal'
         if (!stopped) r.shot = await this.shot(`${i + 1}-gagal`)
+        // Keadaan DB saat langkah ini berhenti ikut diperiksa dan diatribusikan ke langkah ini.
+        await this.periksaLangkah(i)
       }
       if (!stopped) {
         this.result.error = firstLine(e)
@@ -343,6 +368,21 @@ export class Run extends EventEmitter {
       this.finish(stopped ? 'dihentikan' : 'gagal')
     } finally {
       this.result.duration_ms = Date.now() - t0
+      // Pemeriksaan akhir: tunggu semua snapshot langkah, lalu ringkas — sebelum bersihkan
+      // (yang mengubah data lagi), supaya hasil dan skenario selesai bersama.
+      if (this.pemeriksa) {
+        this.result.pemeriksaan = await this.pemeriksa.akhir()
+        const h = this.result.pemeriksaan
+        this.log(
+          h.status === 'pelanggaran'
+            ? `Pemeriksaan: PELANGGARAN BARU di ${h.baru.map((b) => b.id).join(', ')}`
+            : h.status === 'lulus'
+              ? `Pemeriksaan: semua invarian lulus (${h.diperiksa} diperiksa, ${h.snapshot?.jumlah ?? 0} snapshot, rata-rata ${h.snapshot?.rataMs ?? 0} ms)`
+              : `Pemeriksaan: ${h.status}${h.pesan ? ` — ${h.pesan}` : ''}`,
+        )
+        this.save()
+        this.emit('change')
+      }
       if (this.sk.bersihkan?.length) {
         // Pembersihan lewat API (mis. mengembalikan setelan), juga saat gagal atau dihentikan.
         try {
@@ -402,6 +442,44 @@ export class Run extends EventEmitter {
     r.shot = await this.shot(`${i + 1}-${s.id}`)
     this.saveData()
     this.save()
+  }
+
+  /**
+   * Snapshot DB setelah langkah `i` (indeks 0). Mengantre, lalu menunggu hanya sampai query MULAI
+   * supaya langkah berikutnya tidak menunggu SQL selesai; hasilnya masuk ke langkah lewat event.
+   */
+  private async periksaLangkah(i: number) {
+    const r = this.result.steps[i]
+    if (!this.pemeriksa || !r || r.db) return
+    const mulai = this.pemeriksa.mulaiLangkah(i + 1)
+    if (!mulai) return
+    r.db = {
+      status: 'memeriksa',
+      pelanggaran: [],
+      sembuh: [],
+      dokumen: [],
+      galat: [],
+      durasiMs: null,
+    }
+    this.emit('change')
+    void mulai.selesai.then((db) => {
+      r.db = db
+      const n = i + 1
+      if (db.status === 'pelanggaran')
+        this.log(
+          `Langkah ${n}: DB ✗ ${db.pelanggaran.reduce((a, b) => a + b.baris.length, 0)} pelanggaran baru: ${db.pelanggaran.map((x) => x.id).join(', ')}`,
+        )
+      else if (db.status === 'galat')
+        this.log(`Langkah ${n}: DB galat — ${db.galat[0]?.pesan ?? ''}`)
+      else
+        this.log(
+          `Langkah ${n}: DB ok (${db.durasiMs ?? '?'} ms)${db.sembuh.length ? ` · sembuh: ${db.sembuh.map((x) => x.id).join(', ')}` : ''}`,
+        )
+      for (const d of db.dokumen) this.log(`Langkah ${n}: ${teksDiff(d)}`)
+      this.save()
+      this.emit('change')
+    })
+    await mulai.dimulai
   }
 
   finish(status: RunStatus) {

@@ -10,6 +10,7 @@ const id = z.string().min(1)
 export const tiket = api({
   ringkasan: 'Laporkan tiket kerusakan baru untuk satu unit (dengan satu foto lewat URL).',
   hasil: '{ id, nomor, status }',
+  dokumen: (h) => [{ tabel: 'vehicle_complaints', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({
       sebagai: persona.default('mbl.mcr'),
@@ -42,6 +43,7 @@ export const tiket = api({
 export const order = api({
   ringkasan: 'Baca Order lewat API.',
   hasil: '{ id, nomor }',
+  dokumen: (h) => [{ tabel: 'orders', where: { id: (h as { id: string }).id } }],
   argumen: z.object({ sebagai: persona.default('mbl.planner'), id }).strict(),
   urai: () => 'Baca Order',
   async jalankan(ctx, a) {
@@ -56,6 +58,7 @@ export const order = api({
 export const pemeriksaanOrder = api({
   ringkasan: 'Cari pemeriksaan (DGN) Order yang tidak dibatalkan, selain id tertentu bila diisi.',
   hasil: '{ id, nomor, status }',
+  dokumen: (h) => [{ tabel: 'diagnoses', where: { id: (h as { id: string }).id } }],
   argumen: z
     .object({ sebagai: persona.default('mbl.planner'), order: id, selain: z.string().optional() })
     .strict(),
