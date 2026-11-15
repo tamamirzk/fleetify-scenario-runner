@@ -158,6 +158,7 @@ export function kartuPutar(o) {
     ${docs ? `<div class="docs">${docs}</div>` : ''}
     <div class="rk-tempo"><label>Kecepatan<select id="tempo-kec" class="in" aria-label="Kecepatan jalan">${KECEPATAN.map((v) => `<option value="${v}" ${v === kecepatan ? 'selected' : ''}>${teksKecepatan(v)}${v < 1 ? ' lambat' : ''}</option>`).join('')}</select></label>
       <label class="chk"><input type="checkbox" id="tempo-jeda" ${jeda ? 'checked' : ''}>Jeda tiap langkah</label></div>
+    <label class="chk rk-jendela" title="Mati: skenario diputar tanpa jendela Chromium; tonton lewat tampilan langsung di Runner. Berlaku untuk jalan berikutnya."><input type="checkbox" id="tampil-jendela" ${headed ? 'checked' : ''} ${run && run.status !== 'gagal' ? 'disabled' : ''}>Tampilkan jendela browser</label>
     ${setelanTampilan(tampilan.ukuran, tampilan.skala, tampilan.mutu)}
     ${dataJalan}
     <div class="rk-aksi">${aksi}</div>

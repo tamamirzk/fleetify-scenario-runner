@@ -44,7 +44,8 @@ import { Pemeriksa } from './pemeriksaan/jalankan.ts'
 import { PemeriksaUi } from './pemeriksaan/ui.ts'
 
 const HOST = '127.0.0.1'
-const HEADED = !config.headless
+/** Jendela browser skenario tampil (headed) untuk jalan berikutnya; bawaan dari HEADLESS di .env, diganti tuas panel. */
+let headed = !config.headless
 const ACTIVE: RunStatus[] = ['menyiapkan', 'berjalan', 'jeda']
 const MAX_LOGS = 500
 const PING_MS = 20_000
@@ -89,7 +90,7 @@ function broadcast(event: string, data: unknown) {
   for (const res of clients) res.write(msg)
 }
 const snapshot = () => ({
-  headed: HEADED,
+  headed,
   jeda_tiap_langkah: jedaTiapLangkah,
   tampilan: tampilanJalan,
   mutu_langsung: mutuLangsung,
@@ -203,7 +204,7 @@ async function mulaiJalan(
       `Tenant "${config.tenantSlug}" sedang dipakai pemutar lain (${lain.jalan}, proses ${lain.pid}). Satu tenant = satu pemutar sekaligus: tunggu jalan itu selesai.`,
     )
   const run = new Run(muatSkenario(slug), {
-    headed: HEADED,
+    headed,
     speed: o.speed ?? 1,
     // Tontonan dari panel selalu tempo penuh, juga headless (tampilan langsung = tontonan).
     panel: true,
@@ -383,7 +384,7 @@ const routes: Record<string, Handler> = {
     web_url: config.webUrl,
     ticket_url: config.ticketUrl,
     tenant: config.tenantSlug,
-    headed: HEADED,
+    headed,
     scenarios_dir: path.relative(ROOT, config.scenariosDir),
     // Lapisan Pemeriksaan (docs/PEMERIKSAAN.md): false = V2_DATABASE_URL kosong, hasil "tidak dikonfigurasi".
     pemeriksaan: new Pemeriksa().dikonfigurasi,
@@ -463,6 +464,15 @@ const routes: Record<string, Handler> = {
     const run = requireRun()
     run.setSpeed(body.speed)
     return { speed: run.ctl.speed }
+  },
+  /** Tuas "Tampilkan jendela browser": berlaku untuk jalan berikutnya (jalan aktif tidak berganti jendela). */
+  'POST /api/jendela': async (body) => {
+    headed = body.tampil === true
+    console.log(
+      `Jendela browser skenario: ${headed ? 'tampil' : 'tersembunyi (headless)'} untuk jalan berikutnya`,
+    )
+    broadcast('state', snapshot())
+    return { headed }
   },
   'POST /api/jeda-tiap-langkah': async (body) => {
     jedaTiapLangkah = body.nyala === true
@@ -623,7 +633,7 @@ if (existsSync(config.scenariosDir))
 
 server.listen(config.port, HOST, () => {
   console.log(
-    `Scenario Runner Fleetify: http://127.0.0.1:${config.port} (${HEADED ? 'headed' : 'headless'}) · ${config.webUrl} · tenant ${config.tenantSlug}`,
+    `Scenario Runner Fleetify: http://127.0.0.1:${config.port} (${headed ? 'headed' : 'headless'}) · ${config.webUrl} · tenant ${config.tenantSlug}`,
   )
 })
 

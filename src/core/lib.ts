@@ -66,6 +66,8 @@ export function launch({ headed = false }: { headed?: boolean } = {}): Promise<B
 let shared: { browser: Browser; headed: boolean } | null = null
 export async function sharedBrowser({ headed = false }: { headed?: boolean } = {}) {
   if (shared?.browser.isConnected() && shared.headed === headed) return shared.browser
+  // Mode berganti (tuas "Tampilkan jendela browser" di panel): browser lama ditutup, bukan dibiarkan.
+  if (shared?.browser.isConnected()) await closeSharedBrowser()
   const browser = await launch({ headed })
   shared = { browser, headed }
   browser.on('disconnected', () => {

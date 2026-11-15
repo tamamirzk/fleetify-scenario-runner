@@ -114,3 +114,18 @@ describe('jeda tiap langkah', () => {
     c.stop()
   })
 })
+
+describe('tuas Tampilkan jendela browser', () => {
+  it('belum pernah dipilih = null (ikut server); pilihan tersimpan dimuat lagi', () => {
+    const m = new Map<string, string>()
+    const st = {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+    }
+    expect(muatPilihan(st).jendela).toBeNull()
+    simpanPilihan(st, { jendela: false })
+    expect(muatPilihan(st).jendela).toBe(false)
+    simpanPilihan(st, { jendela: true })
+    expect(muatPilihan(st).jendela).toBe(true)
+  })
+})

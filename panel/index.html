@@ -419,6 +419,7 @@ async function renderRingkasan(slug) {
   $('#datarun')?.addEventListener('change', (e) => { S.dataRun = e.target.value; renderRingkasan(slug) })
   $('#tempo-kec')?.addEventListener('change', (e) => { simpanPilihan(localStorage, { kecepatan: Number(e.target.value) }); toast(`Kecepatan jalan berikutnya: ${teksSpeed(Number(e.target.value))}`) })
   $('#tempo-jeda')?.addEventListener('change', (e) => aturJedaTiapLangkah(e.target.checked))
+  $('#tampil-jendela')?.addEventListener('change', (e) => aturJendela(e.target.checked).then(() => renderRingkasan(slug)))
   $('#tampilan-ukuran')?.addEventListener('change', (e) => aturTampilan(e.target.value, S.tampilan.skala).then(() => renderRingkasan(slug)))
   $('#tampilan-skala')?.addEventListener('change', (e) => aturTampilan(S.tampilan.ukuran, Number(e.target.value)).then(() => renderRingkasan(slug)))
   $('#tampilan-mutu')?.addEventListener('change', (e) => aturMutu(e.target.value))
@@ -429,6 +430,16 @@ async function renderRingkasan(slug) {
     try { await api('/api/start', { from_step: S.startStep }); location.hash = '#/jalan' } catch (e) { toast(e.message, true) }
   })
   $('#btn-cancel')?.addEventListener('click', () => api('/api/stop', {}).catch(() => {}))
+}
+
+/** Tuas "Tampilkan jendela browser" (jalan berikutnya): diingat peramban dan dikirim ke server. */
+async function aturJendela(tampil) {
+  simpanPilihan(localStorage, { jendela: tampil })
+  try {
+    const r = await api('/api/jendela', { tampil })
+    S.cfg.headed = r.headed
+    toast(tampil ? 'Jendela browser tampil di jalan berikutnya' : 'Tanpa jendela browser: tonton di layar Runner')
+  } catch (e) { toast(e.message, true) }
 }
 
 /** Tampilan aplikasi untuk jalan berikutnya: diingat peramban dan dikirim ke server. */
@@ -1281,6 +1292,7 @@ function onState(st) {
   S.run = st.run
   S.antrean = st.antrean ?? []
   S.antreanTotal = st.antrean_total ?? 0
+  if (S.cfg && st.headed !== undefined) S.cfg.headed = st.headed
   if (prev?.run_id !== S.run?.run_id) { S.frame = false; S.viewStep = null; $('#live-img')?.removeAttribute('src') }
   const [r, a] = route()
   // Jalan mulai (Putar, Ulang, Putar semua): pindah ke layar jalan.
@@ -1309,6 +1321,10 @@ async function init() {
     if (!p.tampilanTersimpan && st.tampilan) S.tampilan = { ...S.tampilan, ukuran: `${st.tampilan.ukuran.w}x${st.tampilan.ukuran.h}`, skala: st.tampilan.skala }
     if (!p.mutuTersimpan && st.mutu_langsung) S.tampilan.mutu = st.mutu_langsung
     if (p.tampilanTersimpan || p.mutuTersimpan) api('/api/tampilan', S.tampilan).catch(() => {}) }
+  // Tuas jendela browser: peramban yang pernah memilih mengirim pilihannya; yang belum, mengikuti server (.env).
+  { const w = muatPilihan(localStorage).jendela
+    if (w === null) S.cfg.headed = !!st.headed
+    else if (w !== !!st.headed) { S.cfg.headed = w; api('/api/jendela', { tampil: w }).catch(() => {}) } }
   if (!muatPilihan(localStorage).jedaTersimpan) S.jedaTiapLangkah = !!st.jeda_tiap_langkah
   else if (!!st.jeda_tiap_langkah !== S.jedaTiapLangkah) api('/api/jeda-tiap-langkah', { nyala: S.jedaTiapLangkah }).catch(() => {})
   const es = new EventSource('/events')

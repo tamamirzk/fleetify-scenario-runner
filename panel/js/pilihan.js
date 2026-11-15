@@ -15,6 +15,7 @@ export const PERINGATAN_TAMPILAN =
 const KUNCI = {
   kecepatan: 'srf.kecepatan',
   jeda: 'srf.jedaTiapLangkah',
+  jendela: 'srf.jendela',
   ukuran: 'srf.ukuran',
   skala: 'srf.skala',
   mutu: 'srf.mutuLangsung',
@@ -26,6 +27,8 @@ export function muatPilihan(storage) {
   let jedaTiapLangkah = false
   /** Peramban ini pernah memilih sakelar (hanya yang tersimpan dikirim ke server saat panel dimuat). */
   let jedaTersimpan = false
+  /** Tuas "Tampilkan jendela browser": null = belum pernah dipilih di peramban ini (ikut server). */
+  let jendela = null
   let ukuran = UKURAN_BAWAAN
   let skala = 1
   let tampilanTersimpan = false
@@ -44,6 +47,8 @@ export function muatPilihan(storage) {
     mutuTersimpan = MUTU.includes(m)
     const j = storage?.getItem(KUNCI.jeda)
     jedaTersimpan = j === '1' || j === '0'
+    const w = storage?.getItem(KUNCI.jendela)
+    jendela = w === '1' ? true : w === '0' ? false : null
     jedaTiapLangkah = j === '1'
   } catch {
     // Penyimpanan diblokir (mode privat): pakai bawaan.
@@ -52,6 +57,7 @@ export function muatPilihan(storage) {
     kecepatan,
     jedaTiapLangkah,
     jedaTersimpan,
+    jendela,
     ukuran,
     skala,
     tampilanTersimpan,
@@ -60,11 +66,12 @@ export function muatPilihan(storage) {
   }
 }
 
-/** @param {{ setItem(k: string, v: string): void } | null | undefined} storage @param {{ kecepatan?: number, jedaTiapLangkah?: boolean, ukuran?: string, skala?: number, mutu?: string }} ubah */
+/** @param {{ setItem(k: string, v: string): void } | null | undefined} storage @param {{ kecepatan?: number, jedaTiapLangkah?: boolean, jendela?: boolean, ukuran?: string, skala?: number, mutu?: string }} ubah */
 export function simpanPilihan(storage, ubah) {
   try {
     if (ubah.kecepatan !== undefined && KECEPATAN.includes(ubah.kecepatan))
       storage?.setItem(KUNCI.kecepatan, String(ubah.kecepatan))
+    if (ubah.jendela !== undefined) storage?.setItem(KUNCI.jendela, ubah.jendela ? '1' : '0')
     if (ubah.jedaTiapLangkah !== undefined)
       storage?.setItem(KUNCI.jeda, ubah.jedaTiapLangkah ? '1' : '0')
     if (ubah.ukuran !== undefined && UKURAN.includes(ubah.ukuran))

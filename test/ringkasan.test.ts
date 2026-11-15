@@ -255,3 +255,16 @@ describe('Ringkasan: tata letak', () => {
     expect(tanpaTag(isi)).not.toMatch(/\bcapai\b|\bsiapkan lewat API\b|\bslug\b|POST /)
   })
 })
+
+describe('kartu Putar: tuas jendela browser', () => {
+  it('mencerminkan mode; terkunci selama ada jalan yang disiapkan', () => {
+    const k = (o: Record<string, unknown>) =>
+      kartuPutar({ sasaran: 'Server v2 lokal · tenant mbl', ...o })
+    expect(k({ headed: true })).toMatch(/id="tampil-jendela" checked/)
+    expect(k({ headed: false })).toMatch(/id="tampil-jendela"\s+>/)
+    expect(k({ headed: false, run: { status: 'siap' } })).toMatch(/id="tampil-jendela"\s+disabled/)
+    expect(k({ headed: false, run: { status: 'siap' } })).toContain(
+      'Tampilan langsung muncul di layar Runner',
+    )
+  })
+})
