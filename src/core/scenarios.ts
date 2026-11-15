@@ -13,7 +13,7 @@ export const TASK = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 export interface BerkasSkenario {
   slug: string
   task: string
-  /** Relatif ke akar repo, mis. scenarios/FMS-63/pinjaman-alat.json */
+  /** Relatif ke akar repo, mis. scenarios/material/pinjaman-alat.json */
   path: string
   abs: string
   mtime: string
@@ -32,6 +32,18 @@ function bacaBerkas(task: string, file: string): BerkasSkenario {
         skenario: null,
         masalah: [{ aturan: 'satu-berkas', path: '', message: 'nama berkas harus kebab-case' }],
       }
+  // Folder = modul (Project › Modul): berkas di scenarios/<modul>/ harus ber-"modul" sama.
+  if (hasil.skenario && hasil.skenario.modul !== task) {
+    hasil.masalah = [
+      ...hasil.masalah,
+      {
+        aturan: 'modul-folder',
+        path: 'modul',
+        message: `berkas di scenarios/${task}/ harus ber-"modul": "${task}" (tertulis "${hasil.skenario.modul}"); pindahkan berkas atau ubah modul`,
+      },
+    ]
+    hasil.skenario = null
+  }
   return {
     slug,
     task,
@@ -90,6 +102,8 @@ export interface StepInfo {
   n: number
   id: string
   title: string
+  /** Paragraf deskripsi; null bila belum diisi (jalan versi lama: tidak ada). */
+  deskripsi?: string | null
   expect: string
   who: string | null
   who_name: string | null
@@ -102,6 +116,7 @@ export const stepInfo = (s: Langkah, i: number): StepInfo => ({
   n: i + 1,
   id: s.id,
   title: s.judul,
+  deskripsi: s.deskripsi ?? null,
   expect: s.harusTerlihat,
   who: s.sebagai ?? null,
   who_name: s.sebagai ? personaName(s.sebagai) : null,

@@ -1,13 +1,27 @@
-// Panel Scenario Runner (mode lokal): http + Server-Sent Events, hanya 127.0.0.1.
-// Satu jalan pada satu waktu; "Putar semua" mengantre skenario satu task.
+// Panel Scenario Runner Fleetify: http + Server-Sent Events, hanya 127.0.0.1.
+// Satu jalan pada satu waktu; "Putar semua" mengantre skenario satu modul. Sasaran = server v2 lokal
+// (FLEETIFY_WEB_URL), persona tenant TENANT_SLUG lewat impersonasi admin platform.
 //   bun run panel              → http://localhost:4800 (jendela skenario headed)
 //   HEADLESS=1 bun run panel   → tanpa jendela browser (tampilan langsung tetap jalan)
-import { existsSync, readFileSync, watch } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
 import { config, ROOT } from './core/config.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
+import { jalanTerkunci, lepasKunci, pemegangLain } from './core/kunci.ts'
+import { susunDataLaporan } from './core/laporan-data.ts'
+import { closeSharedBrowser } from './core/lib.ts'
 import { personaName } from './core/personas.ts'
+import { modulProject, PROJECTS, statusSkenario } from './core/project.ts'
+import {
+  bacaRetensi,
+  daftarJalanDisk,
+  hapusJalan,
+  hapusTrace,
+  normalRetensi,
+  rencanaRetensi,
+  teksByte,
+} from './core/riwayat.ts'
 import { Run } from './core/run.ts'
 import { JENIS_TEMUAN, type JenisTemuan, type RunStatus } from './core/run-types.ts'
 import {
@@ -17,6 +31,15 @@ import {
   muatSkenario,
   stepInfo,
 } from './core/scenarios.ts'
+import {
+  bacaLayar,
+  bacaMutu,
+  bacaTampilan,
+  type LayarPanel,
+  type MutuLangsung,
+  TAMPILAN_BAWAAN,
+  type Tampilan,
+} from './core/tampilan.ts'
 import { Pemeriksa } from './pemeriksaan/jalankan.ts'
 import { PemeriksaUi } from './pemeriksaan/ui.ts'
 
@@ -27,10 +50,25 @@ const MAX_LOGS = 500
 const PING_MS = 20_000
 const FRAME_MS = 100
 const SHUTDOWN_GRACE_MS = 3000
-const PANEL = path.join(ROOT, 'panel/index.html')
+const PANEL_DIR = path.join(ROOT, 'panel')
+/** Setelan retensi riwayat (panel/CLI), di .cache/ (tidak di-commit). */
+const BERKAS_RETENSI = path.join(config.cacheDir, 'riwayat-retensi.json')
+const PANEL = path.join(PANEL_DIR, 'index.html')
+/** Berkas statis panel: token, CSS komponen, modul JS (tanpa subfolder lain, tanpa titik ganda). */
+const ASET_PANEL = /^\/((?:js\/)?[a-z0-9-]+\.(?:css|js))$/
 
 let current: Run | null = null
 let antrean: string[] = []
+/** Jumlah skenario antrean "Putar semua" yang sedang berjalan (untuk "skenario k dari n"). */
+let antreanTotal = 0
+/** Sakelar panel "Jeda tiap langkah" (diingat panel di localStorage dan dikirim saat dimuat). */
+let jedaTiapLangkah = false
+/** Tampilan aplikasi untuk jalan berikutnya (panel mengirim pilihan tersimpannya). */
+let tampilanJalan: Tampilan = TAMPILAN_BAWAAN
+/** Mutu tampilan langsung (screencast saja): bawaan panel tajam; CLI/uji tetap hemat. */
+let mutuLangsung: MutuLangsung = 'tajam'
+/** Area tampil panel × devicePixelRatio terakhir yang dilapor peramban (batas bingkai screencast). */
+let layarPanel: LayarPanel | null = null
 const clients = new Set<ServerResponse>()
 const liveClients = new Set<ServerResponse>()
 const logs: string[] = []
@@ -52,7 +90,12 @@ function broadcast(event: string, data: unknown) {
 }
 const snapshot = () => ({
   headed: HEADED,
+  jeda_tiap_langkah: jedaTiapLangkah,
+  tampilan: tampilanJalan,
+  mutu_langsung: mutuLangsung,
   antrean,
+  antrean_total: antreanTotal,
+  sasaran: { web: config.webUrl, tenant: config.tenantSlug },
   run: current ? current.snapshot() : null,
 })
 
@@ -83,10 +126,57 @@ function attach(run: Run) {
     if (!selesai && ['selesai', 'gagal', 'dihentikan'].includes(s)) {
       selesai = true
       if (s === 'dihentikan') antrean = []
-      // Tunggu browser tertutup sebelum skenario berikutnya di antrean.
-      setTimeout(() => lanjutAntrean(run), 6000)
+      // Tunggu browser tertutup (trace tertulis) sebelum retensi dan skenario berikutnya di antrean.
+      setTimeout(() => {
+        try {
+          jalankanRetensi()
+        } catch (e) {
+          console.log(`Retensi riwayat gagal: ${(e as Error).message}`)
+        }
+        lanjutAntrean(run)
+      }, 6000)
     }
   })
+}
+
+/** Jalan yang tidak boleh dihapus: jalan panel ini yang belum selesai + kunci tenant proses mana pun. */
+function jalanAktif(): Set<string> {
+  const s = jalanTerkunci()
+  if (current && !['selesai', 'gagal', 'dihentikan', 'dibatalkan'].includes(current.result.status))
+    s.add(current.runId)
+  return s
+}
+
+/** Retensi otomatis sesudah jalan selesai: hapus jalan lama dan trace lama sesuai setelan; dicatat di log. */
+function jalankanRetensi() {
+  const r = bacaRetensi(BERKAS_RETENSI)
+  if (!r.aktif) return
+  const aktif = jalanAktif()
+  const rencana = rencanaRetensi(daftarJalanDisk(config.runsDir), r, aktif)
+  let byteJalan = 0
+  let byteTrace = 0
+  let nJalan = 0
+  let nTrace = 0
+  for (const id of rencana.hapus)
+    try {
+      byteJalan += hapusJalan(config.runsDir, id, aktif)
+      nJalan++
+    } catch {
+      // Dilewati (mis. sedang dipakai): dicoba lagi sesudah jalan berikutnya.
+    }
+  for (const id of rencana.hapusTrace)
+    try {
+      byteTrace += hapusTrace(config.runsDir, id, aktif)
+      nTrace++
+    } catch {
+      // Dilewati.
+    }
+  if (nJalan || nTrace) {
+    const l = `Retensi riwayat (simpan ${r.simpan} jalan/skenario, trace ${r.trace} terakhir${r.traceGagal ? ' + jalan gagal' : ''}): ${nJalan} jalan dihapus (${teksByte(byteJalan)}), ${nTrace} trace dihapus (${teksByte(byteTrace)})`
+    console.log(l)
+    logs.push(l)
+    broadcast('log', l)
+  }
 }
 
 function lanjutAntrean(prev: Run) {
@@ -102,8 +192,26 @@ async function mulaiJalan(
 ): Promise<Run> {
   if (current && ACTIVE.includes(current.result.status))
     throw new HttpError(409, 'Masih ada jalan yang aktif')
-  if (current?.result.status === 'siap') current.finish('dibatalkan')
-  const run = new Run(muatSkenario(slug), { headed: HEADED, speed: o.speed ?? 1 })
+  if (current?.result.status === 'siap') {
+    lepasKunci(config.tenantSlug)
+    current.finish('dibatalkan')
+  }
+  const lain = pemegangLain(config.tenantSlug)
+  if (lain)
+    throw new HttpError(
+      409,
+      `Tenant "${config.tenantSlug}" sedang dipakai pemutar lain (${lain.jalan}, proses ${lain.pid}). Satu tenant = satu pemutar sekaligus: tunggu jalan itu selesai.`,
+    )
+  const run = new Run(muatSkenario(slug), {
+    headed: HEADED,
+    speed: o.speed ?? 1,
+    // Tontonan dari panel selalu tempo penuh, juga headless (tampilan langsung = tontonan).
+    panel: true,
+    jedaTiapLangkah,
+    tampilan: tampilanJalan,
+    mutuLangsung,
+    layarPanel,
+  })
   current = run
   attach(run)
   broadcast('state', snapshot())
@@ -138,6 +246,8 @@ const TYPES: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.zip': 'application/zip',
   '.md': 'text/markdown; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
 }
 
 function requireRun(): Run {
@@ -148,6 +258,7 @@ function requireRun(): Run {
 /** Ringkasan satu berkas untuk kartu dan pratinjau. */
 function kartu(b: BerkasSkenario) {
   const s = b.skenario
+  const last = lastResult(b.slug)
   return {
     slug: b.slug,
     task: b.task,
@@ -158,10 +269,19 @@ function kartu(b: BerkasSkenario) {
     title: s?.judul ?? null,
     tujuan: s?.tujuan ?? null,
     estimasi: s?.estimasi ?? null,
-    tiket: s?.tiket ?? [],
+    modul: s?.modul ?? null,
     langkah: s?.langkah.length ?? null,
     persona: s?.persona.length ?? null,
-    last: lastResult(b.slug),
+    // Tiket Plane (FMS-123): tautan = TICKET_URL + kunci, tanpa sinkron.
+    tiket: (s?.tiket ?? []).map((key) => ({
+      sumber: 'plane' as const,
+      key,
+      url: config.ticketUrl ? `${config.ticketUrl}${key}` : undefined,
+    })),
+    pemilik: s?.pemilik ?? null,
+    status_tertulis: s?.status ?? null,
+    status: statusSkenario(s?.status, last),
+    last,
   }
 }
 
@@ -172,6 +292,7 @@ function detail(b: BerkasSkenario) {
     raw: b.raw,
     detail: s && {
       ...s,
+      tiket: kartu(b).tiket,
       persona: s.persona.map((p) => ({ ...p, nama: personaName(p.siapa) })),
       steps: s.langkah.map((l, i) => ({
         ...stepInfo(l, i),
@@ -231,11 +352,37 @@ function catatanAi(task?: string) {
   return { items: out, teks }
 }
 
+function hapusBanyak(body: Record<string, unknown>, jenis: 'jalan' | 'trace') {
+  if (body.konfirmasi !== true) throw new HttpError(400, 'Penghapusan butuh konfirmasi')
+  const ids = Array.isArray(body.run_ids) ? body.run_ids.map(String) : []
+  if (!ids.length) throw new HttpError(400, 'Tidak ada jalan yang dipilih')
+  const aktif = jalanAktif()
+  const dihapus: string[] = []
+  const gagal: { run_id: string; alasan: string }[] = []
+  let byte = 0
+  for (const id of ids)
+    try {
+      byte +=
+        jenis === 'jalan'
+          ? hapusJalan(config.runsDir, id, aktif)
+          : hapusTrace(config.runsDir, id, aktif)
+      dihapus.push(id)
+    } catch (e) {
+      gagal.push({ run_id: id, alasan: (e as Error).message })
+    }
+  const l = `Riwayat: ${jenis === 'jalan' ? `${dihapus.length} jalan dihapus` : `${dihapus.length} trace dihapus`} (${teksByte(byte)})${gagal.length ? `, ${gagal.length} ditolak` : ''}`
+  console.log(l)
+  broadcast('log', l)
+  broadcast('riwayat', Date.now())
+  return { dihapus, gagal, byte }
+}
+
 type Handler = (body: Record<string, unknown>, url: URL) => Promise<unknown>
 const routes: Record<string, Handler> = {
   'GET /api/config': async () => ({
     web_url: config.webUrl,
     ticket_url: config.ticketUrl,
+    tenant: config.tenantSlug,
     headed: HEADED,
     scenarios_dir: path.relative(ROOT, config.scenariosDir),
     // Lapisan Pemeriksaan (docs/PEMERIKSAAN.md): false = V2_DATABASE_URL kosong, hasil "tidak dikonfigurasi".
@@ -245,6 +392,14 @@ const routes: Record<string, Handler> = {
     v2_dir: config.v2Dir,
   }),
   'GET /api/scenarios': async () => bacaSemua().map(kartu),
+  /** Project › Modul: satu project Fleetify v2; modul = folder scenarios/<modul>/ dengan jumlah berkas. */
+  'GET /api/project': async () => {
+    const jumlah = new Map<string, number>()
+    for (const b of bacaSemua()) jumlah.set(b.task, (jumlah.get(b.task) ?? 0) + 1)
+    return {
+      projects: PROJECTS.map((p) => ({ id: p.id, nama: p.nama, modul: modulProject(p, jumlah) })),
+    }
+  },
   'GET /api/state': async () => ({ ...snapshot(), logs }),
   'GET /api/runs': async (_b, url) => listRuns(url.searchParams.get('scenario') || undefined),
   'GET /api/catatan-ai': async (_b, url) => catatanAi(url.searchParams.get('task') || undefined),
@@ -258,6 +413,7 @@ const routes: Record<string, Handler> = {
           : Math.max(0, Number(body.autostart_step) - 1),
     })
     antrean = []
+    antreanTotal = 0
     return { run_id: run.runId }
   },
   'POST /api/queue': async (body) => {
@@ -265,10 +421,11 @@ const routes: Record<string, Handler> = {
     const slugs = bacaSemua()
       .filter((b) => b.task === task && b.skenario)
       .map((b) => b.slug)
-    if (!slugs.length) throw new HttpError(400, `Tidak ada skenario valid di task ${task}`)
+    if (!slugs.length) throw new HttpError(400, `Tidak ada skenario valid di modul ${task}`)
     const [first, ...rest] = slugs
     await mulaiJalan(first as string, { speed: Number(body.speed ?? 1), autostart: 0 })
     antrean = rest
+    antreanTotal = slugs.length
     broadcast('state', snapshot())
     return { antrean: slugs }
   },
@@ -307,6 +464,65 @@ const routes: Record<string, Handler> = {
     run.setSpeed(body.speed)
     return { speed: run.ctl.speed }
   },
+  'POST /api/jeda-tiap-langkah': async (body) => {
+    jedaTiapLangkah = body.nyala === true
+    current?.ctl.setJedaTiapLangkah(jedaTiapLangkah)
+    broadcast('state', snapshot())
+    return { nyala: jedaTiapLangkah }
+  },
+  /** Tampilan aplikasi (ukuran laptop + skala) untuk jalan berikutnya. */
+  'POST /api/tampilan': async (body) => {
+    try {
+      tampilanJalan = bacaTampilan(body.ukuran, body.skala)
+      if (body.mutu !== undefined) mutuLangsung = bacaMutu(body.mutu, mutuLangsung)
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
+    // Mutu tampilan langsung berlaku seketika juga untuk jalan yang sedang diputar.
+    await current?.aturLangsung({ mutu: mutuLangsung })
+    broadcast('state', snapshot())
+    return { tampilan: tampilanJalan, mutu_langsung: mutuLangsung }
+  },
+  /** Area tampil panel (CSS px) × devicePixelRatio: batas ukuran bingkai screencast mode Tajam. */
+  'POST /api/layar-panel': async (body) => {
+    const l = bacaLayar(body)
+    if (!l) throw new HttpError(400, 'w, h, dpr harus angka positif')
+    const sama =
+      layarPanel && layarPanel.w === l.w && layarPanel.h === l.h && layarPanel.dpr === l.dpr
+    layarPanel = l
+    if (!sama) {
+      console.log(`Layar panel ${l.w}×${l.h} @${l.dpr}x (batas bingkai tampilan langsung)`)
+      await current?.aturLangsung({ layar: l })
+    }
+    return { layar: layarPanel }
+  },
+  /** Riwayat di disk: ukuran tiap jalan, total, setelan retensi, jalan yang sedang berjalan. */
+  'GET /api/riwayat': async () => {
+    const runs = daftarJalanDisk(config.runsDir)
+    return {
+      runs,
+      total: runs.reduce((a, j) => a + j.ukuran, 0),
+      total_trace: runs.reduce((a, j) => a + j.ukuran_trace, 0),
+      retensi: bacaRetensi(BERKAS_RETENSI),
+      aktif: [...jalanAktif()],
+    }
+  },
+  /** Hapus jalan (butuh konfirmasi: true dari dialog panel). Jalan aktif dan path di luar runs/ ditolak. */
+  'POST /api/riwayat/hapus': async (body) => hapusBanyak(body, 'jalan'),
+  'POST /api/riwayat/hapus-trace': async (body) => hapusBanyak(body, 'trace'),
+  'POST /api/riwayat/retensi': async (body) => {
+    const r = normalRetensi(body as Record<string, unknown>)
+    mkdirSync(config.cacheDir, { recursive: true })
+    writeFileSync(BERKAS_RETENSI, JSON.stringify(r, null, 2))
+    return { retensi: r }
+  },
+  /** Pratinjau retensi dengan setelan sekarang (tanpa menghapus). */
+  'GET /api/riwayat/rencana-retensi': async () =>
+    rencanaRetensi(
+      daftarJalanDisk(config.runsDir),
+      { ...bacaRetensi(BERKAS_RETENSI), aktif: true },
+      jalanAktif(),
+    ),
   'POST /api/finding': async (body) => {
     const jenis = String(body.jenis ?? 'bug')
     if (!JENIS_TEMUAN.includes(jenis as JenisTemuan))
@@ -331,6 +547,12 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   const url = new URL(req.url ?? '/', `http://${HOST}:${config.port}`)
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
     return send(res, 200, readFileSync(PANEL, 'utf8'), 'text/html; charset=utf-8')
+  const aset = req.method === 'GET' ? url.pathname.match(ASET_PANEL)?.[1] : undefined
+  if (aset) {
+    const file = path.join(PANEL_DIR, aset)
+    if (!existsSync(file)) return send(res, 404, { error: 'Tidak ada' })
+    return send(res, 200, readFileSync(file), TYPES[path.extname(file)] ?? 'text/plain')
+  }
   if (req.method === 'GET' && (url.pathname === '/events' || url.pathname === '/live')) {
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -376,6 +598,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return send(res, 200, {
       ...r,
       data: existsSync(dataFile) ? JSON.parse(readFileSync(dataFile, 'utf8')) : null,
+      laporan_data: susunDataLaporan(r),
     })
   }
   const handler = routes[`${req.method} ${url.pathname}`]
@@ -400,14 +623,20 @@ if (existsSync(config.scenariosDir))
 
 server.listen(config.port, HOST, () => {
   console.log(
-    `Scenario Runner: http://localhost:${config.port} (${HEADED ? 'headed' : 'headless'})`,
+    `Scenario Runner Fleetify: http://127.0.0.1:${config.port} (${HEADED ? 'headed' : 'headless'}) · ${config.webUrl} · tenant ${config.tenantSlug}`,
   )
 })
 
 const shutdown = async () => {
   const active = !!current && ACTIVE.includes(current.result.status)
   if (active) await current?.stop()
-  setTimeout(() => process.exit(0), active ? SHUTDOWN_GRACE_MS : 0)
+  setTimeout(
+    async () => {
+      await closeSharedBrowser()
+      process.exit(0)
+    },
+    active ? SHUTDOWN_GRACE_MS : 0,
+  )
 }
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)

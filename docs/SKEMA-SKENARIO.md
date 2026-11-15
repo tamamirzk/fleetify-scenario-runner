@@ -7,12 +7,14 @@ Cara kerja dan alur: [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md). Konteks dan lar
 ## Lokasi dan nama
 
 ```
-scenarios/<task>/<slug>.json      mis. scenarios/FMS-63/pinjaman-alat.json
+scenarios/<modul>/<slug>.json      mis. scenarios/material/pinjaman-alat.json
 ```
 
-- `<task>` = tiket utama (`FMS-63`) atau kelompok (`lingkungan`). Nama folder menjadi nama task di panel.
-- `<slug>` kebab-case, sama dengan field `slug`, dan **unik di semua task** (riwayat disimpan di `runs/<slug>/`).
-- Kerangka baru: `bun run new <task> <slug>` (dari `templates/skenario.json`).
+- `<modul>` = folder modul (Project › Modul › Skenario di panel) dan **harus sama dengan field `modul`** (aturan
+  `modul-folder`). Nama tampilan dan urutan modul diatur di `src/core/project.ts`. Tiket Plane ditulis di field `tiket`,
+  bukan lewat nama folder.
+- `<slug>` kebab-case, sama dengan field `slug`, dan **unik di semua modul** (riwayat disimpan di `runs/<slug>/`).
+- Kerangka baru: `bun run new <modul> <slug> [FMS-123]` (dari `templates/skenario.json`).
 
 ## Contoh minimal
 
@@ -48,7 +50,7 @@ scenarios/<task>/<slug>.json      mis. scenarios/FMS-63/pinjaman-alat.json
 }
 ```
 
-Contoh lengkap: `scenarios/FMS-63/pinjaman-alat.json`.
+Contoh lengkap: `scenarios/material/pinjaman-alat.json`.
 
 ## Field tingkat atas
 
@@ -59,8 +61,10 @@ Field yang tidak tercantum ditolak (salah ketik ketahuan).
 | `slug` | ya | Sama dengan nama berkas |
 | `judul` | ya | Judul singkat |
 | `tujuan` | ya | Satu kalimat "Membuktikan …" (min. 20 huruf) |
-| `modul` | ya | `material`, `approval`, `wo`, `pb`, `akses`, `lingkungan` (pengelompokan mode server nanti) |
-| `tiket` | ya | `["FMS-63"]`, boleh kosong |
+| `modul` | ya | `material`, `approval`, `wo`, `pb`, `akses`, `lingkungan`; sama dengan nama folder |
+| `tiket` | ya | `["FMS-63"]`, boleh kosong. Tampil sebagai chip Plane bertautan `TICKET_URL` + kunci (tanpa sinkron) |
+| `pemilik` | | Nama pemilik skenario (filter Pemilik di panel) |
+| `status` | | `draf` atau `siap` (bawaan). Status `Ada kegagalan` dihitung dari jalan terakhir |
 | `estimasi` | ya | `"<n> menit"` |
 | `persona` | ya | `[{ "siapa": "mbl.storekeeper", "peran": "…" }]`: **semua** persona yang terlibat, termasuk yang hanya lewat API |
 | `data` | ya | Uraian data yang disiapkan (untuk ringkasan) |
@@ -82,11 +86,17 @@ Persona yang dikenal: `mbl.superintendent` (Bagus), `mbl.plant-superintendent` (
 |---|---|---|
 | `id` | ya | kebab-case, unik dalam skenario |
 | `judul` | ya | Kalimat aktif: siapa melakukan apa |
+| `deskripsi` | | Paragraf penjelasan untuk kartu deskripsi runner dan Ringkasan: apa yang dilakukan dan dibuktikan |
 | `harusTerlihat` | ya | Yang harus terlihat di layar setelah langkah (tampil besar di panel). Ini teks untuk penonton; pemeriksaan otomatisnya ditulis sebagai aksi `pastikanTerlihat` |
 | `sebagai` | | Persona jendela untuk langkah ini. Bila berbeda dari langkah sebelumnya, runner berganti akun di jendela yang sama (banner "Ganti akun") |
 | `diBelakangLayar` | | `true` bila inti langkah terjadi lewat API |
 | `capai` | | Aksi API yang membawa data ke awal langkah ini, supaya panel bisa **mulai dari langkah ini**. `[]` = data `siapkan` sudah cukup. Tanpa `capai`, langkah hanya bisa dimulai dengan data jalan yang berhenti tepat sebelumnya |
 | `aksi` | ya | Daftar aksi, dijalankan berurutan |
+| `cek` | | Pemeriksaan UI terstruktur sesudah aksi: tiap butir tepat satu dari `terlihat`, `tidakTerlihat`, atau `nilai` (+ `diharapkan`: teks sama persis tanpa beda huruf/spasi, atau `"/regex/"`); opsional `id` (`"5.2"`), `judul`, `lunak`, `batas`. Gagal = langkah gagal, kecuali `lunak` |
+| `pernyataanData` | | Pernyataan data di snapshot DB baca-saja sesudah langkah, dibatasi `company_id` tenant: `{ "judul", "tabel", "cocok": { kolom: nilai/placeholder }, "kolom" + "diharapkan" }` atau `{ …, "jumlah": n }`. Tampil di Laporan › Transaksi database |
+
+Aksi `pastikanTerlihat` / `pastikanTidakTerlihat` / `pastikanNonaktif` di `aksi` ikut tercatat sebagai cek UI (nomor `n.k`).
+"Harus terlihat" tanpa cek otomatis tampil sebagai *tidak diperiksa otomatis* dan tidak dihitung di UI x/y laporan.
 
 Tiap langkah membuka sendiri halaman yang dipakainya (`buka`), supaya bisa diputar mulai dari langkah itu.
 

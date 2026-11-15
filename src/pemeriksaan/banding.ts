@@ -1,6 +1,7 @@
 // Pembanding baseline vs akhir (murni, diuji Vitest). Identitas baris = nilai kolomKunci.
 import type { DiffDokumen, HasilPemeriksaan, ItemPemeriksaan } from '../core/run-types.ts'
 import type { Invarian } from './invarian.ts'
+import type { HasilPernyataan, SnapshotJejak } from './jejak.ts'
 
 export type Baris = Record<string, unknown>
 
@@ -20,6 +21,12 @@ export interface Snapshot {
   hasil: HasilInvarian[]
   dokumen?: SnapshotDokumen
   durasiMs?: number
+  /** Jejak baris tenant; tidak ada bila gagal dibaca. */
+  jejak?: SnapshotJejak
+  /** Hasil pernyataan data yang diminta untuk snapshot ini. */
+  pernyataan?: HasilPernyataan[]
+  /** Galat membaca jejak baris (bukan galat invarian). */
+  galatJejak?: string
 }
 
 export const kunciBaris = (baris: Baris, kolomKunci: readonly string[]): string =>

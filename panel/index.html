@@ -3,325 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scenario Runner</title>
+<title>Fleetify Runner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
-<style>
-/* Desain v2 (gelap, bento). Nilai dari desain/pratinjau/*.html paket Scenario Runner v2. */
-:root {
-  --bg: #0B0C0D; --tile: #151618; --inner: #1E1F22; --ctl: #17181A; --chip-bg: #26272B;
-  --text: #F2F3F1; --text2: #D5D7D2; --dim: #A3A6A1; --num: #6F726E; --code: #E6E8E3;
-  --line: rgba(255,255,255,.22); --line-soft: rgba(255,255,255,.10); --line-mid: rgba(255,255,255,.14);
-  --accent: #F0D648; --accent-soft: rgba(240,214,72,.16); --ink: #1A1D21; --ink-soft: #3A3520;
-  --ok: #30A46C; --ok-t: #4CC38A; --bad: #E5484D; --bad-t: #FF8589; --warn: #F59E0B;
-  --sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
-  color-scheme: dark;
-}
-* { box-sizing: border-box }
-/* biome-ignore lint/complexity/noImportantStyles: atribut hidden harus mengalahkan display dari kelas */
-[hidden] { display: none !important }
-html, body { margin: 0; background: var(--bg) }
-body { color: var(--text); font: 13px/1.4 var(--sans); font-variant-numeric: tabular-nums }
-button, input, select, textarea { font: inherit; color: inherit }
-a { color: inherit }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-code, .mono { font-family: var(--mono); font-size: 12px }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
-
-.page { min-height: 100vh; padding: 20px 28px 32px }
-.wrap { max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px }
-.wrap .wrap { max-width: none; margin: 0; width: 100% }
-
-/* Header */
-header { display: flex; align-items: center; gap: 20px; flex-wrap: wrap }
-.logo { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--ink); font-weight: 700; font-size: 13px; letter-spacing: -.02em; flex: none }
-.mode { margin: 0; min-width: 0; display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--ctl); border: 1px solid var(--line-soft) }
-.mode a, .mode span { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 600; text-decoration: none }
-.mode a[aria-current="true"] { background: var(--text); color: var(--bg) }
-.mode .off { color: var(--dim); cursor: not-allowed }
-.mode .off small { font-weight: 500; font-size: 11px }
-.search { display: flex; align-items: center; gap: 10px; flex: 0 1 280px; min-width: 180px; height: 44px; border-bottom: 1px solid var(--line); color: var(--dim) }
-.search input { flex: 1; min-width: 0; height: 40px; border: none; background: transparent; color: var(--text); font: 400 14px var(--sans) }
-.search input::placeholder { color: var(--dim) }
-.search input:focus { outline: none }
-.search:focus-within { border-bottom-color: var(--accent) }
-.grow { flex: 1 }
-nav.main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
-.navbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-width: 44px; padding: 0; border-radius: 999px; border: 1px solid var(--line-soft); background: var(--ctl); color: var(--text2); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer }
-.navbtn[aria-current="page"] { background: var(--accent); color: var(--ink); border-color: transparent; padding: 0 16px 0 14px }
-.navbtn .lbl { display: none }
-.navbtn[aria-current="page"] .lbl { display: inline }
-.navbtn[aria-disabled="true"] { border-style: dashed; border-color: var(--line); color: var(--dim); cursor: not-allowed; background: transparent }
-.navbtn .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
-
-/* Baris judul */
-.titlerow { display: flex; align-items: center; gap: 32px; flex-wrap: wrap }
-.titlerow .ctx { font-size: 14px; color: var(--text2) }
-.titlerow .ctx code { font-size: 13px }
-.titlerow h1 { margin: 2px 0 0; font-size: 30px; font-weight: 500; letter-spacing: -.03em; line-height: 1.15 }
-.titlebox { flex: 1 1 280px; min-width: 0 }
-.titleline { display: flex; align-items: center; gap: 12px; margin-top: 2px; flex-wrap: wrap }
-.titleline h1 { margin: 0 }
-.stat .n { font-size: 44px; font-weight: 500; letter-spacing: -.04em; line-height: 1 }
-.stat .n small { font-size: 18px; color: var(--dim); letter-spacing: 0 }
-.stat .l { margin-top: 6px; font-size: 13px; color: var(--dim) }
-.envtile { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 16px 0 10px; border-radius: 18px; background: var(--ctl); color: var(--text); text-decoration: none; max-width: 340px }
-.envtile .ic { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: var(--chip-bg); color: var(--dim); flex: none }
-.envtile b { display: block; font-size: 14px; font-weight: 600 }
-.envtile .s { display: block; font-size: 12px; color: var(--text2) }
-.envtile .k { display: block; font-size: 12px; color: var(--dim) }
-a.envtile:hover { background: #1c1d20 }
-
-.status { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap }
-.status.run { background: var(--accent-soft); color: var(--accent) }
-.status.pause { background: var(--warn); color: var(--ink) }
-.status.bad { background: var(--bad); color: #fff }
-.status.ok { background: var(--ok); color: #fff }
-.status.idle { background: var(--chip-bg); color: var(--text2) }
-
-/* Ubin */
-.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start }
-.row.stretch { align-items: stretch }
-.col { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
-.tile { min-width: 0; padding: 18px 20px 20px; border-radius: 22px; background: var(--tile); display: flex; flex-direction: column; gap: 12px }
-.thead { display: flex; align-items: center; gap: 8px }
-.thead h2 { flex: 1; margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em }
-.thead .meta { font-size: 12px; color: var(--dim) }
-.inner { padding: 12px 14px; border-radius: 14px; background: var(--inner) }
-.note { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.5 }
-.dashed { padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line); display: flex; align-items: center; gap: 12px }
-.dashed span { flex: 1; font-size: 13px; color: var(--text2) }
-.empty { padding: 28px 16px; text-align: center; color: var(--dim); font-size: 13px; border-radius: 14px; border: 1px dashed var(--line-mid) }
-
-/* Tombol */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: var(--text); font: 500 13px var(--sans); text-decoration: none; cursor: pointer; white-space: nowrap }
-.btn.h40 { height: 40px }
-.btn.h44 { height: 44px }
-.btn.lg { height: 48px; padding: 0 18px; font-size: 14px; border-color: var(--line) }
-.btn.primary { background: var(--accent); color: var(--ink); border: none; font-weight: 600; padding: 0 18px }
-.btn.primary.lg { font-size: 15px; min-width: 150px; padding: 0 20px }
-.btn.danger { color: var(--bad-t) }
-.btn:disabled { border: 1px dashed rgba(255,255,255,.25); background: transparent; color: var(--dim); cursor: not-allowed }
-.btn:not(:disabled):hover { filter: brightness(1.08) }
-kbd { font: 500 11px/1 var(--mono); padding: 4px 6px; border-radius: 5px; border: 1px solid rgba(255,255,255,.25); color: var(--dim) }
-.btn.primary kbd { border-color: rgba(26,29,33,.35); color: var(--ink) }
-.round { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; flex: none; text-decoration: none }
-.chip { flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); color: var(--text2); font-size: 11px; font-weight: 600; white-space: nowrap; text-decoration: none }
-.chip.ok { border-color: rgba(76,195,138,.5); color: var(--ok-t) }
-.chip.bad { border-color: rgba(255,133,137,.5); color: var(--bad-t) }
-.chip.acc { border-color: rgba(240,214,72,.5); color: var(--accent) }
-.tag-live { padding: 1px 6px; border-radius: 4px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em }
-.ok-t { color: var(--ok-t) } .bad-t { color: var(--bad-t) } .warn-t { color: var(--warn) } .acc-t { color: var(--accent) } .dim { color: var(--dim) }
-
-.seg { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--inner) }
-.seg button { height: 40px; min-width: 48px; padding: 0 10px; border-radius: 999px; border: none; background: transparent; color: var(--text2); font: 500 13px var(--sans); cursor: pointer }
-.seg button[aria-checked="true"] { background: var(--text); color: var(--bg) }
-.seg.full button { flex: 1; height: 36px; font-size: 12px }
-.seg.full button[aria-checked="true"] { font-weight: 600 }
-
-/* Task dan kartu berkas */
-.task { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--inner); color: var(--text); text-decoration: none }
-.task[aria-current="true"] { background: var(--accent); color: var(--ink) }
-.task .t { flex: 1; min-width: 0 }
-.task .t b { display: block; font-size: 14px; font-weight: 600 }
-.task .t span { display: block; margin-top: 2px; font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.task[aria-current="true"] .t span { color: var(--ink-soft) }
-.task .c { font-size: 12px; font-weight: 600 }
-.fcard { padding: 16px; border-radius: 14px; background: var(--inner); display: flex; flex-direction: column; gap: 10px; cursor: pointer; outline: 1px solid transparent }
-.fcard[aria-selected="true"] { outline-color: rgba(240,214,72,.55) }
-.fcard .top { display: flex; align-items: center; gap: 8px }
-.fcard .top code { flex: 1; min-width: 0; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.fcard .top .r { flex: none; font-size: 12px; font-weight: 600 }
-.fcard .ttl { font-size: 16px; font-weight: 600; letter-spacing: -.01em }
-.fcard .m { font-size: 12px; color: var(--dim) }
-.fcard .d { font-size: 12px; color: var(--text2); overflow-wrap: anywhere }
-.fcard .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px }
-
-/* Pratinjau JSON */
-.codebox { padding: 12px 14px; border-radius: 14px; background: var(--inner); font: 12px/1.7 var(--mono); overflow: auto; max-height: 460px }
-.codebox .ln { display: flex; gap: 14px }
-.codebox .ln i { flex: none; width: 24px; text-align: right; color: var(--num); font-style: normal; user-select: none }
-.codebox .ln span { white-space: pre; color: var(--code) }
-.codebox .ln.err span { color: var(--bad-t) }
-.problems { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--inner); outline: 1px solid rgba(255,133,137,.5) }
-.problems div { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere }
-.problems code { color: var(--bad-t) }
-
-/* Langkah */
-.bar { display: grid; gap: 4px }
-.bar div { height: 6px; border-radius: 3px; background: rgba(255,255,255,.14) }
-.bar .ok { background: var(--ok) } .bar .run { background: var(--accent) } .bar .pause { background: var(--warn) } .bar .bad { background: var(--bad) } .bar .skip { background: rgba(255,255,255,.06) }
-.step { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 14px; background: var(--inner); color: var(--text2); border: none; width: 100%; text-align: left; font: inherit }
-button.step { cursor: pointer }
-.step .no { flex: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-weight: 600 }
-.step .tt { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.35 }
-.step .tt small { display: block; font-size: 12px; color: var(--dim); font-weight: 400; margin-top: 2px }
-.step .st { flex: none; font-size: 12px; font-weight: 600; color: var(--dim) }
-.step.done { color: var(--text) } .step.done .st { color: var(--ok-t) }
-.step.fail { color: var(--text) } .step.fail .st { color: var(--bad-t) } .step.fail .no { border-color: var(--bad-t); color: var(--bad-t) }
-.step.cur { background: var(--accent); color: var(--ink); font-weight: 600 } .step.cur .st, .step.cur small { color: var(--ink) } .step.cur .no { border-color: rgba(26,29,33,.5) }
-.step.pz { background: var(--warn); color: var(--ink) } .step.pz .st, .step.pz small { color: var(--ink) } .step.pz .no { border-color: rgba(26,29,33,.5) }
-.step.view { outline: 1px solid rgba(255,255,255,.35) }
-.aksigrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
-.aksi { padding: 12px 14px; border-radius: 14px; background: var(--inner); min-height: 64px }
-.aksi .a { font-size: 12px; color: var(--dim); line-height: 1.4; overflow-wrap: anywhere }
-.aksi .s { margin-top: 6px; font-size: 14px; font-weight: 500; color: var(--text2) }
-
-/* Tampilan langsung */
-.live { position: relative; border-radius: 16px; overflow: hidden; background: var(--inner); aspect-ratio: 1400 / 900 }
-.live.paused { outline: 3px solid var(--warn) }
-.live.failed { outline: 2px solid rgba(255,133,137,.6) }
-.live img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--inner) }
-.live .wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--dim); font-size: 13px; text-align: center; padding: 20px }
-.callout { position: absolute; right: 16px; bottom: 16px; max-width: 320px; padding: 10px 14px; border-radius: 12px; background: var(--accent); color: var(--ink); font-size: 13px; font-weight: 600; line-height: 1.35 }
-.live:fullscreen { aspect-ratio: auto; border-radius: 0 }
-.expect { padding: 14px 16px; border-radius: 14px; background: var(--inner) }
-.expect .k { font-size: 12px; color: var(--dim) }
-.expect .v { margin-top: 4px; font-size: 16px; font-weight: 500; line-height: 1.4 }
-.errbox { padding: 12px 14px; border-radius: 14px; background: var(--inner); outline: 1px solid rgba(255,133,137,.5); display: flex; flex-direction: column; gap: 10px }
-.errbox b { font-size: 14px; font-weight: 600 }
-.errbox .mono { line-height: 1.6; color: var(--text2); overflow-wrap: anywhere }
-.errbox img { display: block; width: 100%; max-width: 560px; border-radius: 12px }
-.ctlbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
-
-.sccard { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--inner); color: var(--text); text-decoration: none; min-height: 118px; outline: 1px solid transparent }
-.sccard.on { outline-color: var(--accent) } .sccard.on.pz { outline-color: var(--warn) }
-.sccard .h { display: flex; align-items: center; justify-content: space-between }
-.sccard .h .no { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px }
-.sccard .h .s { font-size: 12px; font-weight: 600 }
-.sccard .t { flex: 1; font-size: 13px; font-weight: 600; line-height: 1.35 }
-.sccard .f { font-size: 12px; color: var(--dim) }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px }
-textarea.in { width: 100%; min-height: 84px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line-mid); background: var(--inner); color: var(--text); font: 400 14px/1.45 var(--sans); resize: vertical }
-textarea.in::placeholder { color: var(--dim) }
-select.in { height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-mid); background: var(--inner); color: var(--text); max-width: 100% }
-.chk { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px }
-.chk input { width: 16px; height: 16px; accent-color: var(--accent) }
-
-/* Ringkasan */
-.kv { display: flex; flex-direction: column; gap: 8px }
-.kv .inner { font-size: 13px; line-height: 1.45 }
-.kv .inner small { display: block; font-size: 12px; color: var(--dim); margin-top: 2px }
-ul.plain { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; color: var(--text2); font-size: 13px; line-height: 1.45 }
-.startpick { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px }
-.startpick input { accent-color: var(--ink); width: 16px; height: 16px }
-.docs { display: flex; flex-direction: column; gap: 6px }
-.docs a { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px; background: var(--inner); text-decoration: none; font-size: 13px }
-.docs a b { font-weight: 600 } .docs a code { color: var(--accent) }
-
-/* Linimasa riwayat */
-.tl { list-style: none; margin: 0; padding: 0 }
-.tl li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 14px }
-.tl .rail { display: flex; flex-direction: column; align-items: center }
-.tl .ic { flex: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); color: var(--dim); font-size: 12px; font-weight: 700 }
-.tl .ic.ok { border-color: var(--ok-t); color: var(--ok-t) } .tl .ic.bad { border-color: var(--bad-t); color: var(--bad-t) } .tl .ic.warn { border-color: var(--warn); color: var(--warn) }
-.tl .line { flex: 1; width: 1px; min-height: 12px; background: var(--line-mid) }
-.tl .body { padding-bottom: 18px; min-width: 0; display: flex; flex-direction: column; gap: 8px }
-.tl .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
-.tl .hd b { font-size: 14px; font-weight: 600 }
-.tl .hd .st { font-size: 12px; font-weight: 600 }
-.tl .sub { font-size: 12px; color: var(--dim) }
-.tl details summary { cursor: pointer; font-size: 12px; color: var(--text2) }
-.tl details ol { margin: 6px 0 0; padding-left: 20px; font-size: 12px; color: var(--text2); display: flex; flex-direction: column; gap: 2px }
-.tl .finding { padding: 10px 12px; border-radius: 12px; background: var(--inner); font-size: 13px; display: flex; flex-direction: column; gap: 6px }
-.tl .thumb { display: block; max-width: 360px; width: 100%; border-radius: 10px }
-.runrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--inner); text-decoration: none; color: var(--text) }
-.runrow[aria-current="true"] { outline: 1px solid var(--accent) }
-.runrow .w { flex: 1; min-width: 0 }
-.runrow .w b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.runrow .w span { display: block; font-size: 12px; color: var(--dim) }
-.runrow .s { flex: none; font-size: 12px; font-weight: 600; text-align: right }
-/* Pemeriksaan (invarian DB) */
-.pcard { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--inner); outline: 1px solid rgba(255,133,137,.5) }
-.pcard .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
-.pcard .hd b { font-size: 14px; font-weight: 600 }
-.pcard .hd code { color: var(--bad-t); overflow-wrap: anywhere; min-width: 0 }
-.pcard .ket { font-size: 12px; color: var(--dim); line-height: 1.5 }
-.ptbl { width: 100%; border-collapse: collapse; font: 500 11.5px/1.4 var(--mono); display: block; overflow: auto; max-height: 320px }
-.ptbl th, .ptbl td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; vertical-align: top }
-.ptbl th { color: var(--dim); font-weight: 500; position: sticky; top: 0; background: var(--inner) }
-.ptbl td { color: var(--text2) }
-.psum { cursor: pointer; font-size: 12px; color: var(--text2) }
-.pold { display: flex; flex-direction: column; gap: 8px }
-.pcard.lama { outline-color: var(--line-soft) }
-.pcard.lama .hd code { color: var(--text2) }
-.dbchip { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line-soft); font: 600 10.5px var(--sans); color: var(--dim); white-space: nowrap }
-.dbchip.ok { border-color: rgba(76,195,138,.5); color: var(--ok-t) }
-.dbchip.bad { border-color: rgba(255,133,137,.6); color: var(--bad-t); background: rgba(229,72,77,.12) }
-.dbchip.warn { border-color: rgba(245,158,11,.6); color: var(--warn) }
-.step.cur .dbchip, .step.pz .dbchip { border-color: rgba(26,29,33,.35); color: var(--ink) }
-.dbchip.warn.dom { background: rgba(245,158,11,.10) }
-/* Pemeriksaan UI */
-.vio { display: flex; flex-direction: column; gap: 6px }
-.vio .v { padding: 8px 10px; border-radius: 10px; background: var(--tile); font-size: 12px; line-height: 1.5; display: flex; flex-direction: column; gap: 4px }
-.vio .v .loc { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.vio .v .loc code { color: var(--bad-t) }
-.vio .v .loc .rule { color: var(--accent); font-weight: 600 }
-.vio .v .loc a { color: var(--dim); font-size: 11px; text-decoration: none }
-.vio .v .loc a:hover { color: var(--text) }
-.vio .v pre { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--inner); font: 500 11.5px/1.5 var(--mono); color: var(--code); overflow: auto; white-space: pre }
-.pcard.ui { outline-color: rgba(240,214,72,.45) }
-.pcard.ui.statis { outline-color: rgba(255,133,137,.5) }
-.pcard .hd .pasal { font-size: 11px; color: var(--dim); border: 1px solid var(--line-soft); border-radius: 999px; padding: 1px 7px }
-.shotui { display: block; width: 100%; max-width: 720px; border-radius: 12px; border: 1px solid var(--line-soft) }
-.domlist { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text2) }
-.domlist .d { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.domlist .d .n { color: var(--dim); font-size: 11px }
-.domlist code { color: var(--warn) }
-.reqlist { display: flex; flex-direction: column; gap: 3px; font: 500 11.5px/1.5 var(--mono); color: var(--text2) }
-.reqlist .rq { display: flex; gap: 8px; align-items: baseline }
-.reqlist .rq .m { color: var(--accent); min-width: 52px }
-.reqlist .rq .s { color: var(--dim) }
-.reqlist .rq.top .m { color: var(--bad-t) }
-/* KPI gabungan layar Selesai */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px }
-.kpi { padding: 14px 16px; border-radius: 14px; background: var(--inner); border: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px }
-.kpi .n { font-size: 30px; font-weight: 500; letter-spacing: -.03em; line-height: 1.05 }
-.kpi .n small { font-size: 14px; color: var(--dim); letter-spacing: 0; font-weight: 500 }
-.kpi .l { font-size: 12px; color: var(--dim) }
-.kpi.bad { border-color: rgba(255,133,137,.5) } .kpi.bad .n { color: var(--bad-t) }
-.kpi.ok .n { color: var(--ok-t) } .kpi.warn .n { color: var(--warn) }
-.pacts { display: flex; gap: 8px; flex-wrap: wrap }
-.diff { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text2) }
-.diff b { font-weight: 600; color: var(--text) }
-.diff code { color: var(--accent) }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 18px; border-radius: 999px; background: var(--text); color: var(--bg); font-weight: 600; font-size: 13px; z-index: 50 }
-.toast.bad { background: var(--bad); color: #fff }
-
-@media (max-width: 720px) {
-  .page { padding: 16px 16px 28px }
-  .titlerow { gap: 18px }
-  .stat .n { font-size: 34px }
-  .aksigrid { grid-template-columns: minmax(0, 1fr) }
-}
-</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/panel.css">
 </head>
 <body>
-<div class="page"><div class="wrap">
-<header>
-  <div class="logo" aria-hidden="true">SR</div>
-  <fieldset aria-label="Mode" class="mode">
-    <a href="#/" aria-current="true">Lokal</a>
-    <span class="off" aria-disabled="true" title="Mode server belum tersedia">Server <small>· belum tersedia</small></span>
-  </fieldset>
-  <label class="search">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13zM20 20l-4-4"/></svg>
-    <span class="sr">Cari</span>
-    <input id="q" type="search" placeholder="Cari skenario, task, jalan…" autocomplete="off">
-  </label>
-  <div class="grow"></div>
-  <nav class="main" aria-label="Navigasi utama" id="nav"></nav>
-</header>
-<main id="view" class="wrap"></main>
+<div class="page"><div class="win">
+<header class="win-bar" id="bar"></header>
+<main id="view" class="win-body"></main>
 </div></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script>
-'use strict'
+<script type="module">
+import { aksiKini, chipJalan, chipTiketDaftar, cincinTarget, durasiPanjang, esc, jamDetik, kartuLangkah, kerangkaRunner, langkahKini, lunakGagal, petaLangkah, relLangkah } from '/js/komponen.js'
+import { cekTerpilih, chipTabel, kartuCek, kartuLangkahHasil, kartuRingkasan, kartuRingkasanDb, kartuTransaksi, kerangkaLaporanDb, kerangkaLaporanUi, kotakMerah, LEBAR_PANEL_DB, langkahAwal, REL_HASIL, relHasil, saringTransaksi, subJudul, tabelTransaksi } from '/js/laporan.js'
+import { menuKecepatan, muatPilihan, rasioLaptop, simpanPilihan, teksKecepatan, teksSkala } from '/js/pilihan.js'
+import { aksiPintasan, dariEvent } from '/js/pintasan.js'
+import { alurLangkah, bagianLipat, bilahPutar, daftarPersona, halamanRingkasan, kartuPutar, kartuTerakhir, kepalaRingkasan } from '/js/ringkasan.js'
+import { isiKonfirmasi, lebihLama, ringkasHapus, teksByte } from '/js/riwayat.js'
+import { balik, bukaAktif, grupAktif, lipatSemua, muatSidebar, simpanSidebar, terbuka } from '/js/sidebar-ciut.js'
+import { chipFilter, daftarSkenario, kelompokModul, LABEL_FILTER, labelNilai, metaSkenario, nilaiFilter, papanSkenario, saringSkenario, sidebar, sidebarBawah } from '/js/skenario.js'
+import { perluGeser } from '/js/tata-letak.js'
+
 // ── Utilitas ───────────────────────────────────────────────────────────────
 const $ = (s, r = document) => r.querySelector(s)
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 const ICON = {
   list: 'M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1',
   live: 'M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z',
@@ -333,8 +40,14 @@ const ICON = {
   out: 'M7 17L17 7M8 7h9v9',
   full: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
   redo: 'M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4',
+  back: 'M15 5l-7 7 7 7',
+  sidebar: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 4v16',
+  playfill: 'M7 4l13 8-13 8z',
+  pause: 'M7 4h3v16H7zM14 4h3v16h-3z',
+  papan: 'M4 4h6v16H4zM14 4h6v10h-6z',
+  cari: 'M11 4.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13zM20 20l-4-4',
 }
-const svg = (k, s = 18, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`
+const svg = (k, s = 18, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${w ? 'none' : 'currentColor'}" stroke="${w ? 'currentColor' : 'none'}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`
 const jam = (iso) => (iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '')
 const tgl = (iso) => (iso ? new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 const durasi = (ms) => {
@@ -371,7 +84,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -404,110 +117,233 @@ function runStatusText(r) {
   }
 }
 
-// ── Header ─────────────────────────────────────────────────────────────────
-function renderNav() {
-  const [r] = route()
-  const page = r === 'jalan' ? 'jalan' : r === 'riwayat' ? 'riwayat' : 'skenario'
-  const item = (k, href, label, icon, extra = '') => `<a class="navbtn" href="${href}" aria-label="${label}" title="${label}" aria-current="${page === k ? 'page' : 'false'}">${svg(icon)}<span class="lbl">${label}</span>${extra}</a>`
-  $('#nav').innerHTML = [
-    item('skenario', '#/', 'Skenario', 'list'),
-    item('jalan', '#/jalan', runActive() ? 'Sedang berjalan' : 'Jalan terakhir', 'live', runActive() && page !== 'jalan' ? '<span class="dot" aria-hidden="true"></span>' : ''),
-    item('riwayat', '#/riwayat', 'Riwayat', 'clock'),
-    `<span class="navbtn" role="link" aria-disabled="true" aria-label="Unggah ke server (belum tersedia)" title="Unggah ke server: mode server belum tersedia">${svg('up')}</span>`,
-  ].join('')
+
+/** Origin web v2 lokal (tautan dokumen dari data jalan). */
+const webSasaran = () => S.cfg?.web_url ?? ''
+const labelSasaran = () => `Server v2 lokal · tenant ${S.cfg?.tenant ?? '?'}`
+/** Info sasaran untuk blok bawah sidebar (tetap: server v2 lokal dari .env). */
+const infoSasaran = () => (S.cfg ? { web: S.cfg.web_url, tenant: S.cfg.tenant, db: !!S.cfg.pemeriksaan, ui: !!S.cfg.pemeriksaan_ui } : null)
+
+// ── Tata letak aplikasi (sidebar) untuk Skenario, Ringkasan, Riwayat ───────────────────────
+/** Pasang sidebar + area utama (sekali), perbarui sidebar; kembalikan elemen utama. */
+function appMain(halaman) {
+  const win = document.querySelector('.win')
+  win.classList.add('sb-mode')
+  win.classList.remove('runner', 'lapor')
+  $('#bar').innerHTML = ''
+  if (!$('#app-main')) {
+    $('#view').innerHTML = `<div class="app${S.sb.ciut ? ' sb-ciut' : ''}"><button type="button" class="btn tb sb-laci-btn" id="sb-laci" aria-expanded="false" aria-controls="sb">${svg('list', 16)}Menu</button><div class="sb-latar" id="sb-latar" hidden></div><aside class="sb" id="sb" aria-label="Sidebar"><div id="sb-atas"></div>
+      ${sidebarBawah(infoSasaran(), S.sb.tutup)}</aside><main class="app-main" id="app-main"></main></div>`
+    // Grup buka-tutup, ciut/buka sidebar, laci ponsel: satu pendengar untuk seluruh sidebar.
+    $('#sb').addEventListener('click', (e) => {
+      const g = e.target.closest?.('[data-grup]')
+      if (g) { balikGrup(g.dataset.grup); return }
+      if (e.target.closest?.('#sb-ciut')) { if (layarSempit()) laci(false); else aturCiut(!S.sb.ciut); return }
+      if (layarSempit() && e.target.closest?.('a[href]')) laci(false)
+    })
+    $('#sb-laci').addEventListener('click', () => laci(true))
+    $('#sb-latar').addEventListener('click', () => laci(false))
+  }
+  renderSidebar(halaman)
+  return $('#app-main')
+}
+function renderSidebar(halaman = S.halaman) {
+  S.halaman = halaman
+  const el = $('#sb-atas')
+  if (!el) return
+  const modulAktif = halaman === 'skenario' ? S.modulAktif : null
+  // Saat halaman dimuat: grup yang memuat butir aktif dibuka (sekali; sesudahnya pilihan pengguna dihormati).
+  if (!S.sbAwal) { S.sbAwal = true; S.sb.tutup = bukaAktif(S.sb.tutup, grupAktif({ halaman, modulAktif })); simpanSidebar(localStorage, { tutup: S.sb.tutup }); sinkronGrup() }
+  el.innerHTML = sidebar({ halaman, project: S.project, modulAktif, jumlahSemua: S.files.length, jalanAktif: runActive(), tutup: S.sb.tutup, ciut: S.sb.ciut })
+  $('#sb-tambah-modul')?.addEventListener('click', () => modal('Tambah modul', `<p>Tiap modul berisi skenario uji untuk satu bagian aplikasi. Panel hanya membaca berkas skenario; modul baru muncul begitu skenario pertamanya ditulis:</p><div class="kartu-mono sk-perintah">bun run new &lt;modul&gt; &lt;slug&gt;</div><p class="dim">Nama tampilan dan urutan modul diatur di <code>src/core/project.ts</code>.</p>`))
 }
 
-const envTile = () => {
-  const host = S.cfg ? new URL(S.cfg.web_url).host : 'localhost'
-  return `<div class="envtile"><span class="ic">${svg('laptop', 20)}</span><span><b>${esc(host)}</b><span class="s">${S.cfg?.headed ? 'Lokal · browser di monitor' : 'Lokal · headless, tanpa jendela'}</span></span></div>`
+const layarSempit = () => window.matchMedia('(max-width: 900px)').matches
+/** Samakan aria-expanded dan isi grup di DOM dengan S.sb.tutup (blok bawah tidak dirender ulang). */
+function sinkronGrup() {
+  for (const b of document.querySelectorAll('#sb [data-grup]')) {
+    const buka = terbuka(S.sb.tutup, b.dataset.grup)
+    b.setAttribute('aria-expanded', String(buka))
+    b.setAttribute('aria-label', `${(b.getAttribute('aria-label') ?? '').replace(/ \(tertutup\)$/, '')}${buka ? '' : ' (tertutup)'}`)
+  }
+  for (const el of document.querySelectorAll('#sb [data-isi]')) el.hidden = !terbuka(S.sb.tutup, el.dataset.isi)
+}
+function balikGrup(k) {
+  S.sb.tutup = balik(S.sb.tutup, k)
+  simpanSidebar(localStorage, { tutup: S.sb.tutup })
+  sinkronGrup()
+}
+/** Sidebar penuh ↔ rel ikon (desktop); diingat. */
+function aturCiut(ciut) {
+  S.sb.ciut = ciut
+  simpanSidebar(localStorage, { ciut })
+  document.querySelector('.app')?.classList.toggle('sb-ciut', ciut)
+  renderSidebar()
+  $('#sb-ciut')?.focus()
+}
+/** Ponsel: sidebar sebagai laci yang dibuka-tutup. */
+function laci(buka) {
+  const app = document.querySelector('.app')
+  if (!app || app.classList.contains('laci-buka') === buka) return
+  app.classList.toggle('laci-buka', buka)
+  $('#sb-latar').hidden = !buka
+  $('#sb-laci').setAttribute('aria-expanded', String(buka))
+  if (buka) $('#sb a[href], #sb button')?.focus()
+  else $('#sb-laci')?.focus({ preventScroll: true })
 }
 
-// ── Layar 1: skenario per task ─────────────────────────────────────────────
-function cocokCari(f) {
-  if (!S.q) return true
-  const q = S.q.toLowerCase()
-  return [f.title, f.path, f.task, f.slug, ...(f.tiket || [])].some((x) => String(x || '').toLowerCase().includes(q))
+// ── Menu melayang & modal ──────────────────────────────────────────────────
+function tutupMenu() { $('#sr-menu')?.remove() }
+function bukaMenu(anchor, html, pasang) {
+  tutupMenu()
+  const box = anchor.getBoundingClientRect()
+  const m = document.createElement('div')
+  m.id = 'sr-menu'
+  m.className = 'rn-menu glass'
+  m.setAttribute('role', 'menu')
+  m.innerHTML = html
+  document.body.append(m)
+  const lebar = m.offsetWidth
+  m.style.position = 'fixed'
+  m.style.left = `${Math.max(8, Math.min(box.left, innerWidth - lebar - 8))}px`
+  m.style.top = `${box.bottom + 6}px`
+  pasang(m)
+  m.querySelector('button')?.focus()
 }
-function tasks() {
-  const m = new Map()
-  for (const f of S.files.filter(cocokCari)) m.set(f.task, [...(m.get(f.task) || []), f])
-  return [...m.entries()]
+document.addEventListener('click', (e) => { if ($('#sr-menu') && !e.target.closest?.('#sr-menu, [data-menu-anchor]')) tutupMenu() })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { tutupMenu(); $('#sr-modal')?.remove(); if (document.querySelector('.app.laci-buka')) laci(false) } })
+function modal(judul, isi) {
+  $('#sr-modal')?.remove()
+  const m = document.createElement('div')
+  m.id = 'sr-modal'
+  m.className = 'sk-modal-latar'
+  m.innerHTML = `<div class="sk-modal glass" role="dialog" aria-modal="true" aria-label="${esc(judul)}"><div class="sk-modal-hd"><b>${esc(judul)}</b><button type="button" class="btn icon" aria-label="Tutup" id="sr-modal-x">×</button></div><div class="sk-modal-isi">${isi}</div></div>`
+  m.addEventListener('click', (e) => { if (e.target === m) m.remove() })
+  document.body.append(m)
+  $('#sr-modal-x').onclick = () => m.remove()
+  $('#sr-modal-x').focus()
+  return m
 }
+
+// ── Layar Manajemen skenario: Project › Modul › Skenario ──────────────────────
 async function renderSkenario() {
-  const [, taskArg, slugArg] = route()
-  const ts = tasks()
-  if (taskArg) S.task = taskArg
-  if (!S.task || !ts.some(([t]) => t === S.task)) S.task = ts[0]?.[0] ?? null
-  const files = ts.find(([t]) => t === S.task)?.[1] ?? []
-  if (slugArg) S.sel = slugArg
-  if (!files.some((f) => f.slug === S.sel)) S.sel = files[0]?.slug ?? null
-  const lulus = S.files.filter((f) => f.last?.status === 'selesai').length
-  const invalid = S.files.filter((f) => !f.valid).length
-  const sel = S.files.find((f) => f.slug === S.sel)
-  if (sel && sel.raw === undefined) {
-    try { Object.assign(sel, await api(`/api/scenarios/${encodeURIComponent(sel.slug)}`)) } catch {}
-  }
-  $('#view').innerHTML = `
-  <div class="titlerow">
-    <div class="titlebox"><div class="ctx">Mode lokal · folder <code>./${esc(S.cfg?.scenarios_dir ?? 'scenarios')}</code></div><h1>Uji skenario per task</h1></div>
-    <div class="stat"><div class="n">${S.files.length}</div><div class="l">Berkas JSON</div></div>
-    <div class="stat"><div class="n">${lulus}</div><div class="l">Lulus di lokal</div></div>
-    <div class="stat"><div class="n">${invalid}</div><div class="l">Skema tidak valid</div></div>
-    ${envTile()}
-  </div>
-  <div class="row">
-    <section class="tile" style="flex:1 1 260px;max-width:300px" aria-labelledby="h-task">
-      <div class="thead"><h2 id="h-task">Task</h2><span class="meta">dari nama folder</span></div>
-      ${ts.length ? ts.map(([t, fs]) => `<a class="task" href="#/task/${encodeURIComponent(t)}" aria-current="${t === S.task}"><span class="t"><b>${esc(t)}</b><span>${esc(fs[0]?.title ?? fs[0]?.slug)} · ${fs.length} berkas</span></span><span class="c">${fs.length}</span></a>`).join('') : `<div class="empty">${S.q ? 'Tidak ada yang cocok dengan pencarian.' : 'Belum ada folder task di scenarios/.'}</div>`}
-      <p class="note">AI di lokal menulis berkas JSON ke folder task. Panel ini hanya membaca dan memutarnya. Skema: <code>docs/SKEMA-SKENARIO.md</code></p>
-    </section>
-    <section class="tile" style="flex:999 1 420px" aria-labelledby="h-files">
-      <div class="thead"><h2 id="h-files">${esc(S.task ?? 'Skenario')} · skenario</h2>
-        <button class="btn" type="button" id="btn-all" ${!files.some((f) => f.valid) || runActive() ? 'disabled' : ''} title="${runActive() ? 'Masih ada jalan aktif' : 'Putar semua berkas valid di task ini berurutan'}">${svg('play', 14, 2)}Putar semua</button></div>
-      ${files.map(fileCard).join('') || '<div class="empty">Belum ada berkas JSON di folder ini.</div>'}
-      <div class="dashed"><span>Berkas JSON baru di folder ini muncul otomatis. Berkas dengan skema tidak valid ditandai dan tidak bisa diputar.</span><button class="btn" type="button" id="btn-reload">Muat ulang folder</button></div>
-    </section>
-    <div class="col" style="flex:1 1 380px">
-      ${sel ? previewTile(sel) : ''}
-      <section class="tile" aria-labelledby="h-ai" id="ai-tile"><div class="thead"><h2 id="h-ai">Catatan untuk AI</h2><span class="meta">memuat…</span></div></section>
-    </div>
-  </div>`
-  $('#btn-reload').onclick = async () => { await loadFiles(true); renderSkenario() }
-  $('#btn-all').onclick = async () => {
-    try { await api('/api/queue', { task: S.task, speed: S.run?.speed ?? 1 }); location.hash = '#/jalan' } catch (e) { toast(e.message, true) }
-  }
-  for (const c of document.querySelectorAll('.fcard')) {
-    const pilih = () => { S.sel = c.dataset.slug; renderSkenario() }
-    c.onclick = (e) => { if (!e.target.closest('a,button')) pilih() }
-    c.onkeydown = (e) => { if (e.key === 'Enter' && e.target === c) pilih() }
-  }
-  for (const b of document.querySelectorAll('[data-replay]')) b.onclick = () => replay(b.dataset.replay, Number(b.dataset.step), b.dataset.slug)
-  $('#btn-open')?.addEventListener('click', () => api('/api/open', { slug: S.sel }).then(() => toast('Dibuka di editor'), (e) => toast(e.message, true)))
-  $('#btn-copy')?.addEventListener('click', () => salin(sel.path, 'Path disalin'))
+  const [r, a, b] = route()
+  S.modulAktif = r === 'modul' || r === 'task' ? a : null
+  void b
+  if (!S.project) { try { S.project = (await api('/api/project')).projects[0] } catch { S.project = null } }
+  const main = appMain('skenario')
+  const proj = S.project
+  const modulList = proj?.modul ?? []
+  const nm = S.modulAktif ? (modulList.find((m) => m.id === S.modulAktif)?.nama ?? S.modulAktif) : 'Semua modul'
+  const files = saringSkenario(S.files, { filter: S.filter, modul: S.modulAktif, q: S.q })
+  const chips = Object.entries(S.filter).filter(([, v]) => v?.length).map(([j, v]) => chipFilter(j, v)).join('')
+  const sisaFilter = Object.keys(LABEL_FILTER).filter((j) => !S.filter[j]?.length)
+  main.innerHTML = `
+    <header class="sk-hd"><div><div class="sk-crumb">${esc(proj?.nama ?? 'Project')} › ${esc(nm)}</div><h1>Skenario</h1></div>
+      <div class="sk-hd-aksi"><div class="pill" role="group" aria-label="Tampilan">
+        <button type="button" data-view="daftar" aria-pressed="${S.skView === 'daftar'}" aria-label="Daftar" title="Daftar">${svg('list', 16)}</button>
+        <button type="button" data-view="papan" aria-pressed="${S.skView === 'papan'}" aria-label="Papan" title="Papan">${svg('papan', 16)}</button></div>
+        <button type="button" class="btn tb utama-tb" id="sk-baru">+ Skenario baru</button></div></header>
+    <div class="sk-tabs" role="tablist" aria-label="Bagian">
+      <button type="button" role="tab" data-tab="skenario" aria-selected="${S.skTab === 'skenario'}">Skenario</button>
+      <button type="button" role="tab" data-tab="rencana" aria-selected="${S.skTab === 'rencana'}">Rencana uji</button>
+      <button type="button" role="tab" aria-disabled="true" disabled title="Plane/Jira lewat MCP belum tersedia">Tugas terkait <small>belum tersedia</small></button></div>
+    <div class="sk-filter"><label class="sk-cari">${svg('cari', 15)}<span class="sr">Cari</span><input id="sk-q" type="search" placeholder="Cari skenario atau tiket" autocomplete="off" value="${esc(S.q)}"></label>
+      ${chips}${sisaFilter.length ? `<button type="button" class="btn icon sk-tambah-f" id="sk-tambah-f" data-menu-anchor aria-label="Tambah filter" title="Tambah filter">+</button>` : ''}
+      <span class="sk-jumlah">${files.length} skenario</span></div>
+    <div id="sk-isi"></div>
+    <section class="sk-ai" id="ai-tile" hidden></section>`
+  const isi = $('#sk-isi')
+  if (S.skTab === 'rencana') renderRencana(isi, files)
+  else if (S.skView === 'papan') isi.innerHTML = papanSkenario(files)
+  else isi.innerHTML = daftarSkenario(kelompokModul(files, modulList), { lipat: S.lipat, aktif: runActive() })
+  wireSkenario(main, modulList)
   renderAi()
 }
-function fileCard(f) {
-  const st = f.valid ? statusLast(f.last) : { cls: 'bad-t', t: 'Skema tidak valid' }
-  const l = f.last
-  let d = 'Belum pernah diputar di lokal.'
-  if (!f.valid) d = `Tidak bisa diputar: ${esc(f.masalah[0]?.path ? `${f.masalah[0].path}: ` : '')}${esc(f.masalah[0]?.message ?? '')}`
-  else if (l?.status === 'selesai') d = l.file_mtime === f.mtime ? 'Jalan terakhir lulus untuk versi berkas ini.' : 'Lulus sebelum berkas diubah; putar lagi untuk versi baru.'
-  else if (l?.status === 'gagal') d = esc(l.error ? `Gagal: ${l.error}` : 'Jalan terakhir gagal.')
-  else if (l?.status === 'dihentikan') d = 'Jalan terakhir dihentikan sebelum selesai.'
-  const canReplay = f.valid && l?.status === 'gagal' && l.failed_step > 1
-  const play = !f.valid
-    ? `<button class="btn h40" type="button" disabled>${svg('play', 14, 2)}Putar</button>`
-    : canReplay
-      ? `<button class="btn primary h40" type="button" data-replay="${esc(l.run_id)}" data-step="${l.failed_step}" data-slug="${esc(f.slug)}">${svg('play', 14, 2)}Ulang dari langkah ${l.failed_step}</button><a class="btn h40" href="#/ringkasan/${esc(f.slug)}">Ringkasan</a>`
-      : `<a class="btn primary h40" href="#/ringkasan/${esc(f.slug)}">${svg('play', 14, 2)}Putar</a>`
-  return `<div class="fcard" tabindex="0" data-slug="${esc(f.slug)}" aria-selected="${f.slug === S.sel}">
-    <div class="top"><code>${esc(f.path)}</code><span class="r ${st.cls}">${esc(st.t)}</span></div>
-    <div class="ttl">${esc(f.title ?? f.slug)}</div>
-    <div class="m">${f.valid ? `${f.langkah} langkah · ${f.persona} persona · ` : ''}diubah ${esc(tgl(f.mtime))}</div>
-    <div class="d">${d}</div>
-    <div class="acts">${play}<button class="btn h40" type="button" disabled title="Mode server belum tersedia">Unggah ke server · belum tersedia</button></div>
-  </div>`
+
+function wireSkenario(main, modulList) {
+  const q = $('#sk-q')
+  q.addEventListener('input', (e) => { S.q = e.target.value; const pos = e.target.selectionStart; renderSkenario().then(() => { const x = $('#sk-q'); x?.focus(); x?.setSelectionRange(pos, pos) }) })
+  for (const b of main.querySelectorAll('[data-view]')) b.onclick = () => { S.skView = b.dataset.view; S.skTab = 'skenario'; renderSkenario() }
+  for (const b of main.querySelectorAll('[data-tab]')) b.onclick = () => { S.skTab = b.dataset.tab; renderSkenario() }
+  for (const b of main.querySelectorAll('[data-lipat]')) b.onclick = () => { const k = b.dataset.lipat; if (S.lipat.has(k)) S.lipat.delete(k); else S.lipat.add(k); simpanSidebar(localStorage, { lipat: S.lipat }); renderSkenario().then(() => main.querySelector(`[data-lipat="${CSS.escape(k)}"]`)?.focus()) }
+  for (const b of main.querySelectorAll('[data-lipat-semua]')) b.onclick = () => { S.lipat = lipatSemua(modulList.map((m) => m.id), b.dataset.lipatSemua === 'tutup'); simpanSidebar(localStorage, { lipat: S.lipat }); renderSkenario().then(() => main.querySelector('[data-lipat-semua]')?.focus()) }
+  for (const b of main.querySelectorAll('[data-fhapus]')) b.onclick = () => { delete S.filter[b.dataset.fhapus]; renderSkenario() }
+  for (const b of main.querySelectorAll('[data-fbuka]')) { b.setAttribute('data-menu-anchor', ''); b.onclick = () => menuNilaiFilter(b, b.dataset.fbuka) }
+  $('#sk-tambah-f')?.addEventListener('click', (e) => {
+    const sisa = Object.keys(LABEL_FILTER).filter((j) => !S.filter[j]?.length)
+    bukaMenu(e.currentTarget, sisa.map((j) => `<button type="button" role="menuitem" data-fjenis="${j}">${esc(LABEL_FILTER[j])}</button>`).join(''), (m) => {
+      for (const x of m.querySelectorAll('[data-fjenis]')) x.onclick = () => { const anchor = $('#sk-tambah-f'); menuNilaiFilter(anchor, x.dataset.fjenis) }
+    })
+  })
+  for (const b of main.querySelectorAll('[data-sunting]')) b.onclick = () => api('/api/open', { slug: b.dataset.sunting }).then(() => toast('Dibuka di editor'), (e) => toast(e.message, true))
+  for (const b of main.querySelectorAll('[data-lainnya]')) { b.setAttribute('data-menu-anchor', ''); b.onclick = () => menuLainnya(b, b.dataset.lainnya) }
+  for (const b of main.querySelectorAll('[data-putar-semua]')) b.onclick = () => putarSemua(b.dataset.putarSemua)
+  $('#sk-baru').onclick = () => modal('Skenario baru', `<p>Skenario adalah berkas JSON di <code>scenarios/&lt;modul&gt;/&lt;slug&gt;.json</code> yang ditulis AI atau developer; panel hanya membaca dan memutarnya. Buat kerangka:</p><div class="kartu-mono sk-perintah">bun run new ${esc(S.modulAktif ?? '<modul>')} &lt;slug&gt; [FMS-123]</div><p class="dim">Format: <code>docs/SKEMA-SKENARIO.md</code> · alur menulis: <code>docs/MENULIS-SKENARIO.md</code>. Berkas baru muncul otomatis di daftar. Draf skenario dari tiket (Plane/Jira) belum tersedia.</p><div class="lp-aksi"><button type="button" class="btn tb utama-tb" id="sk-salin-new">Salin perintah</button></div>`)
+    .querySelector('#sk-salin-new').addEventListener('click', () => salin(`bun run new ${S.modulAktif ?? '<modul>'} <slug>`, 'Perintah disalin'))
+  void modulList
 }
+
+function menuNilaiFilter(anchor, jenis) {
+  const nilai = nilaiFilter(jenis, S.files)
+  const pilih = new Set(S.filter[jenis] ?? [])
+  bukaMenu(anchor, `<div class="sk-menu-hd">${esc(LABEL_FILTER[jenis])} · salah satu</div>${nilai.map((v) => `<button type="button" role="menuitemcheckbox" aria-checked="${pilih.has(v)}" data-fnilai="${esc(v)}"><span class="sk-cek" aria-hidden="true">${pilih.has(v) ? '✓' : ''}</span>${esc(labelNilai(jenis, v))}</button>`).join('')}`, (m) => {
+    for (const x of m.querySelectorAll('[data-fnilai]')) x.onclick = () => {
+      const v = x.dataset.fnilai
+      if (pilih.has(v)) pilih.delete(v); else pilih.add(v)
+      S.filter[jenis] = [...pilih]
+      x.setAttribute('aria-checked', String(pilih.has(v)))
+      x.querySelector('.sk-cek').textContent = pilih.has(v) ? '✓' : ''
+      renderSkenario().then(() => {
+        const a = document.querySelector(`[data-fbuka="${jenis}"]`)
+        if ($('#sr-menu') && a) { const box = a.getBoundingClientRect(); Object.assign($('#sr-menu').style, { left: `${box.left}px`, top: `${box.bottom + 6}px` }) }
+      })
+    }
+  })
+}
+
+function menuLainnya(anchor, slug) {
+  const f = S.files.find((x) => x.slug === slug)
+  if (!f) return
+  const item = (k, l, dis = false) => `<button type="button" role="menuitem" data-m="${k}" ${dis ? 'disabled' : ''}>${l}</button>`
+  bukaMenu(anchor, [item('ringkasan', 'Ringkasan sebelum putar', !f.valid), item('laporan', 'Laporan terakhir', !f.last?.started_at), item('riwayat', 'Jalan terakhir di Riwayat', !f.last), item('json', 'Pratinjau JSON'), item('path', 'Salin path')].join(''), (m) => {
+    for (const x of m.querySelectorAll('[data-m]')) x.onclick = async () => {
+      tutupMenu()
+      const k = x.dataset.m
+      if (k === 'ringkasan') location.hash = `#/ringkasan/${slug}`
+      else if (k === 'laporan') location.hash = `#/laporan/${f.last.run_id}`
+      else if (k === 'riwayat') location.hash = `#/riwayat/${f.last.run_id}`
+      else if (k === 'path') salin(f.path, 'Path disalin')
+      else if (k === 'json') {
+        try {
+          const d = await api(`/api/scenarios/${encodeURIComponent(slug)}`)
+          const m2 = modal(`${slug}.json`, previewTile(d))
+          m2.querySelector('#btn-open')?.addEventListener('click', () => api('/api/open', { slug }).then(() => toast('Dibuka di editor'), (e) => toast(e.message, true)))
+          m2.querySelector('#btn-copy')?.addEventListener('click', () => salin(d.path, 'Path disalin'))
+        } catch (e) { toast(e.message, true) }
+      }
+    }
+  })
+}
+
+async function putarSemua(modul) {
+  try { await api('/api/queue', { task: modul, speed: kecepatan() }); location.hash = '#/jalan' } catch (e) { toast(e.message, true) }
+}
+
+/** Rencana uji: langkah, Harus terlihat, jumlah cek dan pernyataan data per skenario yang tersaring. */
+async function renderRencana(el, files) {
+  el.innerHTML = '<div class="empty">Memuat rencana uji…</div>'
+  const valid = files.filter((f) => f.valid)
+  await Promise.all(valid.filter((f) => !S.rinci.has(f.slug)).map((f) => api(`/api/scenarios/${encodeURIComponent(f.slug)}`).then((d) => S.rinci.set(f.slug, d), () => {})))
+  if (S.skTab !== 'rencana' || !$('#sk-isi')) return
+  el.innerHTML = valid.length ? valid.map((f) => {
+    const d = S.rinci.get(f.slug)?.detail
+    if (!d) return ''
+    return `<section class="sk-rencana"><div class="sk-rencana-hd"><a href="#/ringkasan/${esc(f.slug)}"><b>${esc(d.judul)}</b></a><span class="dim">${d.steps.length} langkah · ${esc(d.estimasi)} · <span class="sk-slug">${esc(f.slug)}</span></span></div>
+      <ol>${d.langkah.map((l, i) => `<li><span class="sk-rl-j">${esc(l.judul)}</span><span class="dim">Harus terlihat: ${esc(l.harusTerlihat)}</span><span class="sk-rl-n">${[l.cek?.length ? `${l.cek.length} cek` : '', l.pernyataanData?.length ? `${l.pernyataanData.length} pernyataan data` : '', d.steps[i]?.belakang ? 'di belakang layar' : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ol></section>`
+  }).join('') : '<div class="empty">Tidak ada skenario valid yang cocok dengan saringan.</div>'
+}
+
 function previewTile(f) {
   const lines = (f.raw ?? '').split('\n')
   const errLines = new Set(f.masalah.map((m) => Number(String(m.path).match(/^baris (\d+)/)?.[1])).filter(Boolean))
@@ -521,86 +357,92 @@ function previewTile(f) {
 async function renderAi() {
   const tile = $('#ai-tile')
   if (!tile) return
-  try { S.ai = await api(`/api/catatan-ai?task=${encodeURIComponent(S.task ?? '')}`) } catch { S.ai = { items: [], teks: '' } }
+  try { S.ai = await api(`/api/catatan-ai${S.modulAktif ? `?task=${encodeURIComponent(S.modulAktif)}` : ''}`) } catch { S.ai = { items: [], teks: '' } }
   const it = S.ai.items
-  tile.innerHTML = `<div class="thead"><h2 id="h-ai">Catatan untuk AI</h2><span class="meta">${it.length} temuan “skenario salah”</span></div>
-    ${it.length ? it.slice(0, 6).map((c) => `<div class="inner"><div style="font-size:13px;line-height:1.45">${esc(c.note)}</div><div style="margin-top:4px;font-size:12px" class="dim">${esc(c.slug)}.json${c.step_n ? ` · langkah ${c.step_n}` : ''} · ${esc(jam(c.at))}</div></div>`).join('') : '<p class="note">Belum ada temuan “Skenario salah” untuk versi berkas yang sekarang. Temuan lama dianggap sudah ditangani begitu berkasnya diubah.</p>'}
-    <div><button class="btn primary h40" type="button" id="btn-ai" ${it.length ? '' : 'disabled'}>Salin sebagai instruksi untuk AI</button></div>`
-  $('#btn-ai').onclick = () => salin(S.ai.teks, 'Instruksi untuk AI disalin')
+  if (!$('#ai-tile')) return
+  tile.hidden = !it.length
+  tile.innerHTML = it.length ? `<details><summary><b>Catatan untuk AI</b> <span class="dim">· ${it.length} temuan “Skenario salah” untuk versi berkas yang sekarang</span></summary>
+    ${it.slice(0, 6).map((c) => `<div class="inner"><div style="font-size:13px;line-height:1.45">${esc(c.note)}</div><div style="margin-top:4px;font-size:12px" class="dim">${esc(c.slug)}.json${c.step_n ? ` · langkah ${c.step_n}` : ''} · ${esc(jam(c.at))}</div></div>`).join('')}
+    <div><button class="btn tb utama-tb" type="button" id="btn-ai">Salin sebagai instruksi untuk AI</button></div></details>` : ''
+  $('#btn-ai')?.addEventListener('click', () => salin(S.ai.teks, 'Instruksi untuk AI disalin'))
 }
 
 // ── Layar ringkasan ────────────────────────────────────────────────────────
 async function renderRingkasan(slug) {
   if (!S.detail || S.detail.slug !== slug) {
-    $('#view').innerHTML = '<div class="empty">Memuat ringkasan…</div>'
-    try { S.detail = await api(`/api/scenarios/${encodeURIComponent(slug)}`) } catch (e) { $('#view').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return }
+    appMain('skenario').innerHTML = '<div class="empty">Memuat ringkasan…</div>'
+    try { S.detail = await api(`/api/scenarios/${encodeURIComponent(slug)}`) } catch (e) { appMain('skenario').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return }
     S.startStep = 1
     S.dataRun = ''
   }
   const f = S.detail
   if (!f.valid) {
-    $('#view').innerHTML = `<div class="titlerow"><div class="titlebox"><div class="ctx">Mode lokal · task ${esc(f.task)} · <code>${esc(f.slug)}.json</code></div><div class="titleline"><h1>${esc(f.slug)}</h1><span class="status bad">Skema tidak valid</span></div></div></div><div class="row"><div class="col" style="flex:1">${previewTile(f)}</div></div>`
+    appMain('skenario').innerHTML = `<div class="titlerow"><div class="titlebox"><div class="ctx">modul ${esc(f.task)} · <code>${esc(f.slug)}.json</code></div><div class="titleline"><h1>${esc(f.slug)}</h1><span class="status bad">Skema tidak valid</span></div></div></div><div class="row"><div class="col" style="flex:1">${previewTile(f)}</div></div>`
     return
   }
   const d = f.detail
   const st = d.steps[S.startStep - 1]
   const butuhData = S.startStep > 1 && !st?.reach
   const run = S.run && S.run.scenario === slug && ['menyiapkan', 'siap', 'gagal'].includes(S.run.status) && !S.run.started_at ? S.run : null
-  const tiket = (t) => (S.cfg?.ticket_url ? `<a class="chip acc" href="${esc(S.cfg.ticket_url + t)}" target="_blank" rel="noopener">${esc(t)}</a>` : `<span class="chip">${esc(t)}</span>`)
-  const list = (arr, kosong) => (arr.length ? `<ul class="plain">${arr.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : kosong ? `<p class="note">${kosong}</p>` : '')
-  const docs = (run?.data?.docs ?? []).map((x) => `<a href="${esc((S.cfg?.web_url ?? '') + x.url)}" target="_blank" rel="noopener"><b>${esc(x.label)}</b><code>${esc(x.nomor)}</code></a>`).join('')
-  let aksi
-  if (run?.status === 'menyiapkan') aksi = `<button class="btn primary lg" type="button" disabled>Menyiapkan data…</button><span class="note">${esc(S.logs.at(-1) ?? '')}</span>`
-  else if (run?.status === 'siap') aksi = `<button class="btn primary lg" type="button" id="btn-play">${svg('play', 14, 2)}Putar dari langkah ${S.startStep}</button><button class="btn lg" type="button" id="btn-cancel">Batal</button><span class="note">Data siap. Jendela browser dibuka saat Putar.</span>`
-  else aksi = `<button class="btn primary lg" type="button" id="btn-prep" ${runActive() || (butuhData && !S.dataRun) ? 'disabled' : ''}>Siapkan data</button>${runActive() ? '<span class="note">Masih ada jalan aktif. Hentikan dulu dari layar Jalan.</span>' : butuhData && !S.dataRun ? '<span class="note">Pilih data jalan di atas.</span>' : `<span class="note">${d.siapkan.length ? `${d.siapkan.length} aksi siapkan lewat API` : 'Tidak ada data yang disiapkan'}${S.startStep > 1 ? ` · mulai di langkah ${S.startStep}` : ''}</span>`}`
-  $('#view').innerHTML = `
-  <div class="titlerow">
-    <div class="titlebox"><div class="ctx">Mode lokal · task ${esc(f.task)} · <code>${esc(f.slug)}.json</code></div>
-      <div class="titleline"><h1>${esc(d.judul)}</h1><span class="status idle">Ringkasan sebelum putar</span></div>
-      <div class="row" style="gap:6px;margin-top:10px">${d.tiket.map(tiket).join('')}<span class="chip">modul ${esc(d.modul)}</span></div></div>
-    <div class="stat"><div class="n">${d.steps.length}</div><div class="l">Langkah</div></div>
-    <div class="stat"><div class="n">${d.persona.length}</div><div class="l">Persona</div></div>
-    <div class="stat"><div class="n">${esc(d.estimasi.split(' ')[0])}<small> mnt</small></div><div class="l">Perkiraan</div></div>
-    ${envTile()}
-  </div>
-  <div class="row">
-    <div class="col" style="flex:999 1 560px">
-      <section class="tile" aria-labelledby="h-go">
-        <div class="thead"><h2 id="h-go">Siapkan data → Putar</h2><span class="meta">${run?.status === 'siap' ? 'data siap' : 'data dibuat segar lewat API tiap jalan'}</span></div>
-        ${run?.status === 'gagal' ? `<div class="errbox" role="alert"><b>Siapkan data gagal</b><div class="mono">${esc(run.error ?? '')}</div></div>` : ''}
-        ${docs ? `<div class="docs">${docs}</div>` : ''}
-        <div class="ctlbar">${aksi}</div>
-      </section>
-    <section class="tile" aria-labelledby="h-steps">
-      <div class="thead"><h2 id="h-steps">Langkah dan yang harus terlihat</h2><span class="meta">pilih langkah awal</span></div>
-      ${d.steps.map((s) => {
-        const bisa = s.n === 1 || s.reach || s.jump_runs.length
-        return `<label class="step ${S.startStep === s.n ? 'cur' : ''}" style="cursor:${bisa ? 'pointer' : 'default'}">
-          <span class="no">${s.n}</span>
-          <span class="tt">${esc(s.title)}<small>${esc(s.who_name ?? '')}${s.belakang ? ' · di belakang layar' : ''} · ${s.aksi} aksi · Harus terlihat: ${esc(s.expect)}</small></span>
-          <span class="startpick">${bisa ? `<input type="radio" name="start" value="${s.n}" ${S.startStep === s.n ? 'checked' : ''} aria-label="Mulai dari langkah ${s.n}">Mulai di sini` : '<span title="Tanpa capai: butuh data jalan yang berhenti tepat sebelum langkah ini">butuh data jalan</span>'}</span>
-        </label>`
-      }).join('')}
-      ${butuhData ? `<div class="inner"><label class="kv" style="gap:6px"><span class="dim" style="font-size:12px">Langkah ${S.startStep} tidak punya capai: pakai data jalan yang berhenti tepat sebelumnya</span><select class="in" id="datarun"><option value="">Pilih jalan…</option>${st.jump_runs.map((r) => `<option ${S.dataRun === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label></div>` : ''}
-    </section>
-    </div>
-    <div class="col" style="flex:1 1 380px">
-      <section class="tile"><div class="thead"><h2>Tujuan</h2></div><p style="margin:0;font-size:14px;line-height:1.5">${esc(d.tujuan)}</p></section>
-      <section class="tile"><div class="thead"><h2>Persona</h2><span class="meta">${d.persona.length} akun</span></div><div class="kv">${d.persona.map((p) => `<div class="inner">${esc(p.nama)}<small>${esc(p.peran)}</small></div>`).join('')}</div></section>
-      <section class="tile"><div class="thead"><h2>Data yang disiapkan</h2></div>${list(d.data, '-')}</section>
-      <section class="tile"><div class="thead"><h2>Prasyarat dan setelan</h2></div>${list(d.prasyarat, 'Tidak ada prasyarat.')}${d.setelan.length ? `<div class="dim" style="font-size:12px">Setelan yang diubah</div>${list(d.setelan)}` : ''}${d.pengecualian?.length ? `<div class="inner" style="font-size:12px;line-height:1.5"><b class="warn-t">Pengecualian ${esc(d.pengecualian[0].aturan)}</b><br>${esc(d.pengecualian[0].alasan)}</div>` : ''}${d.catatan.length ? `<div class="dim" style="font-size:12px">Catatan</div>${list(d.catatan)}` : ''}</section>
-    </div>
-  </div>
-`
+  const docs = (run?.data?.docs ?? []).map((x) => `<a href="${esc(webSasaran() + x.url)}" target="_blank" rel="noopener"><b>${esc(x.label)}</b><code>${esc(x.nomor)}</code></a>`).join('')
+  const nonaktif = runActive() || (butuhData && !S.dataRun)
+  const ket = `${d.siapkan.length ? `${d.siapkan.length} aksi penyiapan data` : 'tanpa data tambahan'} · mulai di langkah ${S.startStep}`
+  const pengecualian = (d.pengecualian ?? []).map((x) => `Pengecualian ${x.aturan}: ${x.alasan}`)
+  appMain('skenario').innerHTML = halamanRingkasan({
+    kepala: kepalaRingkasan(f, d, { namaModul: S.project?.modul?.find((m) => m.id === f.task)?.nama, chipTiket: chipTiketDaftar(d.tiket ?? []) }),
+    tujuan: d.tujuan,
+    alur: alurLangkah(d.steps, { startStep: S.startStep, persona: d.persona }),
+    persona: daftarPersona(d.persona, d.steps),
+    lipat: [bagianLipat('Data yang disiapkan', d.data), bagianLipat('Prasyarat', d.prasyarat), bagianLipat('Setelan yang diubah', d.setelan), bagianLipat('Catatan', [...d.catatan, ...pengecualian])].join(''),
+    kartu: kartuPutar({
+      sasaran: labelSasaran(),
+      run,
+      startStep: S.startStep,
+      butuhData,
+      dataRun: S.dataRun,
+      jumpRuns: st?.jump_runs ?? [],
+      aktifLain: runActive(),
+      headed: !!S.cfg?.headed,
+      kecepatan: kecepatan(),
+      jeda: !!S.jedaTiapLangkah,
+      tampilan: S.tampilan,
+      siapkan: d.siapkan.length,
+      logTerakhir: S.logs.at(-1) ?? '',
+      docs,
+    }),
+    terakhir: kartuTerakhir(f, metaSkenario(f)),
+    bilah: bilahPutar({ run, startStep: S.startStep, nonaktif, ket: runActive() && !run ? 'Masih ada jalan aktif.' : ket }),
+  })
+  for (const b of document.querySelectorAll('[data-aksi-putar]')) b.onclick = () => $(b.dataset.aksiPutar === 'play' ? '#btn-play' : '#btn-prep')?.click()
+  for (const b of document.querySelectorAll('#app-main [data-sunting]')) b.onclick = () => api('/api/open', { slug: b.dataset.sunting }).then(() => toast('Dibuka di editor'), (e) => toast(e.message, true))
   for (const r of document.querySelectorAll('input[name=start]')) r.onchange = () => { S.startStep = Number(r.value); S.dataRun = ''; renderRingkasan(slug) }
   $('#datarun')?.addEventListener('change', (e) => { S.dataRun = e.target.value; renderRingkasan(slug) })
+  $('#tempo-kec')?.addEventListener('change', (e) => { simpanPilihan(localStorage, { kecepatan: Number(e.target.value) }); toast(`Kecepatan jalan berikutnya: ${teksSpeed(Number(e.target.value))}`) })
+  $('#tempo-jeda')?.addEventListener('change', (e) => aturJedaTiapLangkah(e.target.checked))
+  $('#tampilan-ukuran')?.addEventListener('change', (e) => aturTampilan(e.target.value, S.tampilan.skala).then(() => renderRingkasan(slug)))
+  $('#tampilan-skala')?.addEventListener('change', (e) => aturTampilan(S.tampilan.ukuran, Number(e.target.value)).then(() => renderRingkasan(slug)))
+  $('#tampilan-mutu')?.addEventListener('change', (e) => aturMutu(e.target.value))
   $('#btn-prep')?.addEventListener('click', async () => {
-    try { await api('/api/prepare', { scenario: slug, from_run: butuhData ? S.dataRun : undefined, speed: S.run?.speed ?? 1 }) } catch (e) { toast(e.message, true) }
+    try { await api('/api/prepare', { scenario: slug, from_run: butuhData ? S.dataRun : undefined, speed: kecepatan() }) } catch (e) { toast(e.message, true) }
   })
   $('#btn-play')?.addEventListener('click', async () => {
     try { await api('/api/start', { from_step: S.startStep }); location.hash = '#/jalan' } catch (e) { toast(e.message, true) }
   })
   $('#btn-cancel')?.addEventListener('click', () => api('/api/stop', {}).catch(() => {}))
+}
+
+/** Tampilan aplikasi untuk jalan berikutnya: diingat peramban dan dikirim ke server. */
+async function aturTampilan(ukuran, skala) {
+  S.tampilan = { ...S.tampilan, ukuran, skala }
+  simpanPilihan(localStorage, { ukuran, skala })
+  try { await api('/api/tampilan', S.tampilan); toast(`Tampilan aplikasi jalan berikutnya: ${ukuran.replace('x', '×')} · ${teksSkala(skala)}`) } catch (e) { toast(e.message, true) }
+}
+
+/** Mutu tampilan langsung: berlaku seketika (juga jalan yang sedang diputar); screenshot tidak berubah. */
+async function aturMutu(mutu) {
+  S.tampilan = { ...S.tampilan, mutu }
+  simpanPilihan(localStorage, { mutu })
+  try { await api('/api/tampilan', S.tampilan); toast(`Mutu tampilan langsung: ${mutu === 'tajam' ? 'tajam' : 'hemat (perilaku lama)'}`) } catch (e) { toast(e.message, true) }
 }
 
 async function replay(runId, step, slug) {
@@ -609,12 +451,12 @@ async function replay(runId, step, slug) {
     const s = d.detail?.steps[step - 1]
     // Pakai data jalan itu bila ia berhenti tepat sebelum langkah ini; selain itu data segar + capai.
     const pakaiData = s?.jump_runs.includes(runId) || !s?.reach
-    await api('/api/prepare', { scenario: slug, from_run: pakaiData ? runId : undefined, autostart_step: step, speed: S.run?.speed ?? 1 })
+    await api('/api/prepare', { scenario: slug, from_run: pakaiData ? runId : undefined, autostart_step: step, speed: kecepatan() })
     location.hash = '#/jalan'
   } catch (e) { toast(e.message, true) }
 }
 
-// ── Layar jalan (berjalan, dijeda, gagal, selesai) ─────────────────────────
+// ── Layar jalan: toolbar kendali, rel/peta langkah, screenshot besar, kartu deskripsi ─────
 let liveSrc = null
 function openLive() {
   if (liveSrc) return
@@ -623,248 +465,319 @@ function openLive() {
     const img = $('#live-img')
     if (!img) return
     img.src = `data:image/jpeg;base64,${e.data}`
-    if (!S.frame) { S.frame = true; renderJalanMain() }
+    amatiLayar()
+    if (!S.frame) { S.frame = true; renderJalanShot() }
   })
 }
-function closeLive() { liveSrc?.close(); liveSrc = null }
+function closeLive() { liveSrc?.close(); liveSrc = null; amatLayar?.disconnect(); amatLayar = null }
+
+/**
+ * Mutu Tajam: lapor ukuran area tampil (CSS px) × devicePixelRatio ke server supaya bingkai screencast
+ * tidak lebih kecil daripada yang ditampilkan (dan tidak lebih besar dari perlu). Ditunda 400 ms.
+ */
+let amatLayar = null
+let layarTerlapor = ''
+let tundaLayar = 0
+function laporLayar() {
+  const el = $('#rn-shot')
+  if (!el) return
+  const b = el.getBoundingClientRect()
+  if (b.width < 50 || b.height < 50) return
+  const l = { w: Math.round(b.width), h: Math.round(b.height), dpr: window.devicePixelRatio || 1 }
+  const k = `${l.w}x${l.h}@${l.dpr}`
+  if (k === layarTerlapor) return
+  layarTerlapor = k
+  api('/api/layar-panel', l).catch(() => { layarTerlapor = '' })
+}
+let layarDiamati = null
+function amatiLayar() {
+  const el = $('#rn-shot')
+  if (!el || (amatLayar && layarDiamati === el)) return
+  amatLayar?.disconnect()
+  layarDiamati = el
+  amatLayar = new ResizeObserver(() => { clearTimeout(tundaLayar); tundaLayar = setTimeout(laporLayar, 400) })
+  amatLayar.observe(el)
+}
+
+/** Tautan laporan satu jalan. */
+const hrefLaporan = (runId) => `#/laporan/${runId}`
+/** Kecepatan untuk jalan baru: pilihan terakhir yang diingat (localStorage), bawaan 1×. */
+const kecepatan = () => muatPilihan(localStorage).kecepatan
+const teksSpeed = teksKecepatan
 
 function renderJalan() {
-  if (!$('#jalan-root')) {
-    $('#view').innerHTML = `<div id="jalan-root" class="wrap">
-      <div class="titlerow" id="j-title"></div>
-      <div class="row stretch">
-        <section class="tile" style="flex:999 1 620px;gap:14px" id="j-main" aria-label="Tampilan langsung">
-          <div class="thead" id="j-mainhead"></div>
-          <div class="live" id="j-live"><img id="live-img" alt="Tampilan langsung jendela browser skenario" hidden><div class="wait" id="j-wait"></div><span class="callout" id="j-callout" role="status" hidden></span></div>
-          <div id="j-below"></div>
-        </section>
-        <div class="col" style="flex:1 1 380px">
-          <section class="tile" style="gap:10px" id="j-steps" aria-label="Langkah"></section>
-          <section class="tile" style="gap:10px" id="j-aksi" aria-label="Aksi di langkah ini"></section>
-        </div>
-      </div>
-      <div class="row stretch">
-        <section class="tile" style="flex:999 1 620px" id="j-task"></section>
-        <section class="tile" style="flex:1 1 380px" id="j-note" aria-labelledby="h-note">
-          <div class="thead"><h2 id="h-note">Catat temuan</h2><kbd>N</kbd></div>
-          <div role="radiogroup" aria-label="Jenis temuan" class="seg full" id="j-jenis"></div>
-          <label style="display:flex;flex-direction:column;gap:6px"><span class="dim" style="font-size:12px" id="j-notefor"></span>
-            <textarea class="in" rows="3" id="j-text" placeholder="Apa yang terlihat, dan apa yang seharusnya…"></textarea></label>
-          <div style="display:flex;align-items:center;gap:10px"><label class="chk"><input type="checkbox" id="j-pausewrite" checked>Jeda selama menulis</label><span class="grow"></span><button class="btn primary h40" type="button" id="j-save">Simpan<kbd>Ctrl ↵</kbd></button></div>
-          <div id="j-findings" class="kv"></div>
-        </section>
-      </div></div>`
-    $('#j-text').addEventListener('focus', pauseForNote)
-    $('#j-save').onclick = saveFinding
-    renderJenis()
+  document.querySelector('.win')?.classList.add('runner')
+  if (!$('#rn')) {
+    $('#view').innerHTML = kerangkaRunner()
+    $('#temuan').addEventListener('focus', pauseForNote)
+    $('#temuan-jenis').addEventListener('change', (e) => { S.jenis = e.target.value })
+    $('#temuan-jenis').value = S.jenis
     openLive()
-    $('#j-live').addEventListener('dblclick', fullscreen)
   }
-  renderJalanHead()
-  renderJalanMain()
-  renderJalanSteps()
-  renderJalanTask()
-  renderNoteFor()
+  renderJalanBar()
+  renderJalanShot()
+  renderJalanRel()
+  renderJalanSide()
+  renderNoteInfo()
 }
-function renderJenis() {
-  $('#j-jenis').innerHTML = Object.entries(LABEL_JENIS).map(([k, l]) => `<button type="button" role="radio" aria-checked="${S.jenis === k}" data-j="${k}">${l}</button>`).join('')
-  for (const b of document.querySelectorAll('#j-jenis button')) b.onclick = () => { S.jenis = b.dataset.j; renderJenis() }
-}
-const fullscreen = () => { const el = $('#j-live'); if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen?.() }
 
-function curStep(r) {
-  if (!r) return null
-  if (r.current_step != null) return r.steps[r.current_step]
-  return r.steps.find((s) => s.status === 'gagal' || s.status === 'dihentikan') ?? [...r.steps].reverse().find((s) => s.status === 'lulus') ?? r.steps[r.from_step ?? 0]
-}
-function nextInTask(r) {
-  if (S.antrean.length) return { t: 'Berikutnya di antrean', f: S.files.find((f) => f.slug === S.antrean[0]) }
-  const fs = S.files.filter((f) => f.task === r.task && f.valid)
-  const i = fs.findIndex((f) => f.slug === r.scenario)
-  const f = fs[i + 1] ?? null
-  return f ? { t: 'Berikutnya di task ini', f } : null
-}
-function renderJalanHead() {
+function renderJalanBar() {
   const r = S.run
-  const el = $('#j-title')
+  const bar = $('#bar')
+  const kembali = `<a class="btn icon" href="#/" aria-label="Kembali ke daftar skenario" title="Daftar skenario">${svg('back', 16)}</a>`
+  const toggle = `<button type="button" class="btn icon" id="b-peta" aria-label="Buka atau tutup peta langkah" aria-pressed="${S.peta}" title="Peta langkah ( [ )" ${r?.steps?.length ? '' : 'disabled'}>${svg('sidebar', 16)}</button>`
+  const fokus = `<button type="button" class="btn tb" id="b-fokus" aria-pressed="${S.fokus}">${svg('full', 14, 2)}Fokus layar <kbd>F</kbd></button>`
   if (!r) {
-    el.innerHTML = `<div class="titlebox"><div class="ctx">Mode lokal</div><h1>Belum ada jalan</h1></div>${envTile()}`
+    bar.innerHTML = `${kembali}<div class="bar-title"><b>Belum ada jalan</b><span>${esc(labelSasaran())}</span></div><div class="bar-end">${fokus}</div>`
+    wireJalanBar()
     return
   }
-  const st = runStatusText(r)
-  const cur = curStep(r)
-  const aktif = ACTIVE.includes(r.status)
-  const elapsed = r.started_at ? (r.duration_ms ?? Date.now() - new Date(r.started_at).getTime()) : null
-  const nx = nextInTask(r)
-  const lulus = r.steps.filter((s) => s.status === 'lulus').length
-  el.innerHTML = `
-    <div class="titlebox"><div class="ctx">Mode lokal · task ${esc(r.task)} · <code>${esc(r.scenario)}.json</code></div>
-      <div class="titleline"><h1>${esc(r.title)}</h1><span class="status ${st.cls}" role="status">${esc(st.t)}</span></div></div>
-    <div class="stat"><div class="n">${aktif && cur ? cur.n : lulus}<small>/${r.steps.length}</small></div><div class="l">${aktif ? 'Langkah' : 'Langkah lulus'}</div></div>
-    <div class="stat"><div class="n" id="j-timer">${elapsed == null ? '–' : durasi(elapsed)}</div><div class="l">${aktif ? 'Berjalan' : 'Durasi'} · perkiraan ${esc(r.estimasi.replace(' menit', ' mnt'))}</div></div>
-    <div class="stat"><div class="n">${r.findings.length}</div><div class="l">Temuan di jalan ini</div></div>
-    ${nx?.f ? `<a class="envtile" href="#/ringkasan/${esc(nx.f.slug)}"><span class="ic">${svg('arrow', 20)}</span><span><span class="k">${nx.t}</span><b>${esc(nx.f.title)}</b></span></a>` : envTile()}`
+  const cur = langkahKini(r)
+  const n = r.steps.length
+  const st = {
+    menyiapkan: ['', 'Menyiapkan data lewat API…'],
+    siap: ['', 'Data siap · tekan Putar'],
+    berjalan: ['', `Berjalan · langkah ${cur?.n ?? 1} dari ${n}`],
+    jeda: ['warn-t', `Dijeda · langkah ${cur?.n ?? 1} dari ${n}`],
+    gagal: ['bad-t', cur?.status === 'gagal' ? `Gagal · langkah ${cur.n} dari ${n}` : 'Gagal menyiapkan data'],
+    selesai: lunakGagal(r) ? ['warn-t', `Selesai dengan catatan · ${lunakGagal(r)} cek lunak tidak terpenuhi · ${durasiPanjang(r.duration_ms)}`] : ['ok-t', `Selesai · ${r.steps.filter((s) => s.status === 'lulus').length} dari ${n} lulus · ${durasiPanjang(r.duration_ms)}`],
+    dihentikan: ['', `Dihentikan${cur && r.started_at ? ` · langkah ${cur.n} dari ${n}` : ''}`],
+    dibatalkan: ['', 'Dibatalkan'],
+  }[r.status] ?? ['', r.status]
+  const aktif = ['berjalan', 'jeda'].includes(r.status)
+  let pil = ''
+  if (aktif || r.status === 'menyiapkan') {
+    const yakin = S.stopArm > Date.now()
+    pil = `<div class="pill kendali" role="group" aria-label="Kendali jalan">
+      <button type="button" class="utama" id="c-pause" ${aktif ? '' : 'disabled'}>${r.status === 'jeda' ? `${svg('playfill', 11, 0)}Lanjut` : r.status === 'menyiapkan' ? 'Menyiapkan…' : `${svg('pause', 11, 0)}Jeda`}</button>
+      <button type="button" id="c-step" ${aktif ? '' : 'disabled'} title="Satu aksi (→)">Satu aksi</button>
+      <button type="button" class="stop${yakin ? ' yakin' : ''}" id="c-stop" title="Hentikan (butuh klik, tanpa pintasan)">${yakin ? 'Yakin hentikan?' : 'Hentikan'}</button>
+    </div>
+    ${tombolKecepatan(r)}`
+  } else if (r.status === 'siap') {
+    const from = S.detail?.slug === r.scenario ? S.startStep : 1
+    pil = `<div class="pill kendali" role="group" aria-label="Kendali jalan"><button type="button" class="utama" id="c-play">${svg('playfill', 11, 0)}Putar dari langkah ${from}</button><button type="button" id="c-cancel">Batal</button></div>${tombolKecepatan(r)}`
+  } else {
+    const g = r.steps.find((s) => s.status === 'gagal' || s.status === 'dihentikan')
+    const fromN = r.started_at ? g?.n : null
+    const ulang = fromN && fromN > 1 ? `<button type="button" class="utama" id="e-replay">${svg('redo', 13)}Ulang dari langkah ${fromN}</button>` : ''
+    const lap = r.started_at ? `<a class="${ulang ? '' : 'utama'}" href="${hrefLaporan(r.run_id)}" aria-current="${ulang ? 'false' : 'true'}">Lihat laporan</a>` : ''
+    pil = `<div class="pill kendali" role="group" aria-label="Setelah jalan">${ulang}${lap}<button type="button" id="e-again">${svg('play', 12, 2)}${r.status === 'selesai' ? 'Putar lagi' : 'Putar dari awal'}</button></div>`
+  }
+  // Antrean "Putar semua": skenario k dari n + nama berikutnya.
+  const total = S.antreanTotal ?? 0
+  const antre = total > 1 ? ` · skenario ${total - S.antrean.length} dari ${total}${S.antrean[0] ? ` · berikutnya: ${S.files.find((f) => f.slug === S.antrean[0])?.title ?? S.antrean[0]}` : ''}` : ''
+  bar.innerHTML = `${kembali}${toggle}<div class="bar-title"><b>${esc(r.title)}</b><span class="${st[0]}">${esc(st[1] + antre)}</span></div><div class="bar-mid">${pil}</div><div class="bar-end">${fokus}</div>`
+  wireJalanBar()
 }
-function renderJalanMain() {
+
+function wireJalanBar() {
   const r = S.run
-  const head = $('#j-mainhead')
-  if (!head) return
+  $('#b-peta')?.addEventListener('click', () => togglePeta())
+  $('#b-fokus')?.addEventListener('click', () => toggleFokus())
+  $('#c-pause')?.addEventListener('click', togglePause)
+  $('#c-step')?.addEventListener('click', stepOne)
+  $('#c-stop')?.addEventListener('click', stopRun)
+  $('#c-speed')?.addEventListener('click', (e) => { e.stopPropagation(); S.speedMenu = !S.speedMenu; renderSpeedMenu() })
+  $('#c-play')?.addEventListener('click', async () => {
+    const from = S.detail?.slug === r.scenario ? S.startStep : 1
+    try { await api('/api/start', { from_step: from }) } catch (e) { toast(e.message, true) }
+  })
+  $('#c-cancel')?.addEventListener('click', () => api('/api/stop', {}).catch(() => {}))
+  if (r) {
+    const g = r.steps.find((s) => s.status === 'gagal' || s.status === 'dihentikan')
+    $('#e-replay')?.addEventListener('click', () => replay(r.run_id, g?.n, r.scenario))
+    $('#e-again')?.addEventListener('click', () => api('/api/prepare', { scenario: r.scenario, autostart_step: 1, speed: kecepatan() }).catch((e) => toast(e.message, true)))
+  }
+  renderSpeedMenu()
+}
+
+/** Tombol kecepatan di toolbar; " · jeda" bila "Jeda tiap langkah" nyala. */
+function tombolKecepatan(r) {
+  const jeda = !!S.jedaTiapLangkah
+  return `<button type="button" class="btn tb" id="c-speed" aria-label="Kecepatan ${teksSpeed(r.speed ?? 1)}${jeda ? ', jeda tiap langkah nyala' : ''}" aria-haspopup="menu" aria-expanded="${S.speedMenu}" title="Kecepatan dan jeda tiap langkah">${teksSpeed(r.speed ?? 1)}${jeda ? ' <span class="dim">· jeda</span>' : ''}</button>`
+}
+
+function renderSpeedMenu() {
+  $('#rn-speed')?.remove()
+  const b = $('#c-speed')
+  if (!S.speedMenu || !b || !S.run) return
+  b.setAttribute('aria-expanded', 'true')
+  const box = b.getBoundingClientRect()
+  const win = document.querySelector('.win').getBoundingClientRect()
+  const m = document.createElement('div')
+  m.id = 'rn-speed'
+  m.className = 'rn-menu glass'
+  m.setAttribute('role', 'menu')
+  m.style.left = `${box.left - win.left}px`
+  m.style.top = `${box.bottom - win.top + 6}px`
+  const tj = S.run.tampilan
+  m.innerHTML = `${menuKecepatan(S.run.speed, !!S.jedaTiapLangkah)}<div class="rn-menu-sep" role="separator"></div><div class="sk-menu-hd">Tampilan aplikasi jalan ini: ${tj ? `${tj.ukuran.w}×${tj.ukuran.h} · ${teksSkala(tj.skala)}` : '1400×900 · 100%'}<br>Ubah untuk jalan berikutnya di Ringkasan.</div>`
+  document.querySelector('.win').append(m)
+  for (const x of m.querySelectorAll('[data-speed]'))
+    x.onclick = () => {
+      const v = Number(x.dataset.speed)
+      simpanPilihan(localStorage, { kecepatan: v })
+      S.speedMenu = false
+      api('/api/speed', { speed: v }).catch((e) => toast(e.message, true))
+      renderSpeedMenu()
+    }
+  m.querySelector('[data-jeda-langkah]').onclick = () => aturJedaTiapLangkah(!S.jedaTiapLangkah)
+}
+document.addEventListener('click', (e) => { if (S.speedMenu && !e.target.closest?.('#rn-speed, #c-speed')) { S.speedMenu = false; renderSpeedMenu() } })
+
+function renderJalanShot() {
+  const shot = $('#rn-shot')
+  if (!shot) return
+  const r = S.run
   const img = $('#live-img')
-  const wait = $('#j-wait')
-  const call = $('#j-callout')
-  const live = $('#j-live')
+  const wait = $('#rn-wait')
+  const ring = $('#rn-ring')
+  const pill = $('#rn-pill')
+  const area = $('#rn-area')
+  area.style.setProperty('--ar', String(rasioLaptop(r?.tampilan)))
+  const aktif = !!r && ACTIVE.includes(r.status)
+  const fallback = r?.last_shot ? `/runs/${r.run_id}/${r.last_shot}` : null
   if (!r) {
-    head.innerHTML = '<h2>Tampilan langsung</h2>'
-    wait.innerHTML = '<span>Belum ada jalan. Pilih skenario, siapkan data, lalu Putar.</span><a class="btn" href="#/">Ke daftar skenario</a>'
-    wait.hidden = false; img.hidden = true; call.hidden = true
-    $('#j-below').innerHTML = ''
-    return
-  }
-  const cur = curStep(r)
-  const aktif = ACTIVE.includes(r.status)
-  const paused = r.status === 'jeda'
-  const ak = curAksi(r)
-  const gagal = r.status === 'gagal'
-  head.innerHTML = `<div style="flex:1;min-width:0"><h2 style="margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em">${cur && r.started_at ? `Langkah ${cur.n} · ${esc(cur.title)}` : esc(r.title)}</h2>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:13px;color:var(--text2)">${esc(cur?.who_name ?? '')}${aktif && S.frame ? '<span class="tag-live">LANGSUNG</span>' : ''}${!aktif && r.started_at ? '<span class="chip">tampilan terakhir</span>' : ''}</div></div>
-    <button type="button" class="round" aria-label="Perbesar tampilan" title="Perbesar tampilan (klik ganda)" id="j-full">${svg('full', 14)}</button>`
-  $('#j-full').onclick = fullscreen
-  live.classList.toggle('paused', paused)
-  live.classList.toggle('failed', gagal)
-  const fallback = r.last_shot ? `/runs/${r.run_id}/${r.last_shot}` : null
-  if (!S.frame && !aktif && fallback) { if (img.getAttribute('src') !== fallback) img.src = fallback; img.hidden = false; wait.hidden = true }
-  else if (!S.frame) {
+    img.hidden = true; wait.hidden = false; ring.hidden = true
+    wait.innerHTML = `<span>Belum ada jalan. Pilih skenario, siapkan data, lalu Putar.</span><a class="btn tb" href="#/">Ke daftar skenario</a>`
+  } else if (!S.frame && !aktif && fallback) {
+    if (img.getAttribute('src') !== fallback) img.src = fallback
+    img.hidden = false; wait.hidden = true
+  } else if (!S.frame) {
     img.hidden = true; wait.hidden = false
-    wait.innerHTML = r.status === 'menyiapkan' ? `<span>Menyiapkan data lewat API…</span><span class="mono">${esc(S.logs.at(-1) ?? '')}</span>` : r.status === 'siap' ? `<span>Data siap.</span><a class="btn primary h40" href="#/ringkasan/${esc(r.scenario)}">Ke ringkasan untuk Putar</a>` : aktif ? '<span>Membuka jendela browser…</span>' : '<span>Tidak ada tampilan.</span>'
+    wait.innerHTML = r.status === 'menyiapkan' ? `<span>Menyiapkan data lewat API…</span><span class="mono">${esc(S.logs.at(-1) ?? '')}</span>` : r.status === 'siap' ? '<span>Data siap. Tekan Putar.</span>' : aktif ? '<span>Membuka jendela browser…</span>' : '<span>Tidak ada tampilan.</span>'
   } else { img.hidden = false; wait.hidden = true }
-  if (aktif && ak) {
-    call.hidden = false
-    call.textContent = paused ? `Dijeda. Aksi berikutnya: ${kecil(ak.teks)}` : `Sedang: ${kecil(ak.teks)}`
-  } else call.hidden = true
+  // Cincin target: hanya saat dijeda, dari bbox yang dikirim runner (bukan ditebak).
+  const c = r?.status === 'jeda' && S.frame ? cincinTarget(r.target) : null
+  ring.hidden = !c
+  if (c) Object.assign(ring.style, { left: c.left, top: c.top, width: c.width, height: c.height, borderRadius: c.radius })
+  aturGeser(c ? r.target : null)
+  // Pil status kecil di pojok saat Fokus layar.
+  pill.hidden = !S.fokus || !r
+  if (S.fokus && r) {
+    const cur = langkahKini(r)
+    const ch = chipJalan(r, { satuAksi: S.satuAksiSampai > Date.now() })
+    const nada = { warn: 's-aktif-jeda', bad: 's-gagal', ok: 's-lulus', run: 's-aktif-jalan' }[ch.n] ?? 's-menunggu'
+    pill.innerHTML = `${cur ? `<span class="rel-no ${nada}" style="width:24px;height:24px;font-size:12px;animation:none;box-shadow:none" aria-hidden="true">${cur.n}</span>` : ''}<span>${esc(ch.t)}${cur && r.started_at ? ` · ${esc(cur.title)}` : ''}</span>`
+  }
+}
 
-  const below = $('#j-below')
-  const expect = cur && r.started_at ? `<div class="expect"><div class="k">Harus terlihat</div><div class="v">${esc(cur.expect)}</div></div>` : ''
-  if (aktif) {
-    const speeds = [0.5, 1, 1.5, 2, 3]
-    below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${expect}
-      <div class="ctlbar">
-        <button type="button" class="btn primary lg" id="c-pause" ${r.status === 'menyiapkan' ? 'disabled' : ''}>${paused ? 'Lanjut' : 'Jeda'}<kbd>Spasi</kbd></button>
-        <button type="button" class="btn lg" id="c-step" ${r.status === 'menyiapkan' ? 'disabled' : ''}>Satu aksi<kbd>→</kbd></button>
-        <button type="button" class="btn lg danger" id="c-stop">Hentikan<kbd>⇧ Esc</kbd></button>
-        <span class="grow"></span>
-        <div role="radiogroup" aria-label="Kecepatan" class="seg">${speeds.map((s) => `<button type="button" role="radio" aria-checked="${r.speed === s}" data-speed="${s}">${String(s).replace('.', ',')}×</button>`).join('')}</div>
-      </div></div>`
-    $('#c-pause').onclick = togglePause
-    $('#c-step').onclick = stepOne
-    $('#c-stop').onclick = stopRun
-    for (const b of below.querySelectorAll('[data-speed]')) b.onclick = () => api('/api/speed', { speed: Number(b.dataset.speed) }).catch((e) => toast(e.message, true))
-    return
-  }
-  if (r.status === 'siap') { below.innerHTML = ''; return }
-  const g = r.steps.find((s) => s.status === 'gagal')
-  const ga = g?.aksi.find((a) => a.status === 'gagal')
-  const errBox = gagal ? `<div class="errbox" role="alert"><b>${g ? `Gagal di langkah ${g.n}: ${esc(g.title)}` : 'Siapkan data gagal'}</b>${g ? `<div class="dim" style="font-size:12px">Harus terlihat: ${esc(g.expect)}${ga ? ` · aksi: ${esc(ga.teks)}` : ''}</div>` : ''}<div class="mono">${esc(g?.error ?? r.error ?? '')}</div>${g?.shot ? `<a href="/runs/${esc(r.run_id)}/${esc(g.shot)}" target="_blank" rel="noopener" class="dim" style="font-size:12px">Buka screenshot saat gagal</a>` : ''}</div>` : ''
-  const okBox = r.status === 'selesai' ? `<div class="expect"><div class="k">Hasil</div><div class="v ok-t">Lulus: ${r.steps.length - (r.from_step ?? 0)} langkah dalam ${durasi(r.duration_ms)}.${r.cleanup_error ? ` <span class="warn-t">Pembersihan: ${esc(r.cleanup_error)}</span>` : ''}</div></div>` : r.status === 'dihentikan' ? `<div class="expect"><div class="k">Hasil</div><div class="v">Dihentikan${cur && r.started_at ? ` di langkah ${cur.n}` : ''}.</div></div>` : ''
-  const fromN = g?.n ?? (r.status === 'dihentikan' && r.started_at ? cur?.n : null)
-  below.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${errBox}${okBox}${gabunganBox(r, { catat: true })}
-    <div class="ctlbar">
-      ${fromN && fromN > 1 ? `<button type="button" class="btn primary lg" id="e-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
-      <button type="button" class="btn ${fromN && fromN > 1 ? '' : 'primary '}lg" id="e-again">${svg('play', 14, 2)}Putar dari awal</button>
-      <a class="btn lg" href="#/ringkasan/${esc(r.scenario)}">Ringkasan</a>
-      <a class="btn lg" href="#/riwayat/${esc(r.run_id)}">Lihat di riwayat</a>
-      ${r.laporan ? `<a class="btn lg" href="/runs/${esc(r.run_id)}/${esc(r.laporan)}" download="laporan-${esc(r.scenario)}.md">Unduh laporan</a>` : ''}
-      ${r.trace ? '<button type="button" class="btn lg" id="e-trace" title="Salin perintah untuk membuka trace Playwright">Salin perintah trace</button>' : ''}
-    </div></div>`
-  wirePemeriksaan(below, r, renderJalanMain)
-  $('#e-replay')?.addEventListener('click', () => replay(r.run_id, fromN, r.scenario))
-  $('#e-again').onclick = () => api('/api/prepare', { scenario: r.scenario, autostart_step: 1, speed: r.speed }).catch((e) => toast(e.message, true))
-  $('#e-trace')?.addEventListener('click', () => salin(`bunx playwright show-trace runs/${r.run_id}/${r.trace}`, 'Perintah trace disalin'))
+/**
+ * Sasaran aksi berikutnya tidak boleh tertutup kartu kanan: ukur pada tata letak biasa (tutupan ±40 px);
+ * bila cincin bertumpuk dengan kartu, perkecil screenshot (kelas .geser) sampai berhenti sebelum kartu.
+ */
+function aturGeser(target) {
+  const rn = $('#rn')
+  if (!rn) return
+  rn.classList.remove('geser')
+  if (!target || S.fokus) return
+  const shot = $('#rn-shot').getBoundingClientRect()
+  const panels = [...$('#rn-side').children].map((el) => el.getBoundingClientRect())
+  if (perluGeser(target, shot, panels)) rn.classList.add('geser')
 }
-function renderJalanSteps() {
+
+function renderJalanRel() {
+  const rel = $('#rn-rel')
+  const peta = $('#rn-peta')
+  if (!rel) return
   const r = S.run
-  const el = $('#j-steps')
-  if (!r) { el.innerHTML = '<div class="thead"><h2>Langkah</h2></div><div class="empty">Belum ada jalan.</div>'; $('#j-aksi').innerHTML = ''; return }
-  const lulus = r.steps.filter((s) => s.status === 'lulus').length
-  const paused = r.status === 'jeda'
-  const cls = (s) => ({ lulus: 'ok', gagal: 'bad', dilompati: 'skip', berjalan: paused ? 'pause' : 'run', dihentikan: 'pause' })[s.status] ?? ''
-  const label = { lulus: 'Lulus', gagal: 'Gagal', dilompati: 'Dilompati', dihentikan: 'Dihentikan', menunggu: 'Menunggu', berjalan: paused ? 'Dijeda' : 'Berjalan' }
-  const cur = curStep(r)
-  const view = S.viewStep ?? cur?.n
-  el.innerHTML = `<div class="thead"><h2>Langkah</h2><span class="meta">${lulus} dari ${r.steps.length} lulus</span></div>
-    <div class="bar" style="grid-template-columns:repeat(${r.steps.length},minmax(0,1fr))" aria-hidden="true">${r.steps.map((s) => `<div class="${cls(s)}"></div>`).join('')}</div>
-    ${r.steps.map((s) => {
-      const k = s.status === 'berjalan' ? (paused ? 'pz' : 'cur') : s.status === 'lulus' ? 'done' : s.status === 'gagal' ? 'fail' : ''
-      return `<button type="button" class="step ${k} ${view === s.n && s.status !== 'berjalan' ? 'view' : ''}" data-n="${s.n}" aria-current="${s.status === 'berjalan' ? 'step' : 'false'}" title="Lihat aksi langkah ${s.n}"><span class="no">${s.status === 'lulus' ? '✓' : s.status === 'gagal' ? '✕' : s.n}</span><span class="tt">${esc(s.title)}${s.belakang ? '<small>di belakang layar</small>' : ''}</span>${dbChip(s)}${uiChip(s)}<span class="st">${label[s.status] ?? s.status}</span></button>`
-    }).join('')}`
-  for (const b of el.querySelectorAll('.step')) b.onclick = (e) => { const n = Number(b.dataset.n); S.viewStep = n === cur?.n && !e.target.closest('.dbchip') ? null : n; renderJalanSteps(); if (e.target.closest('.dbchip')) $('#j-aksi')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-  renderAksi(r.steps[(view ?? 1) - 1], r)
+  const jeda = r?.status === 'jeda'
+  rel.hidden = !r
+  rel.innerHTML = r ? relLangkah(r.steps, { jeda }) : ''
+  for (const b of rel.querySelectorAll('[data-n]')) b.onclick = () => togglePeta(true)
+  peta.hidden = !S.peta || !r
+  $('#rn').classList.toggle('peta-buka', S.peta && !!r)
+  $('#rn').classList.toggle('fokus', S.fokus)
+  if (S.peta && r) peta.innerHTML = petaLangkah(r.steps, { jeda, aksi: aksiKini(r) })
 }
-function renderAksi(s, r) {
-  const el = $('#j-aksi')
-  if (!s) { el.innerHTML = ''; return }
-  const paused = r.status === 'jeda'
-  const st = (a) => {
-    if (a.status === 'selesai') return `<span class="ok-t">Selesai${a.ms != null ? ` · ${dtk(a.ms)}` : ''}</span>`
-    if (a.status === 'berjalan') return paused ? '<span class="warn-t">Berikutnya · dijeda</span>' : '<span class="acc-t">Sedang berjalan</span>'
-    if (a.status === 'gagal') return '<span class="bad-t">Gagal</span>'
-    if (a.status === 'dihentikan') return '<span class="warn-t">Dihentikan</span>'
-    return '<span>Menunggu</span>'
-  }
-  el.innerHTML = `<div class="thead"><h2>Aksi di langkah ${S.viewStep ? s.n : 'ini'}</h2><span class="meta">${s.aksi.filter((a) => a.status === 'selesai').length}/${s.aksi.length} selesai</span></div>
-    <div class="aksigrid">${s.aksi.map((a) => `<div class="aksi"><div class="a">${esc(a.teks)}</div><div class="s">${st(a)}</div></div>`).join('') || '<div class="empty">-</div>'}</div>
-    ${s.notes?.length ? `<div class="inner" style="font-size:12px;line-height:1.5"><b class="warn-t">Catatan langkah</b><br>${s.notes.map(esc).join('<br>')}</div>` : ''}
-    ${uiLangkahBox(s, r.run_id, { catat: true })}
-    ${dbLangkahBox(s, r.run_id, { catat: true })}`
-  wirePemeriksaan(el, r, () => renderAksi(s, r))
-}
-function renderJalanTask() {
-  const r = S.run
-  const el = $('#j-task')
-  if (!el) return
-  const task = r?.task ?? S.task
-  const fs = S.files.filter((f) => f.task === task)
-  el.innerHTML = `<div class="thead"><h2>Skenario task ${esc(task ?? '')}</h2><span class="chip">Lokal</span><a class="round" href="#/task/${encodeURIComponent(task ?? '')}" aria-label="Buka task di daftar skenario">${svg('out', 14)}</a></div>
-    <div class="cards">${fs.map((f, i) => {
-      const on = r && f.slug === r.scenario
-      const cur = on ? curStep(r) : null
-      const q = S.antrean.indexOf(f.slug)
-      const stTxt = on
-        ? { cls: r.status === 'jeda' ? 'warn-t' : r.status === 'gagal' ? 'bad-t' : r.status === 'selesai' ? 'ok-t' : 'acc-t', t: { jeda: 'Dijeda', gagal: 'Gagal', selesai: 'Lulus', berjalan: 'Berjalan', menyiapkan: 'Menyiapkan', siap: 'Data siap', dihentikan: 'Dihentikan' }[r.status] ?? r.status }
-        : f.valid ? statusLast(f.last) : { cls: 'bad-t', t: 'Skema tidak valid' }
-      return `<a class="sccard ${on ? `on${r.status === 'jeda' ? ' pz' : ''}` : ''}" href="#/ringkasan/${esc(f.slug)}"><span class="h"><span class="no">${i + 1}</span><span class="s ${stTxt.cls}">${esc(stTxt.t)}</span></span><span class="t">${esc(f.title ?? f.slug)}</span><span class="f">${esc(f.slug)}.json · ${on && cur ? `langkah ${cur.n} dari ${r.steps.length}` : q >= 0 ? `antre ${q + 1}` : `${f.langkah ?? '-'} langkah`}</span></a>`
-    }).join('') || '<div class="empty">-</div>'}</div>`
-}
-function renderNoteFor() {
-  const el = $('#j-notefor')
+
+function renderJalanSide() {
+  const el = $('#rn-side')
   if (!el) return
   const r = S.run
-  const s = curStep(r)
-  el.textContent = r?.started_at ? `Untuk langkah ${s?.n ?? '-'} · screenshot diambil otomatis` : 'Temuan dicatat saat jalan diputar'
-  $('#j-save').disabled = !r?.started_at
-  $('#j-findings').innerHTML = (r?.findings ?? []).slice(-3).reverse().map((f) => `<div class="inner">${esc(f.note)}<small>${LABEL_JENIS[f.jenis] ?? f.jenis} · langkah ${f.step_n ?? '-'} · ${esc(jam(f.at))}</small></div>`).join('')
+  const nx = S.antrean.length ? S.files.find((f) => f.slug === S.antrean[0])?.title : null
+  el.innerHTML = r ? kartuLangkah(r, { satuAksi: S.satuAksiSampai > Date.now(), logTerakhir: S.logs.at(-1), hrefLaporan: r.started_at ? hrefLaporan(r.run_id) : null, antrean: nx }) : ''
+  aturGeser(r?.status === 'jeda' && S.frame ? r.target : null)
+}
+
+function renderNoteInfo() {
+  const info = $('#temuan-info')
+  if (!info) return
+  const r = S.run
+  const inp = $('#temuan')
+  inp.disabled = !r?.started_at
+  inp.placeholder = r?.started_at ? 'Apa yang terlihat dan apa yang seharusnya…  (screenshot ikut tersimpan)' : 'Temuan dicatat saat jalan diputar'
+  info.textContent = S.temuanInfo && S.temuanInfo.sampai > Date.now() ? S.temuanInfo.t : r?.last_shot_at ? `Screenshot terakhir ${jamDetik(r.last_shot_at)}` : ''
+}
+
+/** Sakelar "Jeda tiap langkah": diingat di peramban, dikirim ke server (berlaku untuk jalan ini dan berikutnya). */
+async function aturJedaTiapLangkah(nyala) {
+  S.jedaTiapLangkah = nyala
+  simpanPilihan(localStorage, { jedaTiapLangkah: nyala })
+  try { await api('/api/jeda-tiap-langkah', { nyala }) } catch (e) { toast(e.message, true) }
+  toast(nyala ? 'Jeda tiap langkah: nyala — runner berhenti di awal setiap langkah' : 'Jeda tiap langkah: mati')
+  if (route()[0] === 'jalan') { renderJalanBar(); S.speedMenu = true; renderSpeedMenu() }
+}
+
+function togglePeta(buka) {
+  S.peta = buka ?? !S.peta
+  renderJalanRel()
+  renderJalanBar()
+}
+function toggleFokus(nyala) {
+  S.fokus = nyala ?? !S.fokus
+  if (S.fokus) S.peta = false
+  renderJalan()
 }
 function pauseForNote() {
-  if ($('#j-pausewrite')?.checked && S.run?.status === 'berjalan') {
+  if (S.run?.status === 'berjalan') {
     S.pausedByNote = true
     api('/api/pause', {}).catch(() => {})
   }
 }
 async function saveFinding() {
-  const ta = $('#j-text')
-  const note = ta.value.trim()
-  if (!note) { toast('Tulis dulu apa yang terlihat', true); ta.focus(); return }
+  const inp = $('#temuan')
+  const note = inp.value.trim()
+  if (!note) { toast('Tulis dulu apa yang terlihat', true); inp.focus(); return }
   try {
-    await api('/api/finding', { jenis: S.jenis, note })
-    ta.value = ''
+    const f = await api('/api/finding', { jenis: S.jenis, note })
+    inp.value = ''
+    inp.blur()
+    S.temuanInfo = { t: `Tersimpan ${jamDetik(f.at)} · ${LABEL_JENIS[S.jenis]}`, sampai: Date.now() + 4000 }
+    setTimeout(renderNoteInfo, 4100)
+    renderNoteInfo()
     toast(`Temuan disimpan: ${LABEL_JENIS[S.jenis]}`)
-    ta.blur()
     if (S.pausedByNote && S.run?.status === 'jeda') await api('/api/resume', {})
     S.pausedByNote = false
   } catch (e) { toast(e.message, true) }
 }
-const togglePause = () => { if (!S.run || !['berjalan', 'jeda'].includes(S.run.status)) return; S.pausedByNote = false; api(S.run.status === 'jeda' ? '/api/resume' : '/api/pause', {}).catch((e) => toast(e.message, true)) }
-const stepOne = () => { if (S.run && ['berjalan', 'jeda'].includes(S.run.status)) api('/api/step', {}).catch((e) => toast(e.message, true)) }
-const stopRun = () => { if (S.run && ['menyiapkan', 'siap', 'berjalan', 'jeda'].includes(S.run.status)) api('/api/stop', {}).catch((e) => toast(e.message, true)) }
+const togglePause = () => {
+  if (!S.run || !['berjalan', 'jeda'].includes(S.run.status)) return
+  S.pausedByNote = false
+  const lanjut = S.run.status === 'jeda'
+  // Peta langkah menutup lagi otomatis saat Lanjut.
+  if (lanjut && S.peta) togglePeta(false)
+  api(lanjut ? '/api/resume' : '/api/pause', {}).catch((e) => toast(e.message, true))
+}
+const stepOne = () => {
+  if (!S.run || !['berjalan', 'jeda'].includes(S.run.status)) return
+  S.satuAksiSampai = Date.now() + 1500
+  setTimeout(() => { if (route()[0] === 'jalan') { renderJalanSide(); renderJalanShot() } }, 1600)
+  api('/api/step', {}).catch((e) => toast(e.message, true))
+}
+/** Hentikan: klik pertama meminta konfirmasi (3 dtk), klik kedua menghentikan. Tanpa pintasan keyboard. */
+const stopRun = () => {
+  if (!S.run || !['menyiapkan', 'siap', 'berjalan', 'jeda'].includes(S.run.status)) return
+  if (!(S.stopArm > Date.now())) {
+    S.stopArm = Date.now() + 3000
+    renderJalanBar()
+    setTimeout(() => { if (route()[0] === 'jalan') renderJalanBar() }, 3100)
+    return
+  }
+  S.stopArm = 0
+  api('/api/stop', {}).catch((e) => toast(e.message, true))
+}
 
 // ── Pemeriksaan (invarian DB pasca-skenario, docs/PEMERIKSAAN.md) ──────────
 S.pLihat = new Set()
@@ -1004,8 +917,9 @@ function gabunganBox(r, { catat }) {
 }
 function isiTemuan(teks) {
   S.jenis = 'bug'
-  renderJenis()
-  const ta = $('#j-text')
+  const ta = $('#temuan')
+  const j = $('#temuan-jenis')
+  if (j) j.value = 'bug'
   if (!ta) return
   ta.value = teks
   ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1028,36 +942,261 @@ function wirePemeriksaan(root, r, rerender) {
   for (const b of root.querySelectorAll('[data-dcatat]')) b.onclick = () => { const s = r.steps[Number(b.dataset.dcatat) - 1]; if (s) isiTemuan(teksTemuanDom(s)) }
   for (const b of root.querySelectorAll('[data-lihat]')) b.onclick = () => {
     const n = Number(b.dataset.lihat)
-    if (route()[0] === 'jalan') { S.viewStep = n; renderJalanSteps(); $('#j-aksi')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-    else { const li = root.querySelector(`li[data-n="${n}"]`); if (li) { li.scrollIntoView({ behavior: 'smooth', block: 'start' }); li.querySelector('details')?.setAttribute('open', '') } }
+    { const li = root.querySelector(`li[data-n="${n}"]`); if (li) { li.scrollIntoView({ behavior: 'smooth', block: 'start' }); li.querySelector('details')?.setAttribute('open', '') } }
   }
+}
+
+// ── Laporan: Pemeriksaan UI | Transaksi database ─────────────────────
+/** Rute: #/laporan/<slug>/<stempel>[/ui|db[/<langkah>|<cek n.k>|<no transaksi>]] */
+async function renderLaporan(slug, stamp, tab = 'ui', sel = '') {
+  const runId = `${slug}/${stamp}`
+  document.querySelector('.win')?.classList.remove('runner')
+  document.querySelector('.win')?.classList.add('lapor')
+  if (S.lap?.runId !== runId) {
+    $('#bar').innerHTML = '<div class="bar-title"><b>Memuat laporan…</b></div>'
+    $('#view').innerHTML = ''
+    try { S.lap = { runId, r: await api(`/api/runs/${runId}`), filter: 'semua', q: '' } } catch (e) { $('#view').innerHTML = `<div class="empty" style="margin:24px">${esc(e.message)}</div>`; return }
+  }
+  const { r } = S.lap
+  const ld = r.laporan_data
+  tab = tab === 'db' ? 'db' : 'ui'
+  const gagalUi = ld.ringkasan.ui.gagal
+  const pdGagal = ld.ringkasan.db.total - ld.ringkasan.db.cocok
+  const ulangN = ld.langkah.find((l) => l.status === 'gagal')?.n
+  const ekspor = tab === 'ui'
+    ? (r.laporan ? `<a class="btn tb" href="/runs/${esc(r.run_id)}/${esc(r.laporan)}" download="laporan-${esc(r.scenario)}.md">Ekspor</a>` : '')
+    : '<button type="button" class="btn tb" id="lp-ekspor-db">Ekspor JSON</button>'
+  const ulang = ulangN && ulangN > 1
+    ? `<button type="button" class="btn tb utama-tb" id="lp-ulang">Ulang dari langkah ${ulangN}</button>`
+    : `<button type="button" class="btn tb utama-tb" id="lp-lagi">${r.status === 'selesai' ? 'Putar lagi' : 'Putar dari awal'}</button>`
+  $('#bar').innerHTML = `<a class="btn icon" href="#/riwayat/${esc(r.run_id)}" aria-label="Kembali ke riwayat jalan" title="Riwayat jalan">${svg('back', 16)}</a>
+    <div class="bar-title"><b>Laporan · ${esc(r.title)}</b><span>${esc(subJudul(r, ld, tab))}</span></div>
+    <div class="bar-mid"><div class="pill" role="tablist" aria-label="Bagian laporan">
+      <a role="tab" href="#/laporan/${esc(r.run_id)}/ui" aria-selected="${tab === 'ui'}">Pemeriksaan UI${gagalUi ? ` <span class="badge" aria-label="${gagalUi} gagal">${gagalUi}</span>` : ''}</a>
+      <a role="tab" href="#/laporan/${esc(r.run_id)}/db" aria-selected="${tab === 'db'}">Transaksi database${pdGagal > 0 ? ` <span class="badge" aria-label="${pdGagal} pernyataan tidak cocok">${pdGagal}</span>` : ''}</a>
+    </div></div>
+    <div class="bar-end">${ekspor}${ulang}</div>`
+  $('#lp-ulang')?.addEventListener('click', () => replay(r.run_id, ulangN, r.scenario))
+  $('#lp-lagi')?.addEventListener('click', () => api('/api/prepare', { scenario: r.scenario, autostart_step: 1, speed: kecepatan() }).then(() => { location.hash = '#/jalan' }, (e) => toast(e.message, true)))
+  $('#lp-ekspor-db')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ run_id: r.run_id, db: ld.db, ringkasan: ld.ringkasan.db, transaksi: ld.transaksi }, null, 2)], { type: 'application/json' })
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `transaksi-${r.scenario}.json` })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  })
+  if (tab === 'ui') renderLaporanUi(r, ld, sel)
+  else renderLaporanDb(r, ld, sel)
+}
+
+/** Kepatuhan DESIGN.md langkah ini (check:design statis + DOM) di kolom kanan Laporan UI; kosong bila tidak ada temuan. */
+function kartuDesain(step, runId) {
+  const u = step?.ui
+  if (!u || !(u.statis?.baru?.length || u.dom?.temuan?.length || u.galat?.length)) return ''
+  return `<div class="kartu glass lp-desain">${uiLangkahBox(step, runId, { catat: false })}</div>`
+}
+
+function renderLaporanUi(r, ld, sel) {
+  const n = Number(String(sel).split('.')[0]) || langkahAwal(ld) || 1
+  const c = cekTerpilih(ld, n, String(sel).includes('.') ? sel : null)
+  const step = r.steps.find((s) => s.n === n)
+  const shot = c?.screenshot ?? step?.shot
+  const merah = c?.lulus === false ? kotakMerah(c.bbox) : null
+  const hasil = ld.langkah.find((l) => l.n === n)
+  const nada = REL_HASIL[hasil?.status] ?? 'menunggu'
+  const label = c?.lulus === false ? `Saat gagal · ${jamDetik(c.waktu)}` : step?.shot ? 'Akhir langkah' : 'Belum ada screenshot'
+  $('#view').innerHTML = kerangkaLaporanUi({
+    rel: relHasil(r, ld, n),
+    shot: `<div class="lp-shot">${shot ? `<img src="/runs/${esc(r.run_id)}/${esc(shot)}" alt=""Screenshot langkah ${n}${c?.lulus === false ? ' saat cek gagal' : ''}">` : '<div class="kosong">Langkah ini belum punya screenshot (tidak dijalankan).</div>'}
+        ${merah ? `<div class="lp-merah" style="left:${merah.left};top:${merah.top};width:${merah.width};height:${merah.height}" aria-hidden="true"></div>` : ''}
+        <div class="lp-label glass"><span class="rel-no s-${nada}" aria-hidden="true">${n}</span><span>${esc(label)}</span></div></div>`,
+    langkah: kartuLangkahHasil(r, ld, n),
+    side: `${kartuRingkasan(r, ld)}${kartuCek(r, ld, c, { trace: !!r.trace, traceDihapus: !!r.trace_dihapus })}${kartuDesain(step, r.run_id)}`,
+  })
+  wirePemeriksaan($('#view'), r, () => renderLaporanUi(r, ld, sel))
+  for (const b of document.querySelectorAll('#view .rel [data-n]')) b.onclick = () => { location.hash = `#/laporan/${r.run_id}/ui/${b.dataset.n}` }
+  $('#lp-trace')?.addEventListener('click', () => salin(`bunx playwright show-trace runs/${r.run_id}/${r.trace}`, 'Perintah trace disalin — jalankan di terminal'))
+}
+
+function renderLaporanDb(r, ld, sel) {
+  if (ld.db.status !== 'tersedia') {
+    $('#view').innerHTML = `<div class="lp"><div class="lp-stage" style="padding-right:24px"><div class="empty">${esc(ld.db.pesan ?? 'Transaksi database tidak tersedia')}</div></div></div>`
+    return
+  }
+  const list = saringTransaksi(ld.transaksi, S.lap.filter, S.lap.q)
+  const awal = ld.langkah.find((l) => l.silang && l.transaksi)?.transaksi ?? ld.langkah.find((l) => l.status === 'gagal' && l.transaksi)?.transaksi ?? (ld.transaksi.find((x) => x.langkah !== null) ?? ld.transaksi[0])?.no
+  const pilih = Number(sel) || awal
+  const t = ld.transaksi.find((x) => x.no === pilih)
+  // Rel: S = Siapkan/Capai, lalu langkah; langkah tanpa transaksi dipudarkan, yang terpilih berisi putih.
+  const pra = ld.transaksi.filter((x) => x.langkah === null)
+  const relItem = (lbl, no, aktif, judul) => `<li><button type="button" class="rel-no ${aktif ? 's-isi' : no ? 's-menunggu' : 's-menunggu s-kosong'}" ${no ? `data-trx="${no}"` : 'disabled'} aria-label="${esc(judul)}" title="${esc(judul)}"${aktif ? ' aria-current="true"' : ''}>${lbl}</button></li>`
+  const rel = `<ol class="rel" aria-label="Transaksi per langkah">${pra.map((x) => relItem(x.label === 'Capai' ? 'C' : 'S', x.no, t?.no === x.no, x.label)).join('')}${r.steps.map((s) => { const no = ld.langkah.find((l) => l.n === s.n)?.transaksi; return relItem(s.n, no, t?.langkah === s.n, `Langkah ${s.n}${no ? `, transaksi #${no}` : ', tanpa transaksi'}`) }).join('')}</ol>`
+  $('#view').innerHTML = kerangkaLaporanDb({
+    rel,
+    stage: `<div class="lp-tools"><div class="pill" role="group" aria-label="Sumber">${[['semua', 'Semua'], ['layar', 'Dari layar'], ['api', 'Lewat API']].map(([k, l]) => `<button type="button" data-filter="${k}" aria-pressed="${S.lap.filter === k}">${l}</button>`).join('')}</div>
+        <input class="field" id="lp-q" type="search" placeholder="Cari tabel atau kolom" autocomplete="off" value="${esc(S.lap.q)}" aria-label="Cari tabel atau kolom"></div>
+      ${tabelTransaksi(list, pilih)}
+      ${chipTabel(ld.tabel, S.lap.q)}
+      <p class="note">Satu transaksi = perubahan baris tenant (company_id) dalam satu langkah (jejak baris baca-saja), digabung dengan request tulis langkah itu. Status COMMIT/ROLLBACK tidak diketahui dari jejak baris; kolom Request = jumlah request tulis + kelas status HTTP terburuk.</p>`,
+    side: `${kartuRingkasanDb(ld)}${kartuTransaksi(r, ld, t)}`,
+    lebar: lebarPanelDb(),
+  })
+  pasangPemisah()
+  const ke = (no) => { location.hash = `#/laporan/${r.run_id}/db/${no}` }
+  for (const b of document.querySelectorAll('#view [data-trx]')) {
+    b.onclick = () => ke(b.dataset.trx)
+    b.onkeydown = (e) => { if (e.key === 'Enter') ke(b.dataset.trx) }
+  }
+  for (const b of document.querySelectorAll('#view [data-filter]')) b.onclick = () => { S.lap.filter = b.dataset.filter; renderLaporanDb(r, ld, sel) }
+  for (const b of document.querySelectorAll('#view [data-tabel]')) b.onclick = () => { S.lap.q = S.lap.q === b.dataset.tabel ? '' : b.dataset.tabel; renderLaporanDb(r, ld, sel) }
+  $('#lp-q').addEventListener('input', (e) => {
+    S.lap.q = e.target.value
+    const pos = e.target.selectionStart
+    renderLaporanDb(r, ld, sel)
+    const q = $('#lp-q'); q.focus(); q.setSelectionRange(pos, pos)
+  })
+}
+
+/** Lebar panel kanan Transaksi yang diseret pengguna (px), diingat peramban; null = bawaan mengikuti layar. */
+function lebarPanelDb() {
+  try { const v = Number(localStorage.getItem('srf.lebarPanelDb')); return v > 0 ? v : null } catch { return null }
+}
+function pasangPemisah() {
+  const h = $('#lp-pemisah')
+  const lp = $('#lp')
+  if (!h || !lp) return
+  const atur = (px) => {
+    const v = Math.round(Math.min(LEBAR_PANEL_DB.maks, Math.max(LEBAR_PANEL_DB.min, px)))
+    lp.style.setProperty('--lp-side', `${v}px`)
+    try { localStorage.setItem('srf.lebarPanelDb', String(v)) } catch {}
+  }
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    h.setPointerCapture(e.pointerId)
+    const kanan = lp.getBoundingClientRect().right - 16
+    const gerak = (ev) => atur(kanan - ev.clientX)
+    h.addEventListener('pointermove', gerak)
+    h.addEventListener('pointerup', () => h.removeEventListener('pointermove', gerak), { once: true })
+  })
+  h.addEventListener('keydown', (e) => {
+    const kini = $('#lp-side').getBoundingClientRect().width
+    if (e.key === 'ArrowLeft') { e.preventDefault(); atur(kini + 24) } else if (e.key === 'ArrowRight') { e.preventDefault(); atur(kini - 24) }
+  })
+  h.addEventListener('dblclick', () => { lp.style.removeProperty('--lp-side'); try { localStorage.removeItem('srf.lebarPanelDb') } catch {} })
 }
 
 // ── Layar riwayat ──────────────────────────────────────────────────────────
 async function renderRiwayat(runId) {
   let runs = []
-  try { runs = await api('/api/runs') } catch {}
-  const q = S.q.toLowerCase()
-  runs = runs.filter((r) => r.started_at && (!q || `${r.title} ${r.scenario} ${r.task ?? ''}`.toLowerCase().includes(q)))
+  let disk = { runs: [], total: 0, total_trace: 0, retensi: null, aktif: [] }
+  ;[runs, disk] = await Promise.all([api('/api/runs').catch(() => []), api('/api/riwayat').catch(() => disk)])
+  S.disk = disk
+  const info = new Map(disk.runs.map((j) => [j.run_id, j]))
+  const aktif = new Set(disk.aktif)
+  runs = runs.filter((r) => r.started_at && info.has(r.run_id))
+  for (const id of [...S.pilihRiwayat]) if (!info.has(id)) S.pilihRiwayat.delete(id)
   const sel = runId || runs[0]?.run_id
   const lulus = runs.filter((r) => r.status === 'selesai').length
   const gagal = runs.filter((r) => r.status === 'gagal').length
-  $('#view').innerHTML = `
+  const n = S.pilihRiwayat.size
+  const rt = disk.retensi
+  appMain('riwayat').innerHTML = `
   <div class="titlerow">
-    <div class="titlebox"><div class="ctx">Mode lokal · folder <code>./runs</code> · milik sendiri, tidak diunggah</div><h1>Riwayat jalan lokal</h1></div>
+    <div class="titlebox"><div class="ctx">Tersimpan di komputer ini, tidak diunggah</div><h1>Riwayat jalan</h1></div>
     <div class="stat"><div class="n">${runs.length}</div><div class="l">Jalan</div></div>
     <div class="stat"><div class="n">${lulus}</div><div class="l">Lulus</div></div>
     <div class="stat"><div class="n">${gagal}</div><div class="l">Gagal</div></div>
-    ${envTile()}
+    <div class="stat"><div class="n">${teksByte(disk.total)}</div><div class="l">Disk · trace ${teksByte(disk.total_trace)}</div></div>
+  </div>
+  <div class="rw-alat">
+    <label class="chk"><input type="checkbox" id="rw-semua" ${n && n === runs.filter((r) => !aktif.has(r.run_id)).length ? 'checked' : ''}>Pilih semua</label>
+    <button type="button" class="btn tb rw-bahaya" id="rw-hapus" ${n ? '' : 'disabled'}>Hapus terpilih${n ? ` (${n})` : ''}</button>
+    <button type="button" class="btn tb" id="rw-trace" ${n ? '' : 'disabled'}>Hapus trace terpilih</button>
+    <span class="rw-lama">Lebih lama dari <input type="number" id="rw-hari" class="field" min="1" max="3650" value="${S.hariLama}" aria-label="Jumlah hari"> hari <button type="button" class="btn tb" id="rw-lama-hapus">Hapus…</button></span>
+    <span class="grow"></span>
+    <button type="button" class="btn tb" id="rw-retensi" title="Simpan N jalan terakhir per skenario; trace hanya untuk beberapa terakhir dan jalan gagal">Retensi otomatis: ${rt?.aktif ? `simpan ${rt.simpan}, trace ${rt.trace}` : 'mati'}</button>
   </div>
   <div class="row">
-    <section class="tile" style="flex:1 1 320px;max-width:420px" aria-labelledby="h-runs">
+    <section class="tile" style="flex:1 1 340px;max-width:460px" aria-labelledby="h-runs">
       <div class="thead"><h2 id="h-runs">Jalan</h2><span class="meta">terbaru dulu</span></div>
-      <div class="col" style="gap:8px;max-height:calc(100vh - 230px);overflow:auto;padding:2px">${runs.length ? runs.slice(0, 200).map((r) => { const st = statusLast(r); return `<a class="runrow" href="#/riwayat/${esc(r.run_id)}" aria-current="${r.run_id === sel}"><span class="w"><b>${esc(r.title)}</b><span>${esc(tgl(r.started_at))} · ${esc(r.task ?? r.scenario)} · ${r.steps_passed}/${r.steps_total} langkah${r.findings ? ` · ${r.findings} temuan` : ''}</span></span><span class="s ${st.cls}">${esc(st.t.split(' · ')[0])}</span></a>` }).join('') : `<div class="empty">${q ? 'Tidak ada jalan yang cocok.' : 'Belum ada jalan. Putar satu skenario dulu.'}</div>`}</div>
+      <div class="col" style="gap:8px;max-height:calc(100vh - 280px);overflow:auto;padding:2px">${runs.length ? runs.slice(0, 300).map((r) => { const st = statusLast(r); const j = info.get(r.run_id); const akt = aktif.has(r.run_id); return `<div class="rw-baris"><input type="checkbox" data-pilih="${esc(r.run_id)}" aria-label="Pilih ${esc(r.title)}" ${S.pilihRiwayat.has(r.run_id) ? 'checked' : ''} ${akt ? 'disabled title="Sedang berjalan"' : ''}><a class="runrow" href="#/riwayat/${esc(r.run_id)}" aria-current="${r.run_id === sel}"><span class="w"><b>${esc(r.title)}</b><span>${esc(tgl(r.started_at))} · ${r.steps_passed}/${r.steps_total} langkah${r.findings ? ` · <b class="warn-t">${r.findings} temuan</b>` : ''}</span></span><span class="s"><span class="${st.cls}">${esc(st.t.split(' · ')[0])}</span><span class="rw-uk">${teksByte(j?.ukuran ?? 0)}${j?.trace_dihapus ? ' · tanpa trace' : ''}${akt ? ' · berjalan' : ''}</span></span></a></div>` }).join('') : '<div class="empty">Belum ada jalan. Putar satu skenario dulu.</div>'}</div>
     </section>
-    <section class="tile" style="flex:999 1 560px" id="run-detail" aria-label="Detail jalan">${sel ? '<div class="empty">Memuat…</div>' : '<div class="empty">Pilih jalan di kiri.</div>'}</section>
+    <section class="tile" style="flex:999 1 560px" id="run-detail" aria-label="Detail jalan">${sel ? '<div class="empty">Memuat…</div>' : runs.length ? '<div class="empty">Pilih jalan di kiri.</div>' : '<div class="empty">Detail jalan muncul di sini sesudah satu skenario diputar.</div>'}</section>
   </div>`
+  const items = (ids) => ids.map((id) => info.get(id)).filter(Boolean)
+  // Mencentang hanya memperbarui tombol (tanpa memuat ulang daftar).
+  const bisa = runs.filter((r) => !aktif.has(r.run_id)).map((r) => r.run_id)
+  const perbaruiAlat = () => {
+    const k = S.pilihRiwayat.size
+    $('#rw-hapus').disabled = !k
+    $('#rw-hapus').textContent = `Hapus terpilih${k ? ` (${k})` : ''}`
+    $('#rw-trace').disabled = !k
+    $('#rw-semua').checked = !!k && k === bisa.length
+  }
+  for (const c of document.querySelectorAll('[data-pilih]')) c.onchange = () => { if (c.checked) S.pilihRiwayat.add(c.dataset.pilih); else S.pilihRiwayat.delete(c.dataset.pilih); perbaruiAlat() }
+  $('#rw-semua').onchange = (e) => {
+    S.pilihRiwayat = new Set(e.target.checked ? bisa : [])
+    for (const c of document.querySelectorAll('[data-pilih]')) if (!c.disabled) c.checked = S.pilihRiwayat.has(c.dataset.pilih)
+    perbaruiAlat()
+  }
+  $('#rw-hapus').onclick = () => konfirmasiHapus(items([...S.pilihRiwayat]), 'jalan', aktif, runId)
+  $('#rw-trace').onclick = () => konfirmasiHapus(items([...S.pilihRiwayat]), 'trace', aktif, runId)
+  $('#rw-hari').onchange = (e) => { S.hariLama = Math.max(1, Number(e.target.value) || 30) }
+  $('#rw-lama-hapus').onclick = () => { S.hariLama = Math.max(1, Number($('#rw-hari').value) || 30); konfirmasiHapus(lebihLama(disk.runs, S.hariLama), 'jalan', aktif, runId, `Jalan lebih lama dari ${S.hariLama} hari`) }
+  $('#rw-retensi').onclick = () => modalRetensi(runId)
   if (sel) renderRunDetail(sel)
+}
+
+/** Dialog konfirmasi hapus (tidak ada hapus tanpa konfirmasi di panel). */
+function konfirmasiHapus(items, jenis, aktif, runId, judul = null) {
+  const r = ringkasHapus(items, jenis, aktif)
+  const m = modal(judul ?? (jenis === 'jalan' ? 'Hapus jalan' : 'Hapus trace saja'), `${isiKonfirmasi(items, jenis, aktif)}<div class="lp-aksi"><button type="button" class="btn tb" id="rw-batal">Batal</button>${r.ikut.length ? `<button type="button" class="btn tb rw-bahaya-isi" id="rw-ya">${jenis === 'jalan' ? `Hapus ${r.ikut.length} jalan` : `Hapus ${r.ikut.length} trace`}</button>` : ''}</div>`)
+  m.querySelector('#rw-batal').onclick = () => m.remove()
+  m.querySelector('#rw-ya')?.addEventListener('click', async () => {
+    m.remove()
+    try {
+      const h = await api(jenis === 'jalan' ? '/api/riwayat/hapus' : '/api/riwayat/hapus-trace', { run_ids: r.ikut.map((j) => j.run_id), konfirmasi: true })
+      for (const id of h.dihapus) S.pilihRiwayat.delete(id)
+      toast(`${h.dihapus.length} ${jenis === 'jalan' ? 'jalan' : 'trace'} dihapus (${teksByte(h.byte)})${h.gagal.length ? ` · ${h.gagal.length} ditolak` : ''}`, !!h.gagal.length)
+      const tetap = runId && !(jenis === 'jalan' && h.dihapus.includes(runId)) ? runId : null
+      if (!tetap && route()[0] === 'riwayat' && route()[1]) location.hash = '#/riwayat'
+      else renderRiwayat(tetap)
+      loadFiles()
+    } catch (e) { toast(e.message, true) }
+  })
+}
+
+/** Setelan retensi otomatis + pratinjau dan "jalankan sekarang". */
+async function modalRetensi(runId) {
+  const r = S.disk?.retensi ?? { aktif: true, simpan: 10, trace: 3, traceGagal: true }
+  const m = modal('Retensi otomatis riwayat', `<p>Berjalan sesudah tiap jalan selesai dan dicatat di log. Jalan bertemuan dan jalan yang sedang berjalan tidak dihapus otomatis.</p>
+    <label class="chk"><input type="checkbox" id="rt-aktif" ${r.aktif ? 'checked' : ''}>Aktif</label>
+    <label class="rw-isian">Simpan <input type="number" class="field" id="rt-simpan" min="1" max="1000" value="${r.simpan}"> jalan terakhir per skenario</label>
+    <label class="rw-isian">Trace hanya untuk <input type="number" class="field" id="rt-trace" min="1" max="1000" value="${r.trace}"> jalan terakhir</label>
+    <label class="chk"><input type="checkbox" id="rt-gagal" ${r.traceGagal ? 'checked' : ''}>… dan untuk jalan yang gagal</label>
+    <div class="dim" id="rt-rencana"></div>
+    <div class="lp-aksi"><button type="button" class="btn tb" id="rt-simpan-btn">Simpan setelan</button><button type="button" class="btn tb rw-bahaya" id="rt-jalan">Jalankan sekarang…</button></div>`)
+  const nilai = () => ({ aktif: m.querySelector('#rt-aktif').checked, simpan: Number(m.querySelector('#rt-simpan').value), trace: Number(m.querySelector('#rt-trace').value), traceGagal: m.querySelector('#rt-gagal').checked })
+  const rencana = async () => {
+    const p = await api('/api/riwayat/rencana-retensi').catch(() => null)
+    const el = m.querySelector('#rt-rencana')
+    if (p && el) el.textContent = `Dengan setelan tersimpan: ${p.hapus.length} jalan dan ${p.hapusTrace.length} trace akan dihapus.`
+    return p
+  }
+  await rencana()
+  m.querySelector('#rt-simpan-btn').onclick = async () => {
+    try { const x = await api('/api/riwayat/retensi', nilai()); S.disk.retensi = x.retensi; toast(`Retensi: ${x.retensi.aktif ? `simpan ${x.retensi.simpan}, trace ${x.retensi.trace}` : 'mati'}`); await rencana() } catch (e) { toast(e.message, true) }
+  }
+  m.querySelector('#rt-jalan').onclick = async () => {
+    await api('/api/riwayat/retensi', nilai()).catch(() => {})
+    const p = await rencana()
+    if (!p) return
+    const info = new Map((S.disk?.runs ?? []).map((j) => [j.run_id, j]))
+    m.remove()
+    const aktif = new Set(S.disk?.aktif ?? [])
+    if (p.hapus.length) konfirmasiHapus(p.hapus.map((id) => info.get(id)).filter(Boolean), 'jalan', aktif, runId, 'Retensi: hapus jalan lama')
+    else if (p.hapusTrace.length) konfirmasiHapus(p.hapusTrace.map((id) => info.get(id)).filter(Boolean), 'trace', aktif, runId, 'Retensi: hapus trace lama')
+    else toast('Retensi: tidak ada yang perlu dihapus')
+  }
 }
 async function renderRunDetail(id) {
   const el = $('#run-detail')
@@ -1070,9 +1209,9 @@ async function renderRunDetail(id) {
   const g = r.steps.find((s) => s.status === 'gagal')
   const fromN = g?.n ?? null
   el.innerHTML = `<div class="thead"><h2>Linimasa langkah</h2><span class="status ${st.cls}">${esc(st.t)}</span></div>
-    <div><div style="font-size:16px;font-weight:600">${esc(r.title)}</div><div class="dim" style="font-size:12px;margin-top:4px"><code>${esc(r.path ?? r.scenario)}</code> · ${esc(tgl(r.started_at))} · durasi ${durasi(r.duration_ms) || '–'} · ${r.headed ? 'headed' : 'headless'}${r.from_step ? ` · mulai di langkah ${r.from_step + 1}` : ''}${r.data_from ? ` · data dari ${esc(r.data_from)}` : ''}</div></div>
+    <div><div style="font-size:16px;font-weight:600">${esc(r.title)}</div><div class="dim" style="font-size:12px;margin-top:4px">${esc(tgl(r.started_at))} · durasi ${durasi(r.duration_ms) || '–'} · ${r.headed ? 'dengan jendela browser' : 'tanpa jendela browser'}${r.from_step ? ` · mulai di langkah ${r.from_step + 1}` : ''}${r.data_from ? ` · data dari ${esc(r.data_from)}` : ''} · <span class="sk-slug">${esc(r.scenario)}</span></div></div>
     ${r.status === 'gagal' && !g ? `<div class="errbox"><b>Siapkan data gagal</b><div class="mono">${esc(r.error)}</div></div>` : ''}
-    ${r.data?.docs?.length ? `<div class="docs">${r.data.docs.map((x) => `<a href="${esc((S.cfg?.web_url ?? '') + x.url)}" target="_blank" rel="noopener"><b>${esc(x.label)}</b><code>${esc(x.nomor)}</code></a>`).join('')}</div>` : ''}
+    ${r.data?.docs?.length ? `<div class="docs">${r.data.docs.map((x) => `<a href="${esc(webSasaran() + x.url)}" target="_blank" rel="noopener"><b>${esc(x.label)}</b><code>${esc(x.nomor)}</code></a>`).join('')}</div>` : ''}
     <ol class="tl">${r.steps.map((s, i) => {
       const [c, t] = ic(s)
       const stc = { lulus: 'ok-t', gagal: 'bad-t', dihentikan: 'warn-t' }[s.status] ?? 'dim'
@@ -1082,7 +1221,7 @@ async function renderRunDetail(id) {
         <div class="sub">Harus terlihat: ${esc(s.expect)}${s.who_name ? ` · ${esc(s.who_name)}` : ''}</div>
         ${s.status === 'gagal' ? `<div class="errbox"><b>${fa ? `Aksi gagal: ${esc(fa.teks)}` : 'Langkah gagal'}</b><div class="mono">${esc(s.error ?? '')}</div>${s.shot ? `<img src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot langkah ${s.n} gagal">` : ''}</div>` : ''}
         ${s.notes?.length ? `<div class="finding"><b class="warn-t">Catatan langkah</b>${s.notes.map(esc).join('<br>')}</div>` : ''}
-        ${s.ui && (s.ui.statis?.baru?.length || s.ui.dom?.temuan?.length || s.ui.galat?.length) ? uiLangkahBox(s, r.run_id, { catat: false, ulang: (g) => r.pemeriksaanUi?.baru.find((x) => x.file === g.file && x.rule === g.rule)?.langkah }) : ''}
+        ${s.ui && (s.ui.statis?.baru?.length || s.ui.dom?.temuan?.length || s.ui.galat?.length) ? uiLangkahBox(s, r.run_id, { catat: false }) : ''}
         ${s.db && (s.db.dokumen?.length || s.db.pelanggaran?.length || s.db.sembuh?.length || s.db.status === 'galat') ? dbLangkahBox(s, r.run_id, { catat: false }) : ''}
         ${fin(s.n).map((f) => `<div class="finding"><span><span class="chip ${f.jenis === 'bug' ? 'bad' : f.jenis === 'skenario' ? 'acc' : ''}">${LABEL_JENIS[f.jenis] ?? f.jenis}</span> <span class="dim" style="font-size:12px">${esc(jam(f.at))}${f.aksi ? ` · ${esc(f.aksi)}` : ''}</span></span><span>${esc(f.note)}</span>${f.screenshot ? `<a href="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" target="_blank" rel="noopener"><img class="thumb" src="/runs/${esc(r.run_id)}/${esc(f.screenshot)}" alt="Screenshot temuan"></a>` : ''}</div>`).join('')}
         ${s.aksi?.length && !['menunggu', 'dilompati'].includes(s.status) ? `<details><summary>${s.aksi.length} aksi${s.shot && s.status === 'lulus' ? ' · screenshot akhir langkah' : ''}</summary><ol>${s.aksi.map((a) => `<li class="${a.status === 'gagal' ? 'bad-t' : ''}">${esc(a.teks)}${a.ms != null ? ` <span class="dim">· ${dtk(a.ms)}</span>` : ''}</li>`).join('')}</ol>${s.shot && s.status === 'lulus' ? `<a href="/runs/${esc(r.run_id)}/${esc(s.shot)}" target="_blank" rel="noopener"><img class="thumb" style="margin-top:8px" src="/runs/${esc(r.run_id)}/${esc(s.shot)}" alt="Screenshot akhir langkah ${s.n}" loading="lazy"></a>` : ''}</details>` : ''}
@@ -1091,32 +1230,49 @@ async function renderRunDetail(id) {
     ${gabunganBox(r, { catat: false })}
     ${r.cleanup_error ? `<div class="errbox"><b>Pembersihan bermasalah</b><div class="mono">${esc(r.cleanup_error)}</div></div>` : ''}
     <div class="ctlbar">
-      ${fromN && fromN > 1 ? `<button type="button" class="btn primary h44" id="h-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
+      ${r.started_at ? `<a class="btn primary h44" href="#/laporan/${esc(r.run_id)}">Buka laporan</a>` : ''}
+      ${fromN && fromN > 1 ? `<button type="button" class="btn h44" id="h-replay">${svg('redo', 16)}Ulang dari langkah ${fromN}</button>` : ''}
       <a class="btn h44" href="#/ringkasan/${esc(r.scenario)}">Ringkasan skenario</a>
       ${r.laporan ? `<a class="btn h44" href="/runs/${esc(r.run_id)}/${esc(r.laporan)}" download="laporan-${esc(r.scenario)}.md">Unduh laporan</a>` : ''}
-      ${r.trace ? '<button type="button" class="btn h44" id="h-trace">Salin perintah trace</button>' : ''}
+      ${r.trace ? '<button type="button" class="btn h44" id="h-trace">Salin perintah trace</button>' : r.trace_dihapus ? '<button type="button" class="btn h44" disabled title="Trace sudah dihapus untuk menghemat disk; laporan dan screenshot tetap">Trace dihapus</button>' : ''}
+      ${r.trace ? '<button type="button" class="btn h44" id="h-hapus-trace">Hapus trace saja</button>' : ''}
+      <button type="button" class="btn h44 rw-bahaya" id="h-hapus">Hapus jalan ini</button>
+      <button type="button" class="btn h44 rw-bahaya" id="h-hapus-skenario">Hapus semua jalan skenario ini</button>
     </div>`
   wirePemeriksaan(el, r, () => renderRunDetail(id))
   $('#h-replay')?.addEventListener('click', () => replay(r.run_id, fromN, r.scenario))
   $('#h-trace')?.addEventListener('click', () => salin(`bunx playwright show-trace runs/${r.run_id}/${r.trace}`, 'Perintah trace disalin'))
+  const infoIni = (S.disk?.runs ?? []).find((j) => j.run_id === r.run_id)
+  const aktifSet = new Set(S.disk?.aktif ?? [])
+  $('#h-hapus-trace')?.addEventListener('click', () => konfirmasiHapus(infoIni ? [infoIni] : [], 'trace', aktifSet, id))
+  $('#h-hapus')?.addEventListener('click', () => konfirmasiHapus(infoIni ? [infoIni] : [], 'jalan', aktifSet, id))
+  $('#h-hapus-skenario')?.addEventListener('click', () => konfirmasiHapus((S.disk?.runs ?? []).filter((j) => j.scenario === r.scenario), 'jalan', aktifSet, id, `Hapus semua jalan: ${r.title}`))
 }
 
 // ── Router & data ──────────────────────────────────────────────────────────
 let lastPage = ''
 async function render() {
   const [r, a, b] = route()
-  const page = r === 'jalan' ? 'jalan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : 'skenario'
-  renderNav()
-  if (page !== 'jalan') { closeLive(); S.frame = false }
-  if (page !== lastPage) { S.viewStep = null; window.scrollTo(0, 0) }
+  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : 'skenario'
+  if (page !== 'laporan') document.querySelector('.win')?.classList.remove('lapor')
+  if (page === 'jalan' || page === 'laporan') document.querySelector('.win')?.classList.remove('sb-mode')
+  if (page !== 'jalan') { closeLive(); S.frame = false; S.fokus = false; S.peta = false }
+  if (page !== lastPage) {
+    S.viewStep = null
+    window.scrollTo(0, 0)
+    if (page === 'jalan' || page === 'laporan' || lastPage === 'jalan' || lastPage === 'laporan') $('#view').innerHTML = ''
+  }
   lastPage = page
+  tutupMenu()
   if (page === 'jalan') renderJalan()
+  else if (page === 'laporan') await renderLaporan(a, b, ...route().slice(3))
   else if (page === 'riwayat') await renderRiwayat(a && b ? `${a}/${b}` : null)
   else if (page === 'ringkasan') await renderRingkasan(a)
   else await renderSkenario()
 }
 async function loadFiles(notify) {
   try { S.files = await api('/api/scenarios') } catch (e) { toast(e.message, true) }
+  try { S.project = (await api('/api/project')).projects[0] ?? null } catch { S.project = null }
   if (notify) toast('Folder dimuat ulang')
 }
 
@@ -1124,71 +1280,69 @@ function onState(st) {
   const prev = S.run
   S.run = st.run
   S.antrean = st.antrean ?? []
+  S.antreanTotal = st.antrean_total ?? 0
   if (prev?.run_id !== S.run?.run_id) { S.frame = false; S.viewStep = null; $('#live-img')?.removeAttribute('src') }
   const [r, a] = route()
   // Jalan mulai (Putar, Ulang, Putar semua): pindah ke layar jalan.
   if (S.run?.status === 'berjalan' && !['berjalan', 'jeda'].includes(prev?.status) && r !== 'jalan') { location.hash = '#/jalan'; return }
   if (r === 'jalan') renderJalan()
+  else if ($('#sb-atas')) renderSidebar()
   else if (r === 'ringkasan' && S.run?.scenario === a && !S.run.started_at) renderRingkasan(a)
-  renderNav()
   const ended = prev && ACTIVE.includes(prev.status) && S.run && !ACTIVE.includes(S.run.status)
-  if (ended) loadFiles().then(() => { if (route()[0] === 'jalan') renderJalanTask(); else render() })
+  if (ended) S.lap = null
+  if (ended) loadFiles().then(() => { if (route()[0] !== 'jalan') render() })
 }
 
 async function init() {
   S.cfg = await api('/api/config')
+  // Pilihan tontonan yang diingat: "Jeda tiap langkah" dikirim ke server bila berbeda.
+  S.jedaTiapLangkah = muatPilihan(localStorage).jedaTiapLangkah
+  { const p = muatPilihan(localStorage); S.tampilan = { ukuran: p.ukuran, skala: p.skala, mutu: p.mutu } }
   await loadFiles()
   const st = await api('/api/state')
   S.logs = st.logs ?? []
   S.run = st.run
   S.antrean = st.antrean ?? []
+  // Peramban yang pernah memilih sakelar mengirim pilihannya; yang belum, mengikuti server.
+  // Tampilan aplikasi: peramban yang punya pilihan tersimpan mengirimnya; yang belum, mengikuti server.
+  { const p = muatPilihan(localStorage)
+    if (!p.tampilanTersimpan && st.tampilan) S.tampilan = { ...S.tampilan, ukuran: `${st.tampilan.ukuran.w}x${st.tampilan.ukuran.h}`, skala: st.tampilan.skala }
+    if (!p.mutuTersimpan && st.mutu_langsung) S.tampilan.mutu = st.mutu_langsung
+    if (p.tampilanTersimpan || p.mutuTersimpan) api('/api/tampilan', S.tampilan).catch(() => {}) }
+  if (!muatPilihan(localStorage).jedaTersimpan) S.jedaTiapLangkah = !!st.jeda_tiap_langkah
+  else if (!!st.jeda_tiap_langkah !== S.jedaTiapLangkah) api('/api/jeda-tiap-langkah', { nyala: S.jedaTiapLangkah }).catch(() => {})
   const es = new EventSource('/events')
   es.addEventListener('state', (e) => onState(JSON.parse(e.data)))
   es.addEventListener('log', (e) => {
     S.logs.push(JSON.parse(e.data))
     if (S.logs.length > 200) S.logs.shift()
-    if (S.run?.status === 'menyiapkan') { const [r, a] = route(); if (r === 'jalan') renderJalanMain(); else if (r === 'ringkasan' && a === S.run.scenario) renderRingkasan(a) }
+    if (S.run?.status === 'menyiapkan') { const [r, a] = route(); if (r === 'jalan') { renderJalanShot(); renderJalanSide() } else if (r === 'ringkasan' && a === S.run.scenario) renderRingkasan(a) }
   })
+  es.addEventListener('riwayat', () => { if (route()[0] === 'riwayat') renderRiwayat(route()[1] ? `${route()[1]}/${route()[2]}` : null) })
   es.addEventListener('scenarios', async () => {
     await loadFiles()
     S.detail = null
-    if (route()[0] === 'jalan') renderJalanTask()
-    else render()
+    if (route()[0] !== 'jalan') render()
   })
-  window.addEventListener('hashchange', () => render())
-  $('#q').addEventListener('input', (e) => { S.q = e.target.value.trim(); if (route()[0] !== 'jalan') render() })
-  setInterval(() => {
-    const t = $('#j-timer')
-    if (t && S.run?.started_at && ACTIVE.includes(S.run.status)) t.textContent = durasi(Date.now() - new Date(S.run.started_at).getTime())
-  }, 1000)
+  window.addEventListener('hashchange', () => { if (document.querySelector('.app.laci-buka')) laci(false); render() })
   render()
 }
 
-// ── Pintasan: Spasi jeda/lanjut, → satu aksi, N catat temuan, Ctrl+Enter simpan, Shift+Esc hentikan ─
-document.addEventListener('keydown', (e) => {
-  const t = e.target
-  const typing = t instanceof HTMLElement && (t.matches('input, textarea, select') || t.isContentEditable)
-  if (e.key === 'Escape' && e.shiftKey) { e.preventDefault(); stopRun(); return }
-  if (typing) {
-    if (t.id === 'j-text' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveFinding() }
-    else if (e.key === 'Escape') t.blur()
-    return
-  }
-  if (e.ctrlKey || e.metaKey || e.altKey) return
-  const onJalan = route()[0] === 'jalan'
-  if (e.key === 'n' || e.key === 'N') {
-    if (!S.run?.started_at) return
-    e.preventDefault()
-    if (!onJalan) location.hash = '#/jalan'
-    setTimeout(() => $('#j-text')?.focus(), onJalan ? 0 : 80)
-    return
-  }
-  if (!onJalan) return
-  if (e.key === ' ') {
-    if (t.closest?.('a, button')) return
-    e.preventDefault()
-    togglePause()
-  } else if (e.key === 'ArrowRight') { e.preventDefault(); stepOne() }
+// ── Pintasan: Spasi, →, T, Ctrl/⌘↩, F, [, Esc. Tidak aktif saat mengetik; Hentikan tanpa pintasan ─
+document.addEventListener('keydown', (ev) => {
+  const aksi = aksiPintasan(dariEvent(ev), { halaman: route()[0], peta: S.peta, fokus: S.fokus, sidebar: !!$('#app-main') && !['jalan', 'laporan'].includes(route()[0]) })
+  if (!aksi) return
+  ev.preventDefault()
+  if (aksi === 'jeda-lanjut') togglePause()
+  else if (aksi === 'satu-aksi') stepOne()
+  else if (aksi === 'fokus-temuan') { const t = $('#temuan'); if (t && !t.disabled) t.focus() }
+  else if (aksi === 'simpan-temuan') saveFinding()
+  else if (aksi === 'fokus-layar') toggleFokus()
+  else if (aksi === 'peta') { if (S.run?.steps?.length) togglePeta() }
+  else if (aksi === 'tutup-peta') togglePeta(false)
+  else if (aksi === 'keluar-fokus') toggleFokus(false)
+  else if (aksi === 'lepas-isian') ev.target.blur()
+  else if (aksi === 'sidebar') { if (layarSempit()) laci(!document.querySelector('.app.laci-buka')); else aturCiut(!S.sb.ciut) }
 })
 
 init().catch((e) => { $('#view').innerHTML = `<div class="empty">Panel gagal memuat: ${esc(e.message)}</div>` })

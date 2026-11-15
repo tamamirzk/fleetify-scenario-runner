@@ -1,0 +1,115 @@
+/* Scenario Runner v2 — token desain
+   Mode gelap adalah bawaan. Mode terang disiapkan tetapi belum didesain ulang. */
+
+:root {
+  /* Tipografi */
+  --sr-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  --sr-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sr-text-xs: 11px;
+  --sr-text-sm: 12px;
+  --sr-text-base: 13px;
+  --sr-text-md: 15px;
+  --sr-text-lg: 19px;
+  --sr-text-xl: 26px;
+  --sr-number-lg: 22px;
+
+  /* Bentuk */
+  --sr-radius-window: 14px;
+  --sr-radius-panel: 20px;
+  --sr-radius-card: 12px;
+  --sr-radius-control: 8px;
+  --sr-radius-pill: 999px;
+
+  /* Tata letak runner */
+  --sr-gutter-left: 88px; /* ruang rel langkah */
+  --sr-gutter-right: 356px; /* ruang kartu deskripsi; kartu 380px menutup ±40px */
+  --sr-panel-width: 380px;
+
+  /* Latar & permukaan (gelap) */
+  --sr-bg: #0c0c0e;
+  --sr-bg-image:
+    radial-gradient(40% 50% at 15% 18%, rgba(235, 235, 245, 0.26), transparent 70%),
+    radial-gradient(38% 48% at 88% 80%, rgba(170, 170, 185, 0.26), transparent 70%);
+  --sr-window: rgba(20, 20, 22, 0.7);
+  --sr-sidebar: rgba(30, 30, 34, 0.45);
+  --sr-glass: rgba(24, 24, 28, 0.62);
+  --sr-glass-solid: rgba(36, 36, 40, 0.96);
+  --sr-fill-1: rgba(255, 255, 255, 0.05);
+  --sr-fill-2: rgba(255, 255, 255, 0.08);
+  --sr-fill-active: rgba(255, 255, 255, 0.14);
+  --sr-inset: rgba(0, 0, 0, 0.28);
+  --sr-line: rgba(255, 255, 255, 0.08);
+  --sr-line-2: rgba(255, 255, 255, 0.12);
+  --sr-line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Teks */
+  --sr-text: rgba(255, 255, 255, 0.92);
+  --sr-text-2: rgba(255, 255, 255, 0.62);
+  --sr-primary-bg: rgba(255, 255, 255, 0.92);
+  --sr-primary-fg: #000000;
+
+  /* Status */
+  --sr-success: #32d74b;
+  --sr-success-text: #6ee787;
+  --sr-warning: #ff9f0a;
+  --sr-warning-text: #ffb340;
+  --sr-danger: #ff453a;
+  --sr-danger-strong: #d70015; /* badge berisi teks putih */
+  --sr-danger-text: #ff8a84;
+  --sr-info: #0a84ff;
+  --sr-info-text: #8ec5ff;
+  --sr-pending-line: rgba(255, 255, 255, 0.3);
+
+  /* Efek */
+  --sr-blur-window: blur(50px) saturate(180%);
+  --sr-blur-panel: blur(30px) saturate(180%);
+  --sr-shadow-window: 0 30px 90px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --sr-shadow-panel: 0 24px 70px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --sr-ring-target: 0 0 0 5px rgba(255, 159, 10, 0.28);
+}
+
+/* Mode terang: disiapkan, belum didesain ulang. Sesuaikan setelah ada desain. */
+[data-theme="light"] {
+  --sr-bg: #e9e9ec;
+  --sr-window: rgba(250, 250, 252, 0.72);
+  --sr-sidebar: rgba(236, 236, 240, 0.6);
+  --sr-glass: rgba(255, 255, 255, 0.7);
+  --sr-glass-solid: rgba(255, 255, 255, 0.97);
+  --sr-fill-1: rgba(0, 0, 0, 0.04);
+  --sr-fill-2: rgba(0, 0, 0, 0.06);
+  --sr-fill-active: rgba(0, 0, 0, 0.1);
+  --sr-inset: rgba(0, 0, 0, 0.04);
+  --sr-line: rgba(0, 0, 0, 0.08);
+  --sr-line-2: rgba(0, 0, 0, 0.12);
+  --sr-line-strong: rgba(0, 0, 0, 0.14);
+  --sr-text: rgba(0, 0, 0, 0.88);
+  --sr-text-2: rgba(0, 0, 0, 0.6);
+  --sr-primary-bg: #1d1d1f;
+  --sr-primary-fg: #ffffff;
+  --sr-success-text: #1e7f34;
+  --sr-warning-text: #9a5a00;
+  --sr-danger-text: #c4161c;
+  --sr-info-text: #0060c7;
+}
+
+.sr-glass {
+  background: var(--sr-glass);
+  backdrop-filter: var(--sr-blur-panel);
+  -webkit-backdrop-filter: var(--sr-blur-panel);
+  border: 1px solid var(--sr-line-strong);
+  border-radius: var(--sr-radius-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sr-glass {
+    background: var(--sr-glass-solid);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sr-glass {
+    background: var(--sr-glass-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

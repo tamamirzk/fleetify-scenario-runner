@@ -14,7 +14,8 @@
     "check:fix": "biome check --write .",
     "check:scenarios": "bun src/check-scenarios.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "riwayat": "bun src/riwayat.ts"
   },
   "dependencies": {
     "playwright": "1.64.0",

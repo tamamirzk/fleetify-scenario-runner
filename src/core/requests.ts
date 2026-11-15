@@ -1,7 +1,7 @@
 // Pencatat request tulis per langkah: dari jendela skenario (page.on('response')) dan dari klien
 // API aksi pustaka (hook di lib.apiSend). Dipakai Pemeriksaan DB untuk menunjuk "transaksi
 // tersangka" pada pelanggaran baru. Bagian murni (anonimisasi, filter) diuji Vitest.
-import type { Page } from 'playwright'
+import type { Page, Request } from 'playwright'
 import type { RequestTulis } from './run-types.ts'
 
 export const METODE_TULIS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -72,6 +72,8 @@ export type PendengarApi = (x: {
  */
 export class PencatatRequest {
   private langkah: number | null = null
+  /** Request tulis API dari jendela yang belum selesai (belum ada respons/gagal). */
+  private readonly tertunda = new Set<Request>()
   private readonly simpan: (n: number, r: RequestTulis) => void
 
   constructor(simpan: (n: number, r: RequestTulis) => void) {
@@ -87,6 +89,16 @@ export class PencatatRequest {
   }
 
   pasangBrowser(page: Page) {
+    const tulisApi = (req: Request) =>
+      METODE_TULIS.has(req.method().toUpperCase()) && pathApi(req.url()) !== null
+    page.on('request', (req) => {
+      if (tulisApi(req)) this.tertunda.add(req)
+    })
+    const lepas = (req: Request) => {
+      this.tertunda.delete(req)
+    }
+    page.on('requestfinished', lepas)
+    page.on('requestfailed', lepas)
     page.on('response', (res) => {
       const req = res.request()
       let durasiMs: number | null = null
@@ -106,6 +118,24 @@ export class PencatatRequest {
         }),
       )
     })
+  }
+
+  /** Jumlah request tulis dari jendela yang masih berjalan. */
+  get sisaTulis() {
+    return this.tertunda.size
+  }
+
+  /**
+   * Tunggu request tulis dari jendela selesai (maks. `batasMs`), supaya request yang dikirim di ujung
+   * langkah tercatat di langkah itu dan perubahan datanya masuk snapshot langkah itu. Kembalikan jumlah
+   * yang masih berjalan saat batas habis (0 = semua selesai).
+   */
+  async tungguTulis(batasMs = 10_000): Promise<number> {
+    const akhir = Date.now() + batasMs
+    while (this.tertunda.size && Date.now() < akhir) await new Promise((r) => setTimeout(r, 50))
+    // Respons sudah tiba; beri event 'response' kesempatan mencatat.
+    await new Promise((r) => setTimeout(r, 0))
+    return this.tertunda.size
   }
 
   readonly dariApi: PendengarApi = (x) => {

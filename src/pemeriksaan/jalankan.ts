@@ -2,7 +2,8 @@
 // dokumen yang diikuti) dalam satu transaksi READ ONLY per snapshot. Snapshot diambil di baseline
 // (sebelum siapkan) dan setelah tiap langkah; snapshot per langkah berjalan asinkron terhadap
 // pemutaran lewat antrean berurutan (satu koneksi, tidak pernah paralel, tidak pernah dilewati).
-// Tidak ada INSERT/UPDATE/DELETE/DDL di sini.
+// Snapshot juga membaca jejak baris tenant (semua tabel ber-company_id) untuk layar Transaksi
+// database, dan pernyataan data langkah. Tidak ada INSERT/UPDATE/DELETE/DDL di sini.
 import { config } from '../core/config.ts'
 import { cariDbUrl, namaDb } from '../core/db.ts'
 import type { DbLangkah, HasilPemeriksaan } from '../core/run-types.ts'
@@ -19,10 +20,25 @@ import {
   sekali,
 } from './banding.ts'
 import { INVARIAN, type Invarian } from './invarian.ts'
+import {
+  diffJejak,
+  type HasilPernyataan,
+  KOLOM_TENANT,
+  nilaiPernyataan,
+  type PernyataanSiap,
+  type SnapshotJejak,
+  sqlPernyataan,
+  susunSnapshot,
+} from './jejak.ts'
 
 const STATEMENT_TIMEOUT = '20s'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const NAMA_SQL = /^[a-z_][a-z0-9_]*$/
+/**
+ * Batas baris jejak per snapshot. Tenant seed MBL dipakai bersama dan terus bertambah, jadi bisa
+ * besar; di atas batas, jejak dilewati dengan galat yang jelas (invarian tetap jalan).
+ */
+export const BATAS_JEJAK = 60_000
 const firstLine = (e: unknown) => (e instanceof Error ? e.message : String(e)).split('\n')[0] ?? ''
 
 type Klien = {
@@ -51,17 +67,24 @@ export class AntreanSnapshot<T> {
     return this.tertunda
   }
 
-  tambah(kerja: () => Promise<T>): { dimulai: Promise<void>; selesai: Promise<T> } {
+  /**
+   * `kerja` menerima `mulai()`: panggil saat keadaan yang dibaca sudah terkunci (snapshot DB terbentuk),
+   * supaya pemutaran baru lanjut sesudahnya. Tanpa panggilan, `dimulai` resolve saat kerja selesai/gagal.
+   */
+  tambah(kerja: (mulai: () => void) => Promise<T>): {
+    dimulai: Promise<void>
+    selesai: Promise<T>
+  } {
     this.tertunda++
     let tandaiMulai: () => void = () => {}
     const dimulai = new Promise<void>((r) => {
       tandaiMulai = r
     })
     const selesai = this.ekor.then(async () => {
-      tandaiMulai()
       try {
-        return await kerja()
+        return await kerja(tandaiMulai)
       } finally {
+        tandaiMulai()
         this.tertunda--
       }
     })
@@ -87,6 +110,11 @@ export class Pemeriksa {
   private readonly durasi: number[] = []
   private adaLangkah = false
 
+  /** Jejak baris snapshot terakhir yang sudah diproses (pembanding perubahan langkah berikutnya). */
+  private jejakTerakhir: SnapshotJejak | null = null
+  /** Alasan jejak baris dimatikan untuk jalan ini (gagal/terlalu besar di baseline); null = aktif. */
+  private jejakMati: string | null = null
+
   constructor(opsi: { nonaktif?: readonly string[]; log?: (l: string) => void } = {}) {
     this.nonaktif = opsi.nonaktif ?? []
     this.log = opsi.log ?? (() => {})
@@ -102,6 +130,11 @@ export class Pemeriksa {
 
   get dikonfigurasi() {
     return this.url !== null
+  }
+
+  /** Alasan Pemeriksaan DB dilewati di jalan ini; Fleetify hanya punya sasaran lokal, jadi selalu null. */
+  get dilewati(): string | null {
+    return null
   }
 
   get tenant() {
@@ -146,19 +179,118 @@ export class Pemeriksa {
     }
   }
 
-  /** Semua invarian + baris dokumen sekali jalan, dalam satu transaksi READ ONLY. */
-  async snapshot(): Promise<Snapshot> {
+  /**
+   * Jejak baris: semua baris tabel ber-company_id milik tenant (to_jsonb), identitas = kunci
+   * primer. Satu UNION ALL; bila gagal, per tabel dengan SAVEPOINT (tabel yang gagal dilewati).
+   */
+  private async jejak(k: Klien, tenant: string): Promise<SnapshotJejak> {
+    const tabel = (
+      await k.unsafe<{ t: string; pk: string | null }>(
+        `SELECT c.table_name AS t,
+                (SELECT string_agg(a.attname, ',' ORDER BY array_position(i.indkey::int2[], a.attnum))
+                   FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
+                  WHERE i.indrelid = format('public.%I', c.table_name)::regclass AND i.indisprimary) AS pk
+           FROM information_schema.columns c
+           JOIN information_schema.tables tb
+             ON tb.table_schema = c.table_schema AND tb.table_name = c.table_name AND tb.table_type = 'BASE TABLE'
+          WHERE c.table_schema = 'public' AND c.column_name = '${KOLOM_TENANT}'
+          ORDER BY 1`,
+      )
+    ).filter((x) => NAMA_SQL.test(x.t))
+    const pk = Object.fromEntries(tabel.map((x) => [x.t, x.pk ? x.pk.split(',') : []]))
+    const satu = (t: string) =>
+      `SELECT '${t}' AS t, to_jsonb(r) AS j FROM "${t}" r WHERE r.${KOLOM_TENANT} = $1::uuid`
+    const jumlah = await k.unsafe<{ n: string }>(
+      `SELECT (${tabel.map((x) => `(SELECT count(*) FROM "${x.t}" WHERE ${KOLOM_TENANT} = $1::uuid)`).join(' + ') || '0'})::text AS n`,
+      [tenant],
+    )
+    const n = Number(jumlah[0]?.n ?? 0)
+    if (n > BATAS_JEJAK)
+      throw new Error(
+        `jejak baris dilewati: ${n.toLocaleString('id-ID')} baris tenant melebihi batas ${BATAS_JEJAK.toLocaleString('id-ID')}`,
+      )
+    let rows: { t: string; j: Baris }[] = []
+    try {
+      await k.unsafe('SAVEPOINT jejak')
+      rows = await k.unsafe(tabel.map((x) => satu(x.t)).join('\nUNION ALL\n'), [tenant])
+      await k.unsafe('RELEASE SAVEPOINT jejak')
+    } catch {
+      await k.unsafe('ROLLBACK TO SAVEPOINT jejak').catch(() => {})
+      for (const x of tabel)
+        try {
+          await k.unsafe('SAVEPOINT jejak1')
+          rows.push(...(await k.unsafe<{ t: string; j: Baris }>(satu(x.t), [tenant])))
+          await k.unsafe('RELEASE SAVEPOINT jejak1')
+        } catch {
+          await k.unsafe('ROLLBACK TO SAVEPOINT jejak1').catch(() => {})
+        }
+    }
+    return susunSnapshot(rows, pk)
+  }
+
+  /** Pernyataan data langkah `n` di transaksi yang sama (baca-saja, dibatasi tenant). */
+  private async pernyataan(
+    k: Klien,
+    tenant: string,
+    n: number,
+    daftar: readonly PernyataanSiap[],
+  ): Promise<HasilPernyataan[]> {
+    const out: HasilPernyataan[] = []
+    for (const p of daftar) {
+      const q = sqlPernyataan(p)
+      const dasar = {
+        id: p.id,
+        judul: p.judul,
+        langkah: n,
+        lulus: false,
+        diharapkan: p.jumlah !== undefined ? `${p.jumlah} baris` : String(p.diharapkan ?? ''),
+      }
+      if (!q) {
+        out.push({ ...dasar, terlihat: '–', galat: 'nama tabel/kolom tidak sah' })
+        continue
+      }
+      try {
+        await k.unsafe('SAVEPOINT pd')
+        const rows = await k.unsafe<{ v: string | null }>(q.sql, [tenant, ...q.params])
+        await k.unsafe('RELEASE SAVEPOINT pd')
+        out.push(
+          nilaiPernyataan(
+            p,
+            n,
+            rows.map((r) => r.v),
+          ),
+        )
+      } catch (e) {
+        await k.unsafe('ROLLBACK TO SAVEPOINT pd').catch(() => {})
+        out.push({ ...dasar, terlihat: '–', galat: firstLine(e) })
+      }
+    }
+    return out
+  }
+
+  /**
+   * Semua invarian + baris dokumen + jejak baris (+ pernyataan data) dalam satu transaksi
+   * REPEATABLE READ READ ONLY: semua query membaca SATU keadaan DB (yang terkunci pada SELECT pertama),
+   * jadi aksi langkah berikutnya yang tersimpan selama snapshot berjalan tidak ikut terbaca. `mulai`
+   * dipanggil sesudah SELECT pertama itu, saat pemutaran boleh lanjut.
+   */
+  async snapshot(
+    minta: { langkah: number; pernyataan: readonly PernyataanSiap[] } | null = null,
+    mulai: () => void = () => {},
+  ): Promise<Snapshot> {
     if (!this.url) throw new Error('Pemeriksaan tidak dikonfigurasi')
     const t0 = Date.now()
     const { SQL } = await import('bun')
     const sql = new SQL(this.url, { max: 1 })
     try {
-      const { hasil, dokumen } = await sql.begin('read only', async (tx) => {
+      const isi = await sql.begin('isolation level repeatable read read only', async (tx) => {
         const k = tx as unknown as Klien
         await k.unsafe(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`)
         const tenant = await k.unsafe<{ id: string }>('SELECT id FROM companies WHERE slug = $1', [
           this.tenant,
         ])
+        // Snapshot transaksi sudah terkunci oleh SELECT di atas: pemutaran boleh lanjut.
+        mulai()
         const companyId = tenant[0]?.id
         if (!companyId) throw new Error(`Tenant "${this.tenant}" tidak ada di tabel companies`)
         const tabel = new Set(
@@ -186,11 +318,25 @@ export class Pemeriksa {
             await k.unsafe('ROLLBACK TO SAVEPOINT dok').catch(() => {})
           }
         }
-        return { hasil, dokumen }
+        let jejak: SnapshotJejak | undefined
+        let galatJejak: string | undefined
+        if (!this.jejakMati)
+          try {
+            await k.unsafe('SAVEPOINT jejak0')
+            jejak = await this.jejak(k, companyId)
+            await k.unsafe('RELEASE SAVEPOINT jejak0')
+          } catch (e) {
+            await k.unsafe('ROLLBACK TO SAVEPOINT jejak0').catch(() => {})
+            galatJejak = firstLine(e)
+          }
+        const pernyataan = minta?.pernyataan.length
+          ? await this.pernyataan(k, companyId, minta.langkah, minta.pernyataan)
+          : undefined
+        return { hasil, dokumen, jejak, galatJejak, pernyataan }
       })
       const durasiMs = Date.now() - t0
       this.durasi.push(durasiMs)
-      return { waktu: new Date().toISOString(), hasil, dokumen, durasiMs }
+      return { waktu: new Date().toISOString(), ...isi, durasiMs }
     } finally {
       await sql.close({ timeout: 2 }).catch(() => {})
     }
@@ -225,6 +371,11 @@ export class Pemeriksa {
     try {
       this.baseline = await this.snapshot()
       this.atribusi = mulaiAtribusi(this.baseline)
+      this.jejakTerakhir = this.baseline.jejak ?? null
+      if (this.baseline.galatJejak) {
+        this.jejakMati = this.baseline.galatJejak
+        this.log(`Pemeriksaan: transaksi database tidak dicatat — ${this.jejakMati}`)
+      }
       this.log(
         `Pemeriksaan: baseline ${namaDb(this.url)} diambil (${this.baseline.hasil.length} invarian, ${this.baseline.durasiMs} ms)`,
       )
@@ -239,21 +390,35 @@ export class Pemeriksa {
    * saat query-nya mulai (pemutaran boleh lanjut); `selesai` membawa hasil langkah itu.
    * null bila Pemeriksaan tidak dikonfigurasi atau baseline gagal.
    */
-  mulaiLangkah(n: number): { dimulai: Promise<void>; selesai: Promise<DbLangkah> } | null {
+  mulaiLangkah(
+    n: number,
+    opsi: { pernyataan?: readonly PernyataanSiap[] } = {},
+  ): { dimulai: Promise<void>; selesai: Promise<DbLangkah> } | null {
     if (!this.url || !this.atribusi) return null
     const atribusi = this.atribusi
     this.adaLangkah = true
-    const { dimulai, selesai } = this.antrean.tambah(() => this.snapshot())
+    const minta = { langkah: n, pernyataan: opsi.pernyataan ?? [] }
+    const { dimulai, selesai } = this.antrean.tambah((mulai) => this.snapshot(minta, mulai))
     const hasil = selesai.then(
       (snap): DbLangkah => {
         const r = atribusiLangkah(atribusi, INVARIAN, n, snap, this.nonaktif)
+        // Antrean berurutan: handler ini berjalan sesuai urutan snapshot, jadi pembandingnya benar.
+        const perubahan =
+          snap.jejak && this.jejakTerakhir ? diffJejak(this.jejakTerakhir, snap.jejak) : undefined
+        if (snap.jejak) this.jejakTerakhir = snap.jejak
+        const galat = snap.galatJejak
+          ? [...r.galat, { id: 'jejak', pesan: snap.galatJejak }]
+          : r.galat
         return {
-          status: r.pelanggaran.length ? 'pelanggaran' : r.galat.length ? 'galat' : 'ok',
+          status: r.pelanggaran.length ? 'pelanggaran' : galat.length ? 'galat' : 'ok',
           pelanggaran: r.pelanggaran,
           sembuh: r.sembuh,
           dokumen: r.dokumen,
-          galat: r.galat,
+          galat,
           durasiMs: snap.durasiMs ?? null,
+          waktu: snap.waktu,
+          ...(perubahan ? { perubahan } : {}),
+          ...(snap.pernyataan ? { pernyataan: snap.pernyataan } : {}),
         }
       },
       (e): DbLangkah => ({
@@ -293,12 +458,13 @@ export class Pemeriksa {
         if (r) await r.selesai
       }
       await this.tunggu()
-      return hasilAtribusi(this.atribusi, INVARIAN, {
+      const h = hasilAtribusi(this.atribusi, INVARIAN, {
         nonaktif: this.nonaktif,
         durasiMs: Date.now() - t0,
         pesan: namaDb(this.url),
         snapshot: { jumlah: this.jumlahSnapshot, rataMs: this.rataMs },
       })
+      return this.jejakMati ? { ...h, jejakMati: this.jejakMati } : h
     } catch (e) {
       return {
         ...this.tidakDikonfigurasi(),

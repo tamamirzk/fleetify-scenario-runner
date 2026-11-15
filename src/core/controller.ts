@@ -8,12 +8,27 @@ export class Stopped extends Error {
   }
 }
 
-export const SPEED_MIN = 0.5
+export const SPEED_MIN = 0.25
 export const SPEED_MAX = 3
 const WAKE_MS = 1000
 const TICK_MS = 100
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/** Elemen sasaran aksi berikutnya (cincin target di panel). Koordinat relatif viewport 0–1. */
+export interface TargetAksi {
+  bbox: { x: number; y: number; w: number; h: number }
+  /** Ukuran viewport saat bbox diukur (px). */
+  viewport: { w: number; h: number }
+}
+
+/**
+ * Pengali tahanan. Jalan dari PANEL selalu tempo tontonan penuh (1) walau peramban headless — tampilan
+ * langsung adalah tontonannya. HEADLESS_HOLD hanya untuk CLI dan uji.
+ */
+export function skalaTahan(o: { headed: boolean; panel: boolean; headlessHold: number }): number {
+  return o.panel || o.headed ? 1 : o.headlessHold
+}
 
 export interface ControllerOptions {
   /** Pengali tahanan: 1 untuk headed, kecil untuk headless (lihat HEADLESS_HOLD). */
@@ -27,6 +42,12 @@ export class Controller extends EventEmitter {
   paused = false
   allowOne = false
   stopRequested = false
+  /** Sasaran aksi yang sedang/akan dijalankan; null = tidak ada (aksi tanpa elemen, atau sudah selesai). */
+  target: TargetAksi | null = null
+  /** Keterangan terakhir dari aksi banner (ditampilkan panel, tidak digambar di halaman). */
+  keterangan: string | null = null
+  /** Jeda otomatis di awal setiap langkah sampai Lanjut/Spasi (sakelar panel "Jeda tiap langkah"). */
+  jedaTiapLangkah = false
   private waiters: Array<() => void> = []
 
   constructor({ scale = 1, speed = 1 }: ControllerOptions = {}) {
@@ -105,6 +126,35 @@ export class Controller extends EventEmitter {
   stop() {
     this.stopRequested = true
     this.wake()
+    this.emit('change')
+  }
+
+  /**
+   * Dipanggil runner di awal tiap langkah, sesudah kartu langkah baru tampil: bila "Jeda tiap langkah"
+   * nyala, jeda dan tunggu Lanjut (atau Satu aksi: satu gerbang lewat, lalu tetap dijeda).
+   */
+  async awalLangkah(): Promise<void> {
+    if (!this.jedaTiapLangkah) return
+    // Jeda dipasang sekarang; yang menahan adalah gerbang pertama aksi (sesudah sasarannya dilapor,
+    // jadi cincin target sudah tampil saat dijeda).
+    this.pause()
+  }
+
+  setJedaTiapLangkah(v: unknown) {
+    this.jedaTiapLangkah = v === true
+    this.emit('change')
+  }
+
+  /** Dilapor lib.pointAt sebelum klik/isi; dihapus sesudah aksi selesai. */
+  setTarget(t: TargetAksi | null) {
+    if (t === null && this.target === null) return
+    this.target = t
+    this.emit('change')
+  }
+
+  setKeterangan(t: string | null) {
+    if (t === this.keterangan) return
+    this.keterangan = t
     this.emit('change')
   }
 

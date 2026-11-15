@@ -4,20 +4,20 @@ Alur kerja menulis dan memperbaiki skenario. **Bentuk berkas, daftar aksi, sasar
 
 ## Siapa menulis apa
 
-- **AI (atau developer) di lokal** menulis dan memperbaiki berkas JSON di `scenarios/<task>/<slug>.json`.
+- **AI (atau developer) di lokal** menulis dan memperbaiki berkas JSON di `scenarios/<modul>/<slug>.json`.
 - **Panel** hanya membaca, memvalidasi, memutar, dan mencatat temuan. Panel tidak mengedit JSON dan tidak memanggil AI.
 - **Pustaka TypeScript** (`src/pustaka/`) memuat hal yang rumit: membuat data, approval berlapis, serah terima, dialog panjang. Ditulis developer dan direview seperti kode biasa.
 
 ## Alur
 
 ```bash
-bun run new FMS-62 retur-rusak        # kerangka scenarios/FMS-62/retur-rusak.json
+bun run new wo retur-rusak FMS-62     # kerangka scenarios/wo/retur-rusak.json
 bun run check:scenarios               # skema dan aturan
 bun run scenario retur-rusak          # putar headless (CLI)
 bun run panel                         # atau tonton dan kendalikan dari panel
 ```
 
-1. Tulis JSON. Mulai dari `templates/skenario.json` atau contoh lengkap `scenarios/FMS-63/pinjaman-alat.json`.
+1. Tulis JSON. Mulai dari `templates/skenario.json` atau contoh lengkap `scenarios/material/pinjaman-alat.json`.
 2. Baca komponen v2 yang disentuh dan ambil teks tombol/label dari `Frontend/src/shared/i18n/locales/id.json` repo v2.
 3. Bila butuh rangkaian yang tidak bisa ditulis dengan aksi sederhana (perulangan, kondisi, DOM yang sulit), tambah aksi pustaka, bukan selector CSS di JSON.
 4. `bun run check:scenarios` sampai hijau. Panel menandai berkas tidak valid dan menolak memutarnya.

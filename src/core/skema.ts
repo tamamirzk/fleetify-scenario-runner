@@ -1,4 +1,4 @@
-// Skema berkas skenario JSON (scenarios/<task>/<slug>.json). Dokumentasi: docs/SKEMA-SKENARIO.md.
+// Skema berkas skenario JSON (scenarios/<modul>/<slug>.json). Dokumentasi: docs/SKEMA-SKENARIO.md.
 // Skema ini memeriksa bentuk; nama dan argumen aksi pustaka diperiksa terpisah (pustaka/index.ts).
 import { z } from 'zod'
 import { INVARIAN_IDS } from '../pemeriksaan/invarian.ts'
@@ -191,10 +191,83 @@ const AksiSiapkanSchema = aksiSchema(['siapkan', 'dokumen'])
 
 export type Aksi = Record<string, unknown>
 
+/**
+ * Pemeriksaan UI terstruktur, dijalankan sesudah aksi langkah selesai. Tepat satu dari
+ * `terlihat`, `tidakTerlihat`, atau `nilai` (+ `diharapkan`: teks elemen sama persis tanpa beda huruf
+ * besar/spasi, atau pola "/regex/"). Gagal = langkah gagal, kecuali `lunak` (tercatat, jalan lanjut).
+ */
+export const CekSchema = z
+  .object({
+    id: z
+      .string()
+      .regex(/^\d+\.\d+$/, 'nomor cek "<langkah>.<urut>", mis. 5.2')
+      .optional(),
+    judul: kalimat.optional(),
+    terlihat: TeksAtauSasaran.optional(),
+    tidakTerlihat: TeksAtauSasaran.optional(),
+    nilai: SasaranSchema.optional(),
+    diharapkan: z.string().min(1).optional(),
+    lunak,
+    batas,
+  })
+  .strict()
+  .superRefine((c, ctx) => {
+    const jenis = (['terlihat', 'tidakTerlihat', 'nilai'] as const).filter(
+      (k) => c[k] !== undefined,
+    )
+    if (jenis.length !== 1)
+      ctx.addIssue({
+        code: 'custom',
+        message: `cek harus punya tepat satu dari terlihat, tidakTerlihat, nilai (dapat ${jenis.join(', ') || 'tidak ada'})`,
+      })
+    if ((c.nilai !== undefined) !== (c.diharapkan !== undefined))
+      ctx.addIssue({
+        code: 'custom',
+        message: '"diharapkan" wajib bersama "nilai" (dan hanya dengannya)',
+      })
+  })
+export type Cek = z.infer<typeof CekSchema>
+
+const namaSql = z
+  .string()
+  .regex(/^[a-z_][a-z0-9_]*$/, 'nama tabel/kolom SQL huruf kecil, mis. stock_balances')
+
+/**
+ * Pernyataan data (v2, opsional): dinilai di snapshot DB baca-saja sesudah langkah, dibatasi tenant
+ * (company_id). Bentuk terstruktur (bukan SQL bebas): baris `tabel` yang `cocok` (kolom → nilai/placeholder), lalu
+ * `kolom` + `diharapkan` (semua baris cocok harus bernilai itu) atau `jumlah` (banyak baris).
+ */
+export const PernyataanSchema = z
+  .object({
+    id: z
+      .string()
+      .regex(/^\d+\.d\d+$/, 'nomor pernyataan "<langkah>.d<urut>", mis. 5.d1')
+      .optional(),
+    judul: kalimat,
+    tabel: namaSql,
+    cocok: z
+      .record(namaSql, z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      .refine((r) => Object.keys(r).length > 0, 'cocok minimal satu kolom'),
+    kolom: namaSql.optional(),
+    diharapkan: z.string().min(1).optional(),
+    jumlah: z.number().int().min(0).optional(),
+  })
+  .strict()
+  .superRefine((p, ctx) => {
+    const nilai = p.kolom !== undefined || p.diharapkan !== undefined
+    if (nilai === (p.jumlah !== undefined))
+      ctx.addIssue({ code: 'custom', message: 'isi kolom + diharapkan, atau jumlah (salah satu)' })
+    if (nilai && (p.kolom === undefined || p.diharapkan === undefined))
+      ctx.addIssue({ code: 'custom', message: '"kolom" dan "diharapkan" harus berpasangan' })
+  })
+export type Pernyataan = z.infer<typeof PernyataanSchema>
+
 export const LangkahSchema = z
   .object({
     id: kebab,
     judul: kalimat,
+    /** Paragraf penjelasan langkah untuk kartu deskripsi runner: apa yang dilakukan dan dibuktikan. */
+    deskripsi: z.string().trim().min(10).optional(),
     harusTerlihat: kalimat,
     sebagai: persona.optional(),
     diBelakangLayar: z.boolean().optional(),
@@ -202,6 +275,10 @@ export const LangkahSchema = z
      * dimulai dengan data jalan yang berhenti tepat sebelumnya. `[]` = data siapkan cukup. */
     capai: z.array(AksiApiSchema).optional(),
     aksi: z.array(AksiSchema).min(1),
+    /** Pemeriksaan UI terstruktur sesudah aksi. Aksi pastikan* di `aksi` juga tercatat sebagai cek. */
+    cek: z.array(CekSchema).min(1).optional(),
+    /** Pernyataan data sesudah langkah: dicek di DB lokal baca-saja, dibatasi tenant. */
+    pernyataanData: z.array(PernyataanSchema).min(1).optional(),
   })
   .strict()
 
@@ -212,7 +289,12 @@ export const SkenarioSchema = z
     judul: kalimat,
     tujuan: z.string().trim().min(20),
     modul: z.enum(MODUL),
+    /** Tiket Plane tertaut (FMS-123); tautan = TICKET_URL + kunci. Tanpa sinkron Plane/Jira. */
     tiket: z.array(z.string().regex(/^[A-Z]+-\d+$/, 'format FMS-123')),
+    /** Pemilik skenario, untuk filter Pemilik. */
+    pemilik: z.string().trim().min(2).optional(),
+    /** Status tertulis: `draf` atau `siap` (bawaan). `ada_kegagalan` dihitung dari jalan terakhir. */
+    status: z.enum(['draf', 'siap']).optional(),
     estimasi: z.string().regex(/^\d+ menit$/, 'format "<n> menit"'),
     persona: z.array(z.object({ siapa: persona, peran: kalimat }).strict()).min(1),
     /** Uraian data yang disiapkan, untuk ringkasan. */

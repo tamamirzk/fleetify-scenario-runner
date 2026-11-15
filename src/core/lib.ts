@@ -1,5 +1,5 @@
 // Harness browser: launch, sesi admin, impersonasi persona, API, dan aksi terlihat
-// (banner, kursor, bingkai) yang melewati gerbang controller (jeda, satu aksi, hentikan).
+// (kursor, bingkai, cincin target di panel) yang melewati gerbang controller (jeda, satu aksi, hentikan).
 // Satu jendela per jalan: asPersona() sekali, ganti akun lewat become(),
 // persona lain di belakang layar lewat apiAs() (sesi API tanpa jendela).
 import { existsSync, mkdirSync } from 'node:fs'
@@ -14,20 +14,25 @@ import {
   request,
 } from 'playwright'
 import { config } from './config.ts'
+import type { TargetAksi } from './controller.ts'
 import { type PersonaId, personaName } from './personas.ts'
+import { TAMPILAN_BAWAAN, type Tampilan, viewportCss } from './tampilan.ts'
 import type { ApiResult, ApiTarget, Body } from './types.ts'
 
 export { personaName }
 
 const OWNER_STATE = path.join(config.cacheDir, 'owner-state.json')
 const HEADED_SLOWMO = 250
-const VIEWPORT = { width: 1400, height: 900 }
 
 // ── Controller (diganti oleh Run; bawaan: tanpa jeda, tahanan apa adanya) ──
 export interface Gate {
   gate(): Promise<void>
   hold(ms: number): Promise<void>
   log(line: string): void
+  /** Sasaran aksi berikutnya untuk cincin target di panel (null = hapus). */
+  setTarget?(t: TargetAksi | null): void
+  /** Teks aksi `banner`: tampil di kartu deskripsi panel, tidak digambar di halaman. */
+  setKeterangan?(t: string | null): void
 }
 let ctl: Gate = {
   gate: async () => {},
@@ -67,6 +72,13 @@ export async function sharedBrowser({ headed = false }: { headed?: boolean } = {
     if (shared?.browser === browser) shared = null
   })
   return browser
+}
+
+/** Tutup browser bersama (panel berhenti). Di bawah Bun close() kadang menggantung: batasi 5 dtk. */
+export async function closeSharedBrowser() {
+  const b = shared?.browser
+  shared = null
+  await Promise.race([b?.close().catch(() => {}), new Promise((r) => setTimeout(r, 5000))])
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
@@ -223,7 +235,12 @@ export async function asPersona(
   { trace = true }: { trace?: boolean } = {},
 ): Promise<{ ctx: BrowserContext; page: Page; email: string; companyId: string }> {
   await ensureOwner()
-  const ctx = await browser.newContext({ storageState: OWNER_STATE, viewport: VIEWPORT })
+  const ctx = await browser.newContext({
+    storageState: OWNER_STATE,
+    // Tampilan aplikasi: viewport CSS = ukuran ÷ skala, deviceScaleFactor = skala (core/tampilan.ts).
+    viewport: viewportCss(tampilanAktif),
+    deviceScaleFactor: tampilanAktif.skala,
+  })
   await ctx.addInitScript(() => {
     localStorage.setItem('fleetify_lang', 'id')
     localStorage.setItem('fleetify_setup_done', '1')
@@ -233,6 +250,13 @@ export async function asPersona(
   const { companyId, email } = await impersonate(page, who)
   return { ctx, page, email, companyId }
 }
+
+/** Tampilan aplikasi jalan ini (ukuran layar + skala); bawaan 1400×900 · 100 %. */
+let tampilanAktif: Tampilan = TAMPILAN_BAWAAN
+export function setTampilan(t: Tampilan) {
+  tampilanAktif = t
+}
+export const tampilan = (): Tampilan => tampilanAktif
 
 /** Tutup modal sambutan pertama kali, hanya di dalam dialog (jangan klik navigasi). */
 export async function dismissWelcome(page: Page) {
@@ -259,40 +283,23 @@ export async function open(page: Page, route: string) {
   await page.waitForLoadState('networkidle').catch(() => {})
 }
 
-// ── Tampilan: banner langkah, kursor merah, bingkai target ──────────────────
-export async function caption(page: Page, text: string) {
+// ── Tampilan: keterangan (di panel), kursor, bingkai, cincin target ─────────
+/**
+ * Keterangan aksi `banner` (dan "Ganti akun"). TIDAK menggambar apa pun di halaman: teks dikirim ke panel (kartu deskripsi langkah) dan log/CLI, sehingga screenshot
+ * dan tampilan langsung bersih. Gerbang jeda/satu aksi tetap berlaku; tahanannya diatur pemanggil.
+ */
+export async function caption(_page: Page, text: string) {
   await ctl.gate()
   ctl.log(`▶ ${text}`)
-  await page
-    .evaluate((t) => {
-      let b = document.getElementById('sr-caption')
-      if (!b) {
-        b = document.createElement('div')
-        b.id = 'sr-caption'
-        Object.assign(b.style, {
-          position: 'fixed',
-          top: '0',
-          left: '0',
-          right: '0',
-          zIndex: '2147483647',
-          background: 'rgba(26,29,33,.92)',
-          color: '#FFDB0E',
-          font: '600 18px Inter, Arial, sans-serif',
-          padding: '12px 20px',
-          textAlign: 'center',
-          pointerEvents: 'none',
-        })
-        document.body.appendChild(b)
-      }
-      b.textContent = t
-    }, text)
-    .catch(() => {})
+  ctl.setKeterangan?.(text)
 }
 
 async function pointAt(page: Page, locator: Locator, ms: number) {
   await locator.scrollIntoViewIfNeeded()
   const box = await locator.boundingBox()
   if (!box) return
+  const vp = page.viewportSize()
+  if (vp && ctl.setTarget) ctl.setTarget(targetRelatif(box, vp))
   await page.evaluate(
     ({ x, y, w, h }) => {
       let c = document.getElementById('sr-cursor')
@@ -301,13 +308,13 @@ async function pointAt(page: Page, locator: Locator, ms: number) {
         c.id = 'sr-cursor'
         Object.assign(c.style, {
           position: 'fixed',
-          width: '22px',
-          height: '22px',
+          width: '14px',
+          height: '14px',
           borderRadius: '50%',
           zIndex: '2147483647',
-          background: 'rgba(229,72,77,.85)',
-          border: '3px solid #fff',
-          boxShadow: '0 0 0 2px #E5484D',
+          background: 'rgba(229,72,77,.9)',
+          border: '2px solid #fff',
+          boxShadow: '0 0 0 1px #E5484D',
           pointerEvents: 'none',
           transition: 'left .6s ease, top .6s ease',
           left: '50%',
@@ -315,8 +322,9 @@ async function pointAt(page: Page, locator: Locator, ms: number) {
         })
         document.body.appendChild(c)
       }
-      c.style.left = `${x + w / 2 - 11}px`
-      c.style.top = `${y + h / 2 - 11}px`
+      // Kursor di pojok kanan bawah sasaran, tidak menutupi teks tombol/isian.
+      c.style.left = `${x + w - 9}px`
+      c.style.top = `${y + h - 9}px`
       let f = document.getElementById('sr-frame')
       if (!f) {
         f = document.createElement('div')
@@ -324,17 +332,18 @@ async function pointAt(page: Page, locator: Locator, ms: number) {
         Object.assign(f.style, {
           position: 'fixed',
           zIndex: '2147483646',
-          border: '3px solid #FFDB0E',
+          border: '2px solid #FF9F0A',
           borderRadius: '8px',
+          boxSizing: 'border-box',
           pointerEvents: 'none',
         })
         document.body.appendChild(f)
       }
       Object.assign(f.style, {
-        left: `${x - 6}px`,
-        top: `${y - 6}px`,
-        width: `${w + 12}px`,
-        height: `${h + 12}px`,
+        left: `${x - 4}px`,
+        top: `${y - 4}px`,
+        width: `${w + 8}px`,
+        height: `${h + 8}px`,
         display: 'block',
       })
     },
@@ -343,21 +352,76 @@ async function pointAt(page: Page, locator: Locator, ms: number) {
   await ctl.hold(ms)
 }
 
+/** bbox px → koordinat relatif viewport (0–1), dipotong ke tepi layar. */
+export function targetRelatif(
+  box: { x: number; y: number; width: number; height: number },
+  vp: { width: number; height: number },
+): TargetAksi {
+  const r = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 10_000) / 10_000
+  const x = r(box.x / vp.width)
+  const y = r(box.y / vp.height)
+  return {
+    bbox: {
+      x,
+      y,
+      w: r(Math.min(box.width / vp.width, 1 - x)),
+      h: r(Math.min(box.height / vp.height, 1 - y)),
+    },
+    viewport: { w: vp.width, h: vp.height },
+  }
+}
+
+/** Sembunyikan kursor dan bingkai (sebelum screenshot Pemeriksaan UI). */
+export async function hapusPenunjuk(page: Page) {
+  await page
+    .evaluate(() => {
+      for (const id of ['sr-cursor', 'sr-frame']) document.getElementById(id)?.remove()
+    })
+    .catch(() => {})
+}
+
+/**
+ * Lapor sasaran sebelum gerbang pertama, supaya saat dijeda di depan aksi ini cincin target sudah ada.
+ * Hanya bila elemen sudah tampil di layar (yang di luar layar dilapor pointAt sesudah digulir).
+ */
+async function laporSasaran(page: Page, locator: Locator) {
+  if (!ctl.setTarget) return
+  const box = await locator.boundingBox({ timeout: 800 }).catch(() => null)
+  const vp = page.viewportSize()
+  if (!box || !vp) return
+  if (box.y < 0 || box.x < 0 || box.y + box.height > vp.height || box.x + box.width > vp.width)
+    return
+  ctl.setTarget(targetRelatif(box, vp))
+}
+
 /** Gerbang, arahkan kursor, tahan, gerbang lagi (jeda tepat sebelum klik), lalu klik. */
 export async function showClick(page: Page, locator: Locator, ms = 1500) {
+  await laporSasaran(page, locator)
   await ctl.gate()
   await pointAt(page, locator, ms)
   await ctl.gate()
   await locator.click()
+  ctl.setTarget?.(null)
 }
 
-/** Gerbang, arahkan kursor, tahan, lalu isi. */
-export async function showFill(page: Page, locator: Locator, value: string, ms = 1200) {
+/** Gerbang, arahkan kursor, tahan, lalu isi (atau ketik per huruf). */
+export async function showFill(
+  page: Page,
+  locator: Locator,
+  value: string,
+  ms = 1200,
+  perHuruf = false,
+) {
+  await laporSasaran(page, locator)
   await ctl.gate()
   await pointAt(page, locator, ms)
   await ctl.gate()
-  await locator.fill(value)
-  await page.waitForTimeout(600)
+  if (perHuruf) {
+    await locator.fill('')
+    await locator.pressSequentially(value, { delay: 25 })
+  } else await locator.fill(value)
+  ctl.setTarget?.(null)
+  await page.waitForTimeout(400)
 }
 
 /** Ganti persona di jendela yang sama: keluar dari impersonasi, impersonasi baru, muat ulang. */

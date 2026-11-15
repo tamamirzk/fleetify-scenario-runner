@@ -66,9 +66,10 @@ describe('Controller.hold', () => {
 })
 
 describe('kecepatan', () => {
-  it('dibatasi 0,5–3 dan nilai tak sah jadi 1', () => {
+  it('dibatasi 0,25–3 dan nilai tak sah jadi 1', () => {
     expect(clampSpeed(10)).toBe(3)
-    expect(clampSpeed(0.1)).toBe(0.5)
+    expect(clampSpeed(0.1)).toBe(0.25)
+    expect(clampSpeed(0.25)).toBe(0.25)
     expect(clampSpeed(Number.NaN)).toBe(1)
     const c = new Controller()
     c.setSpeed('1.5')

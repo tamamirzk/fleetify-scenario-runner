@@ -433,7 +433,7 @@ describe('diff dokumen', () => {
 })
 
 describe('antrean snapshot', () => {
-  it('berurutan, tidak paralel, tidak melewati; dimulai resolve saat kerja mulai; galat tidak memutus', async () => {
+  it('berurutan, tidak paralel, tidak melewati; dimulai resolve saat snapshot terkunci; galat tidak memutus', async () => {
     const { AntreanSnapshot } = await import('../src/pemeriksaan/jalankan.ts')
     const q = new AntreanSnapshot<number>()
     const urutan: string[] = []
@@ -441,10 +441,12 @@ describe('antrean snapshot', () => {
     let maksAktif = 0
     const kerja =
       (n: number, ms: number, gagal = false) =>
-      async () => {
+      async (mulai: () => void) => {
         aktif++
         maksAktif = Math.max(maksAktif, aktif)
         urutan.push(`mulai ${n}`)
+        // Kerja yang gagal tidak sempat memberi sinyal: dimulai tetap resolve (di finally).
+        if (!gagal) mulai()
         await new Promise((r) => setTimeout(r, ms))
         aktif--
         urutan.push(`selesai ${n}`)
@@ -457,13 +459,35 @@ describe('antrean snapshot', () => {
     expect(q.sisa).toBe(3)
     await a.dimulai
     expect(urutan).toEqual(['mulai 1'])
+    // Kerja 2 gagal sebelum memberi sinyal: dimulai baru resolve saat kerjanya berakhir.
     await b.dimulai
-    expect(urutan).toEqual(['mulai 1', 'selesai 1', 'mulai 2'])
+    expect(urutan).toEqual(['mulai 1', 'selesai 1', 'mulai 2', 'selesai 2'])
     await expect(b.selesai).rejects.toThrow('gagal 2')
     expect(await c.selesai).toBe(3)
     await q.tunggu()
     expect(urutan).toEqual(['mulai 1', 'selesai 1', 'mulai 2', 'selesai 2', 'mulai 3', 'selesai 3'])
     expect(maksAktif).toBe(1)
     expect(q.sisa).toBe(0)
+  })
+})
+
+describe('antrean snapshot: dimulai menunggu snapshot terkunci', () => {
+  it('pemutaran baru lanjut sesudah kerja memanggil mulai(), bukan saat kerja baru dijadwalkan', async () => {
+    const { AntreanSnapshot } = await import('../src/pemeriksaan/jalankan.ts')
+    const q = new AntreanSnapshot<number>()
+    const urutan: string[] = []
+    const x = q.tambah(async (mulai) => {
+      urutan.push('buka koneksi')
+      await new Promise((r) => setTimeout(r, 20))
+      urutan.push('SELECT pertama')
+      mulai()
+      await new Promise((r) => setTimeout(r, 20))
+      urutan.push('jejak')
+      return 1
+    })
+    await x.dimulai
+    urutan.push('langkah berikutnya')
+    await x.selesai
+    expect(urutan).toEqual(['buka koneksi', 'SELECT pertama', 'langkah berikutnya', 'jejak'])
   })
 })

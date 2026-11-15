@@ -1,6 +1,6 @@
 # Fleetify Scenario Runner
 
-Pemutar **skenario uji layar** Fleetify v2. Skenario adalah berkas **JSON** (`scenarios/<task>/<slug>.json`) yang ditulis AI atau developer; hal yang rumit dipanggil dengan nama dari pustaka TypeScript. Skenario diputar dengan Playwright di satu jendela browser dengan tempo lambat. Panel kontrol (mode **lokal**, http://localhost:4800) menampilkan skenario per task, ringkasan sebelum putar, **tampilan langsung** jendela browser, kontrol jeda/satu aksi/kecepatan, catat temuan, dan riwayat jalan.
+Pemutar **skenario uji layar** Fleetify v2. Skenario adalah berkas **JSON** (`scenarios/<modul>/<slug>.json`) yang ditulis AI atau developer; hal yang rumit dipanggil dengan nama dari pustaka TypeScript. Skenario diputar dengan Playwright di satu jendela browser dengan tempo lambat. Panel kontrol (http://127.0.0.1:4800) menampilkan skenario per **Project › Modul**, ringkasan sebelum putar, **tampilan langsung** (screencast CDP) dengan cincin target, kontrol jeda/satu aksi/kecepatan/jeda tiap langkah, catat temuan, riwayat (dengan hapus dan retensi), dan **laporan** (Pemeriksaan UI | Transaksi database).
 
 Mode server (skenario paten, unggah) belum tersedia; pengalihnya tampil nonaktif di panel.
 
@@ -46,17 +46,19 @@ Tiap jalan juga melewati **Pemeriksaan**: serangkaian SQL hanya-SELECT ke DB lok
 
 Setiap langkah juga melewati **Pemeriksaan UI**: halaman yang tampil diperiksa kepatuhannya ke `DESIGN.md` v2 dengan dua cara — pemeriksa **statis** (skrip v2 `check:design --route <pathname>`, dibandingkan dengan `design-baseline.json`: kelebihan = pelanggaran baru dengan berkas:baris) dan pemeriksa **DOM** langsung di halaman (warna di luar token, radius, bayangan kartu, font, kontras kuning; temuan disorot kotak merah di screenshot `*-ui.png`). Runner juga mencatat **request tulis** per langkah, yang ditampilkan sebagai *transaksi tersangka* di pelanggaran DB. Butuh `V2_DIR`; tanpa itu dilewati. Pelanggaran statis baru = exit ≠ 0; temuan DOM hanya peringatan. Di akhir tiap jalan ditulis **`laporan.md`** gabungan (KPI, tabel langkah, pelanggaran UI dan DB beserta lokasinya) — panel punya tombol **Unduh laporan**.
 
-## Panel (mode lokal)
+## Panel
 
-1. **Skenario per task**: kiri daftar task (nama folder), tengah kartu per berkas JSON (path, judul, jumlah langkah dan persona, hasil lokal terakhir), kanan pratinjau JSON dengan status skema dan **Catatan untuk AI**. Berkas baru atau berubah muncul otomatis; berkas dengan skema tidak valid ditandai beserta masalahnya dan tidak bisa diputar. **Putar semua** memutar semua berkas valid satu task berurutan.
-2. **Ringkasan**: tujuan, persona, langkah beserta yang harus terlihat, data yang disiapkan, prasyarat, setelan, catatan. Pilih langkah awal (langkah dengan `capai`, atau data jalan yang berhenti tepat sebelumnya), **Siapkan data**, lalu **Putar**.
-3. **Sedang berjalan**: tampilan langsung besar (screencast Chromium lewat CDP, klik ganda untuk layar penuh), callout aksi saat ini, kotak *Harus terlihat*, kontrol Jeda/Lanjut, Satu aksi, Hentikan, kecepatan 0,5×–3×, daftar langkah dengan batang kemajuan, dan ubin *Aksi di langkah ini*. Saat jeda, judul menyebut aksi berikutnya ("Dijeda sebelum klik tombol “Ajukan”"). Gagal: langkah, aksi, pesan, screenshot, **Ulang dari langkah N**. Selesai: hasil dan tautan riwayat.
-4. **Catat temuan**: Bug aplikasi, Skenario salah, atau Catatan; terikat ke langkah aktif, screenshot otomatis, opsi jeda selama menulis.
-5. **Riwayat**: semua jalan lokal; detail berbentuk linimasa dengan galat, screenshot, temuan per langkah, dan aksi tiap langkah.
+1. **Skenario** (`#/`, `#/modul/<modul>`): sidebar **Project › Uji per modul** (modul = folder, dengan jumlah), navigasi Skenario / Sedang berjalan / Riwayat & laporan, dan blok **Sasaran** (server v2 lokal + tenant, status Pemeriksaan DB/UI — diatur di `.env`, tidak bisa diganti dari panel). Sidebar bisa diciutkan jadi rel ikon (tombol atau `\`), tiap grup dibuka-tutup (diingat); di layar sempit jadi laci. Daftar berkelompok per modul (dilipat, **Ciutkan/Buka semua**, **Putar semua** per modul) dengan ikon hasil terakhir, judul, waktu · langkah · perkiraan (gagal: di langkah n · lihat laporan), chip tiket Plane (`tiket`, tertaut `TICKET_URL`), status (*Siap*, *Draf*, *Ada kegagalan*), Putar / Sunting / Lainnya (ringkasan, laporan terakhir, riwayat, pratinjau JSON, salin path). Bar filter chip (Status jalan, Sumber tiket, Pemilik, Status skenario) dan cari; tampilan Daftar/Papan; tab **Rencana uji**. *Tugas saya* dan sumber tugas Plane/Jira tampil nonaktif *belum tersedia*. *Catatan untuk AI* muncul bila ada temuan "Skenario salah".
+2. **Ringkasan** (dua kolom): kolom utama untuk membaca — judul, chip modul/setelan/tiket, Tujuan, **Alur langkah** (persona, di layar / di belakang layar, *Harus terlihat* utuh, `deskripsi`, "Mulai di sini"), Persona, bagian lipat Data/Prasyarat/Setelan/Catatan. Kolom kanan menempel: kartu **Putar** (kecepatan, Jeda tiap langkah, Tampilan aplikasi, Mutu gambar, **Siapkan data** → **Putar**), jalan terakhir, Sunting.
+3. **Runner**: toolbar dengan pil **Lanjut/Jeda · Satu aksi · Hentikan** (dua klik), menu kecepatan **0,25×–3×** (diingat) dengan sakelar **Jeda tiap langkah**, **Fokus layar**; tampilan langsung sebesar mungkin dengan **cincin oranye** di sasaran aksi berikutnya saat dijeda; **rel langkah** yang bisa dibuka jadi **peta langkah**; **kartu deskripsi** (status, langkah · persona, `deskripsi`, keterangan dari aksi `banner`, *Harus terlihat*, aksi berikutnya). Aksi `banner` **tidak lagi digambar di halaman aplikasi** — teksnya tampil di kartu, screenshot bersih. Gagal/Selesai: **Ulang dari langkah N**, **Lihat laporan**.
+   **Tampilan aplikasi**: ukuran layar 1400×900 (bawaan, ukuran tempat skenario ditulis) · 1280×800 · 1600×1000 · 1920×1080 dan skala 100 % · 90 % · 80 % · 67 % ("zoom out" tanpa merusak koordinat klik). CLI: `--ukuran 1280x800 --skala 0.8`. **Mutu gambar** (tampilan langsung saja): *Tajam* (bawaan panel) atau *Hemat*; CLI `--mutu tajam`.
+4. **Catat temuan**: satu baris di bawah layar (`T`), jenis Bug aplikasi / Skenario salah / Catatan; screenshot otomatis; fokus ke isian menjeda jalan.
+5. **Riwayat**: semua jalan dengan ukuran dan total disk; linimasa langkah dengan galat, Pemeriksaan UI (statis `check:design` berkas:baris + DOM bersorot) dan DB, temuan; **Buka laporan**, **Unduh laporan**. Hapus satu/terpilih/semua jalan satu skenario/lebih lama dari N hari, atau **hapus trace saja** — selalu lewat dialog. **Retensi otomatis** (bawaan: simpan 10 jalan per skenario, trace 3 terakhir + jalan gagal) sesudah tiap jalan; setelan di `.cache/riwayat-retensi.json`. CLI: `bun run riwayat --daftar | --hapus-lebih-lama <hari> | --simpan <n> | --hapus-trace [--ya]`.
+6. **Laporan** (`#/laporan/<jalan>`): tab **Pemeriksaan UI** (screenshot saat cek gagal dengan kotak merah, kartu per langkah, ringkasan UI x/y · Database · Temuan, Diharapkan vs Terlihat, kepatuhan DESIGN.md langkah itu) dan tab **Transaksi database** (jejak baris tenant per langkah: filter Semua/Dari layar/Lewat API, cari tabel/kolom, diff kolom lama → baru, pernyataan data, silang "Data benar, tampilan salah"). Jejak baris dibaca dari snapshot READ ONLY yang sama dengan invarian, kolom `company_id`; dilewati bila tenant > 60.000 baris.
 
-Pintasan: `Spasi` jeda/lanjut · `→` satu aksi · `N` catat temuan · `Ctrl+Enter` simpan temuan · `Shift+Esc` hentikan.
+Pintasan (runner): `Spasi` jeda/lanjut · `→` satu aksi · `T` catat temuan · `Ctrl/⌘+Enter` simpan temuan · `F` fokus layar · `[` peta langkah · `Esc` tutup peta / keluar fokus · `\` ciutkan sidebar. **Hentikan** selalu butuh dua klik (tanpa pintasan).
 
-Jeda berlaku sebelum aksi terlihat berikutnya (banner, klik, isian, ganti akun, buka halaman). Kecepatan mengali semua tahanan. Satu jalan pada satu waktu. Menutup jendela browser sama dengan Hentikan. Temuan ditulis ke `docs/TEMUAN.md` (lokal, tidak di-commit) dan ke `result.json` jalan.
+Satu tenant = satu pemutar sekaligus: runner memegang kunci `.cache/kunci-<tenant>.json`; jalan kedua dari proses lain (panel lain, CLI) ditolak dengan pesan siapa yang memakai. Jalan dari panel selalu bertempo tontonan penuh, juga dengan `HEADLESS=1`. Temuan ditulis ke `docs/TEMUAN.md` (lokal) dan ke `result.json` jalan.
 
 ## Konfigurasi (`.env`)
 
@@ -79,7 +81,7 @@ Jeda berlaku sebelum aksi terlihat berikutnya (banner, klik, isian, ganti akun, 
 ## Menulis skenario
 
 ```bash
-bun run new FMS-62 retur-rusak   # kerangka scenarios/FMS-62/retur-rusak.json
+bun run new wo retur-rusak FMS-62   # kerangka scenarios/wo/retur-rusak.json
 bun run check:scenarios          # skema dan aturan
 bun run docs:pustaka             # perbarui daftar aksi pustaka (SKEMA-SKENARIO.md) dan invarian (PEMERIKSAAN.md)
 bun run check && bun run typecheck && bun run test
@@ -91,7 +93,12 @@ Skema dan daftar aksi: [docs/SKEMA-SKENARIO.md](docs/SKEMA-SKENARIO.md). Invaria
 
 | Lokasi | Isi |
 |---|---|
-| `scenarios/<task>/<slug>.json` | Skenario, satu berkas per skenario, dikelompokkan per task |
+| `scenarios/<modul>/<slug>.json` | Skenario, satu berkas per skenario, dikelompokkan per modul (folder = field `modul`) |
+| `src/core/project.ts` | Project › Modul (satu project Fleetify v2: nama tampilan + urutan modul), status skenario |
+| `src/core/tampilan.ts`, `kunci.ts` | Tampilan aplikasi (ukuran + skala) dan mutu tampilan langsung; kunci satu tenant satu pemutar |
+| `src/core/riwayat.ts`, `src/riwayat.ts` | Riwayat di disk: ukuran, hapus jalan/trace (berpagar path), retensi; CLI `bun run riwayat` |
+| `src/core/laporan-data.ts`, `src/pemeriksaan/jejak.ts` | Data layar Laporan (cek UI, transaksi, silang); jejak baris + pernyataan data |
+| `panel/tokens.css`, `panel/panel.css`, `panel/js/` | Token dan komponen panel; fungsi render murni diuji Vitest |
 | `src/core/skema.ts`, `rules.ts` | Skema zod skenario dan aturan `check:scenarios` |
 | `src/core/interpreter.ts`, `sasaran.ts`, `layar.ts`, `placeholder.ts` | Penerjemah aksi, sasaran → locator, layar Playwright, placeholder data |
 | `src/pustaka/` | Aksi pustaka bernama (`api`/`siapkan`, `layar`) |

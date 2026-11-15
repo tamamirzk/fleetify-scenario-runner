@@ -87,6 +87,14 @@ export function layarPlaywright(o: LayarOpsi): Layar {
         .catch(() => false),
     nonaktif: (s) => loc(s).isDisabled(),
     url: () => page.url(),
+    async teksElemen(s, batas) {
+      const l = loc(s)
+      const ada = await l
+        .waitFor({ state: 'visible', timeout: batas })
+        .then(() => true)
+        .catch(() => false)
+      return ada ? l.innerText({ timeout: 3000 }).catch(() => null) : null
+    },
     teksHalaman: () => page.locator('body').innerText(),
     screenshot: (nama) => o.shot(nama),
     sebagai: (who) => o.sebagai(who),

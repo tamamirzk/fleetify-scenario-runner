@@ -14,27 +14,47 @@ import path from 'node:path'
 import type { APIRequestContext, BrowserContext, CDPSession, Page } from 'playwright'
 import { teksDiff } from '../pemeriksaan/banding.ts'
 import { Pemeriksa } from '../pemeriksaan/jalankan.ts'
+import type { HasilPernyataan, PernyataanSiap } from '../pemeriksaan/jejak.ts'
 import { PemeriksaUi, teksUiLangkah } from '../pemeriksaan/ui.ts'
 import { PUSTAKA } from '../pustaka/index.ts'
 import { config } from './config.ts'
-import { Controller, Stopped } from './controller.ts'
+import { Controller, Stopped, skalaTahan } from './controller.ts'
 import { readRun } from './history.ts'
-import { jalankanAksi, type Layar, type Lingkungan, uraiAksi } from './interpreter.ts'
+import {
+  type CatatanCek,
+  jalankanAksi,
+  jalankanCek,
+  type Layar,
+  type Lingkungan,
+  uraiAksi,
+} from './interpreter.ts'
 import * as kitModule from './kit.ts'
+import { ambilKunci, lepasKunci } from './kunci.ts'
 import { susunLaporan } from './laporan.ts'
 import { layarPlaywright } from './layar.ts'
 import * as lib from './lib.ts'
 import { type PersonaId, personaName } from './personas.ts'
+import { isiPlaceholder } from './placeholder.ts'
 import { PencatatRequest } from './requests.ts'
 import {
   type Finding,
   type JenisTemuan,
   LABEL_TEMUAN,
+  type PraLangkah,
   type RunResult,
   type RunStatus,
 } from './run-types.ts'
+import { cariLocator } from './sasaran.ts'
 import { type BerkasSkenario, stepInfo } from './scenarios.ts'
-import type { Aksi, Skenario } from './skema.ts'
+import type { Aksi, Sasaran as SasaranUi, Skenario } from './skema.ts'
+import {
+  type LayarPanel,
+  type MutuLangsung,
+  opsiScreencast,
+  TAMPILAN_BAWAAN,
+  type Tampilan,
+  viewportCss,
+} from './tampilan.ts'
 import type { BaseCtx, StepCtx } from './types.ts'
 
 const BECOME_HOLD = 4500
@@ -42,12 +62,28 @@ const SHOT_TIMEOUT = 10_000
 /** Jeda sebelum jendela ditutup paksa saat Hentikan, supaya aksi yang menunggu sempat berhenti. */
 const STOP_GRACE_MS = 1500
 const CLOSE_TIMEOUT_MS = 5000
-const SCREENCAST = { format: 'jpeg', quality: 70, maxWidth: 1400, maxHeight: 900 } as const
 
 const runStamp = () => new Date().toISOString().replaceAll(/[:.]/g, '-').slice(0, 19)
 const firstLine = (e: unknown) => (e instanceof Error ? e.message : String(e)).split('\n')[0] ?? ''
 
 type Data = Record<string, unknown>
+
+export interface OpsiJalan {
+  headed?: boolean
+  speed?: number
+  pemeriksaan?: boolean
+  ui?: boolean
+  /** Jalan dari panel: tempo tontonan penuh walau headless (HEADLESS_HOLD hanya untuk CLI). */
+  panel?: boolean
+  /** Jeda otomatis di awal setiap langkah (sakelar panel). */
+  jedaTiapLangkah?: boolean
+  /** Tampilan aplikasi (ukuran layar + skala); bawaan 1400×900 · 100 %. */
+  tampilan?: Tampilan
+  /** Mutu tampilan langsung (screencast saja); bawaan hemat (perilaku lama), panel memakai tajam. */
+  mutuLangsung?: MutuLangsung
+  /** Ukuran area tampil panel × devicePixelRatio (untuk batas bingkai screencast). */
+  layarPanel?: LayarPanel | null
+}
 
 export class Run extends EventEmitter {
   readonly berkas: BerkasSkenario
@@ -61,20 +97,37 @@ export class Run extends EventEmitter {
   private page: Page | null = null
   private ctx: BrowserContext | null = null
   private cdp: CDPSession | null = null
+  private mutuLangsung: MutuLangsung
+  private layarPanel: LayarPanel | null
   private persona: PersonaId | null = null
   private apis = new Map<PersonaId, APIRequestContext>()
   private finished = false
   private stepIdx: number | null = null
-  /** Lapisan Pemeriksaan (docs/PEMERIKSAAN.md); null bila dimatikan lewat opsi. */
+  /** Lapisan Pemeriksaan DB (docs/PEMERIKSAAN.md); null bila dimatikan lewat opsi. */
   private pemeriksa: Pemeriksa | null
-  /** Lapisan Pemeriksaan UI (docs/PEMERIKSAAN.md, bagian UI); null bila dimatikan (--tanpa-ui). */
+  /** Lapisan Pemeriksaan UI (statis check:design + DOM); null bila dimatikan (--tanpa-ui). */
   private pemeriksaUi: PemeriksaUi | null
   /** Request tulis per langkah (transaksi tersangka untuk pelanggaran DB). */
   private readonly pencatat: PencatatRequest
+  /** Asal cek UI yang sedang dicatat: aksi pastikan* (bawaan) atau field `cek` langkah. */
+  private sumberCek: 'aksi' | 'cek' = 'aksi'
+  readonly tampilan: Tampilan
+  /** Siapkan/Capai yang sedang mencatat request tulis (pencatat langkah 0). */
+  private praAktif: PraLangkah | null = null
 
   constructor(
     berkas: BerkasSkenario & { skenario: Skenario },
-    { headed = false, speed = 1, pemeriksaan = true, ui = true } = {},
+    {
+      headed = false,
+      speed = 1,
+      pemeriksaan = true,
+      ui = true,
+      panel = false,
+      jedaTiapLangkah = false,
+      tampilan = TAMPILAN_BAWAAN,
+      mutuLangsung = 'hemat',
+      layarPanel = null,
+    }: OpsiJalan = {},
   ) {
     super()
     this.berkas = berkas
@@ -91,11 +144,22 @@ export class Run extends EventEmitter {
         })
       : null
     this.pencatat = new PencatatRequest((n, r) => {
+      if (n === 0) {
+        this.praAktif?.requests.push(r)
+        return
+      }
       const step = this.result.steps[n - 1]
       if (!step) return
       step.requests = [...(step.requests ?? []), r]
     })
-    this.ctl = new Controller({ scale: headed ? 1 : config.headlessHold, speed })
+    this.ctl = new Controller({
+      scale: skalaTahan({ headed, panel, headlessHold: config.headlessHold }),
+      speed,
+    })
+    this.ctl.jedaTiapLangkah = jedaTiapLangkah
+    this.tampilan = tampilan
+    this.mutuLangsung = mutuLangsung
+    this.layarPanel = layarPanel
     this.runId = `${berkas.slug}/${runStamp()}`
     this.dir = path.join(config.runsDir, this.runId)
     mkdirSync(this.dir, { recursive: true })
@@ -103,6 +167,7 @@ export class Run extends EventEmitter {
       run_id: this.runId,
       scenario: berkas.slug,
       task: berkas.task,
+      sasaran: { web: config.webUrl, tenant: config.tenantSlug },
       path: berkas.path,
       title: this.sk.judul,
       estimasi: this.sk.estimasi,
@@ -128,6 +193,7 @@ export class Run extends EventEmitter {
         aksi: s.aksi.map((a) => ({ teks: uraiAksi(a), status: 'menunggu', ms: null })),
       })),
       findings: [],
+      tampilan: { ...tampilan, viewport: viewportCss(tampilan) },
     }
     this.ctl.on('log', (l: string) => this.log(l))
     this.ctl.on('change', () => {
@@ -160,7 +226,17 @@ export class Run extends EventEmitter {
   }
 
   snapshot() {
-    return { ...this.result, speed: this.ctl.speed, paused: this.ctl.paused, data: this.data }
+    return {
+      ...this.result,
+      speed: this.ctl.speed,
+      paused: this.ctl.paused,
+      target: this.ctl.target,
+      jeda_tiap_langkah: this.ctl.jedaTiapLangkah,
+      skala_tahan: this.ctl.scale,
+      // "3/7 · teks" → "teks": nomor langkah sudah ada di kartu.
+      keterangan: this.ctl.keterangan?.replace(/^\d+\/\d+ · /, '') ?? null,
+      data: this.data,
+    }
   }
 
   private async as(who: PersonaId) {
@@ -216,6 +292,7 @@ export class Run extends EventEmitter {
   private env(layar?: Layar): Lingkungan {
     return {
       layar,
+      cek: layar ? (c) => this.catatCek(c) : undefined,
       data: this.data,
       catat: (t) => this.note(t),
       log: (l) => this.log(l),
@@ -241,6 +318,63 @@ export class Run extends EventEmitter {
     }
   }
 
+  /**
+   * Siapkan/Capai: catat request tulis aksi pustaka, lalu (bila Pemeriksaan DB aktif) satu snapshot jejak
+   * baris sesudahnya, supaya perubahan data siapkan tidak tercampur dengan langkah pertama.
+   */
+  private async catatPra(
+    label: PraLangkah['label'],
+    n: number,
+    kerja: () => Promise<void>,
+    { snapshot }: { snapshot: boolean },
+  ) {
+    const pra: PraLangkah = { label, requests: [] }
+    this.result.pra = [...(this.result.pra ?? []).filter((p) => p.label !== label), pra]
+    this.praAktif = pra
+    this.pencatat.aktif(0)
+    lib.setApiListener(this.pencatat.dariApi)
+    try {
+      await kerja()
+    } finally {
+      this.pencatat.aktif(null)
+      lib.setApiListener(null)
+      this.praAktif = null
+    }
+    const m =
+      snapshot && this.pemeriksa && !this.pemeriksa.dilewati ? this.pemeriksa.mulaiLangkah(n) : null
+    if (m)
+      void m.selesai.then((db) => {
+        pra.db = db
+        this.save()
+        this.emit('change')
+      })
+    this.save()
+  }
+
+  /** Pernyataan data langkah dengan placeholder terisi; yang datanya belum ada langsung jadi hasil galat. */
+  private pernyataanLangkah(i: number): { siap: PernyataanSiap[]; galat: HasilPernyataan[] } {
+    const n = i + 1
+    const siap: PernyataanSiap[] = []
+    const galat: HasilPernyataan[] = []
+    for (const [k, p] of (this.sk.langkah[i]?.pernyataanData ?? []).entries()) {
+      const id = p.id ?? `${n}.d${k + 1}`
+      try {
+        siap.push({ ...(isiPlaceholder(p as Record<string, unknown>, this.data) as typeof p), id })
+      } catch (e) {
+        galat.push({
+          id,
+          judul: p.judul,
+          langkah: n,
+          lulus: false,
+          diharapkan: p.jumlah !== undefined ? `${p.jumlah} baris` : String(p.diharapkan ?? ''),
+          terlihat: '–',
+          galat: firstLine(e),
+        })
+      }
+    }
+    return { siap, galat }
+  }
+
   private async aksiApi(daftar: Aksi[], label: string) {
     for (const a of daftar) {
       this.log(`${label}: ${uraiAksi(a, this.data)}`)
@@ -253,9 +387,12 @@ export class Run extends EventEmitter {
     lib.setController(this.ctl)
     this.setStatus('menyiapkan')
     try {
+      // Satu tenant = satu pemutar sekaligus (proses lain: panel lain, CLI) — dicek sebelum menyentuh server.
+      ambilKunci(config.tenantSlug, this.runId)
       // Baseline invarian DB sebelum ada data yang disentuh; galat tidak menggagalkan jalan.
       if (this.pemeriksa?.dikonfigurasi) await this.pemeriksa.ambilBaseline()
-      else if (this.pemeriksa) this.log('Pemeriksaan: tidak dikonfigurasi (V2_DATABASE_URL kosong)')
+      else if (this.pemeriksa)
+        this.log('Pemeriksaan DB: tidak dikonfigurasi (V2_DATABASE_URL / V2_BACKEND_DIR kosong)')
       if (fromRun) {
         readRun(fromRun)
         const target = path.join(this.dir, 'data.json')
@@ -265,8 +402,10 @@ export class Run extends EventEmitter {
         this.log(`Data dipakai dari jalan ${fromRun}`)
       } else {
         this.data = { stempel: kitModule.stamp(), docs: [] }
-        this.log('Menyiapkan data lewat API…')
-        await this.aksiApi(this.sk.siapkan, 'Siapkan')
+        if (this.sk.siapkan.length) this.log('Menyiapkan data lewat API…')
+        await this.catatPra('Siapkan', 0, () => this.aksiApi(this.sk.siapkan, 'Siapkan'), {
+          snapshot: this.sk.siapkan.length > 0,
+        })
         this.saveData()
         this.log('Data siap')
       }
@@ -275,6 +414,9 @@ export class Run extends EventEmitter {
       this.result.error = `Siapkan data gagal: ${firstLine(e)}`
       this.log(this.result.error)
       this.setStatus('gagal')
+      this.tulisLaporan()
+      this.save()
+      lepasKunci(config.tenantSlug)
       throw e
     } finally {
       await this.disposeApis()
@@ -283,7 +425,7 @@ export class Run extends EventEmitter {
 
   private async shot(name: string): Promise<string | null> {
     if (!this.page) return null
-    // Screenshot bersorot Pemeriksaan UI (*-ui.png) menempel ke screenshot langkahnya, tidak dihitung.
+    // Screenshot bersorot Pemeriksaan rupa (*-ui.png) menempel ke screenshot langkahnya, tidak dihitung.
     const n =
       readdirSync(this.dir).filter((f) => f.endsWith('.png') && !f.endsWith('-ui.png')).length + 1
     const file = `${String(n).padStart(2, '0')}-${name.replaceAll(/[^a-z0-9]+/gi, '-').slice(0, 60)}.png`
@@ -292,9 +434,135 @@ export class Run extends EventEmitter {
       .catch(() => null)
     if (!existsSync(path.join(this.dir, file))) return null
     this.result.last_shot = file
+    this.result.last_shot_at = new Date().toISOString()
     this.save()
     this.emit('change')
     return file
+  }
+
+  /** Kotak elemen relatif viewport (0–1); null bila tidak ada. */
+  private async kotak(
+    s: SasaranUi,
+  ): Promise<{ x: number; y: number; w: number; h: number } | null> {
+    if (!this.page) return null
+    const vp = this.page.viewportSize()
+    const box = await cariLocator(this.page, s)
+      .boundingBox({ timeout: 1000 })
+      .catch(() => null)
+    return box && vp ? lib.targetRelatif(box, vp).bbox : null
+  }
+
+  /** Catat satu cek UI di langkah aktif: id n.k, bbox elemen, screenshot khusus bila gagal. */
+  private async catatCek(c: CatatanCek) {
+    const i = this.stepIdx
+    const r = i == null ? null : this.result.steps[i]
+    if (!r || i == null) return
+    r.cek ??= []
+    const n = i + 1
+    const urut = r.cek.filter((x) => x.sumber === 'cek' || x.sumber === 'aksi').length + 1
+    const bbox = c.sasaran ? await this.kotak(c.sasaran) : null
+    // Sasaran ber-id/selector: tampilkan uraian manusia (nama/teks elemen, atau Harus terlihat langkah);
+    // selector mentah disimpan sebagai rincian teknis.
+    const manusia = c.sasaran && pakaiId(c.sasaran) ? await this.uraianManusia(c, r.expect) : null
+    let screenshot: string | null = null
+    if (!c.lulus && this.page) {
+      // Tanpa kursor/bingkai penunjuk, supaya kotak merah di laporan menunjuk layar apa adanya.
+      await lib.hapusPenunjuk(this.page)
+      screenshot = await this.shot(`${n}-cek-${urut}`)
+    }
+    // id tertulis di skenario dipakai bila belum terpakai di langkah ini; selain itu nomor otomatis.
+    const id = c.id && !r.cek.some((x) => x.id === c.id) ? c.id : `${n}.${urut}`
+    r.cek.push({
+      id,
+      langkah: n,
+      jenis: c.jenis,
+      sumber: this.sumberCek,
+      judul: manusia?.judul ?? c.judul,
+      diharapkan: manusia?.diharapkan ?? c.diharapkan,
+      terlihat: c.terlihat,
+      lulus: c.lulus,
+      ...(c.lunak ? { lunak: true } : {}),
+      ...(manusia ? { teknis: c.judul } : {}),
+      screenshot,
+      bbox,
+      waktu: new Date().toISOString(),
+    })
+    this.save()
+    this.emit('change')
+  }
+
+  /** Nama elemen (aria-label atau teks pertama) untuk cek bersasaran id; cadangan: Harus terlihat langkah. */
+  private async uraianManusia(c: CatatanCek, harusTerlihat: string) {
+    let nama: string | null = null
+    if (this.page && c.sasaran)
+      nama = await cariLocator(this.page, c.sasaran)
+        .evaluate(
+          (el) => {
+            const a = el.getAttribute('aria-label') ?? el.getAttribute('title')
+            const t = (a ?? (el as HTMLElement).innerText ?? '')
+              .split('\n')
+              .map((x) => x.trim())
+              .find(Boolean)
+            return t ? t.slice(0, 60) : null
+          },
+          null,
+          { timeout: 1000 },
+        )
+        .catch(() => null)
+    const kata = {
+      terlihat: 'terlihat',
+      tidak_terlihat: 'tidak terlihat',
+      nonaktif: 'nonaktif',
+      nilai: '',
+    }[c.jenis]
+    if (c.jenis === 'nilai')
+      return { judul: nama ? `Nilai “${nama}”` : c.judul, diharapkan: c.diharapkan }
+    return nama
+      ? { judul: `Periksa “${nama}” ${kata}`, diharapkan: `“${nama}” ${kata}` }
+      : { judul: `Harus terlihat: ${harusTerlihat}`, diharapkan: harusTerlihat }
+  }
+
+  /**
+   * Lengkapi cek langkah `i` di akhir langkah: cek lulus menunjuk screenshot akhir langkah; "Harus
+   * terlihat" tanpa cek otomatis dicatat sebagai *tidak diperiksa otomatis* (lulus null, tidak dihitung);
+   * langkah gagal tanpa cek yang gagal (mis. klik tidak menemukan tombol) dicatat sebagai cek langkah gagal.
+   */
+  private lengkapiCek(i: number, gagal: boolean) {
+    const r = this.result.steps[i]
+    if (!r) return
+    r.cek ??= []
+    const n = i + 1
+    for (const c of r.cek) if (c.lulus && !c.screenshot) c.screenshot = r.shot
+    const otomatis = r.cek.filter((x) => x.sumber === 'cek' || x.sumber === 'aksi')
+    const waktu = new Date().toISOString()
+    if (gagal && !r.cek.some((x) => x.lulus === false && !x.lunak))
+      r.cek.push({
+        id: `${n}.${otomatis.length + 1}`,
+        langkah: n,
+        jenis: 'langkah',
+        sumber: 'langkah',
+        judul: 'Langkah selesai tanpa galat',
+        diharapkan: 'semua aksi langkah berjalan',
+        terlihat: r.error,
+        lulus: false,
+        screenshot: r.shot,
+        bbox: this.ctl.target?.bbox ?? null,
+        waktu,
+      })
+    if (!otomatis.length && !r.cek.some((x) => x.sumber === 'harus_terlihat'))
+      r.cek.unshift({
+        id: `${n}.0`,
+        langkah: n,
+        jenis: 'manual',
+        sumber: 'harus_terlihat',
+        judul: 'Harus terlihat',
+        diharapkan: r.expect,
+        terlihat: null,
+        lulus: null,
+        screenshot: r.shot,
+        bbox: null,
+        waktu,
+      })
   }
 
   private async become(who: PersonaId) {
@@ -302,6 +570,19 @@ export class Run extends EventEmitter {
     await lib.become(this.page, who, { caption: `Ganti akun: ${personaName(who)}` })
     this.persona = who
     await this.ctl.hold(BECOME_HOLD)
+  }
+
+  private opsiScreencast() {
+    return opsiScreencast(this.mutuLangsung, this.layarPanel)
+  }
+
+  /** Ganti mutu tampilan langsung / ukuran layar panel di tengah jalan (screenshot langkah tidak terpengaruh). */
+  async aturLangsung({ mutu, layar }: { mutu?: MutuLangsung; layar?: LayarPanel | null }) {
+    if (mutu) this.mutuLangsung = mutu
+    if (layar !== undefined) this.layarPanel = layar
+    if (!this.cdp) return
+    await this.cdp.send('Page.stopScreencast').catch(() => {})
+    await this.cdp.send('Page.startScreencast', this.opsiScreencast()).catch(() => {})
   }
 
   /** Tampilan langsung: screencast CDP, satu frame JPEG (base64) per event "frame". */
@@ -313,7 +594,11 @@ export class Run extends EventEmitter {
         this.emit('frame', f.data)
         cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {})
       })
-      await cdp.send('Page.startScreencast', SCREENCAST)
+      await cdp.send('Page.startScreencast', this.opsiScreencast())
+      const o = this.opsiScreencast()
+      this.log(
+        `Tampilan langsung ${this.mutuLangsung} · JPEG ${o.quality}, maks. ${o.maxWidth}×${o.maxHeight} (tidak disimpan)`,
+      )
     } catch (e) {
       this.log(`Tampilan langsung tidak tersedia: ${firstLine(e)}`)
     }
@@ -324,6 +609,7 @@ export class Run extends EventEmitter {
     if (this.result.status !== 'siap')
       throw new Error(`Jalan belum siap (status ${this.result.status})`)
     lib.setController(this.ctl)
+    lib.setTampilan(this.tampilan)
     const steps = this.sk.langkah
     if (from < 0 || from >= steps.length) throw new Error(`Langkah ${from + 1} tidak ada`)
     this.result.from_step = from
@@ -344,7 +630,9 @@ export class Run extends EventEmitter {
           )
         this.log(`Membawa data ke awal langkah ${from + 1} (capai)…`)
         try {
-          await this.aksiApi(capai, 'Capai')
+          await this.catatPra('Capai', from, () => this.aksiApi(capai, 'Capai'), {
+            snapshot: capai.length > 0,
+          })
         } catch (e) {
           throw new Error(`Capai langkah ${from + 1} gagal: ${firstLine(e)}`)
         }
@@ -383,7 +671,20 @@ export class Run extends EventEmitter {
         r.error = stopped ? null : firstLine(e)
         const a = this.result.current_aksi == null ? null : r.aksi[this.result.current_aksi]
         if (a && a.status === 'berjalan') a.status = stopped ? 'dihentikan' : 'gagal'
-        if (!stopped) r.shot = await this.shot(`${i + 1}-gagal`)
+        if (!stopped) {
+          r.shot = await this.shot(`${i + 1}-gagal`)
+          // Pohon aksesibilitas halaman saat gagal: bahan memperbaiki selector tanpa membuka trace.
+          const aria = await this.page
+            ?.locator('body')
+            .ariaSnapshot({ timeout: 5000 })
+            .catch(() => null)
+          if (aria && r.shot)
+            writeFileSync(
+              path.join(this.dir, r.shot.replace(/\.png$/, '.aria.txt')),
+              `${this.page?.url()}\n\n${aria}`,
+            )
+        }
+        if (!stopped) this.lengkapiCek(i, true)
         // Keadaan layar dan DB saat langkah ini berhenti ikut diperiksa dan diatribusikan ke langkah ini.
         if (!stopped) await this.periksaUiLangkah(i)
         await this.periksaLangkah(i)
@@ -404,10 +705,10 @@ export class Run extends EventEmitter {
         const h = this.result.pemeriksaan
         this.log(
           h.status === 'pelanggaran'
-            ? `Pemeriksaan: PELANGGARAN BARU di ${h.baru.map((b) => b.id).join(', ')}`
+            ? `Pemeriksaan DB: PELANGGARAN BARU di ${h.baru.map((b) => b.id).join(', ')}`
             : h.status === 'lulus'
-              ? `Pemeriksaan: semua invarian lulus (${h.diperiksa} diperiksa, ${h.snapshot?.jumlah ?? 0} snapshot, rata-rata ${h.snapshot?.rataMs ?? 0} ms)`
-              : `Pemeriksaan: ${h.status}${h.pesan ? ` — ${h.pesan}` : ''}`,
+              ? `Pemeriksaan DB: semua invarian lulus (${h.diperiksa} diperiksa, ${h.snapshot?.jumlah ?? 0} snapshot, rata-rata ${h.snapshot?.rataMs ?? 0} ms)`
+              : `Pemeriksaan DB: ${h.status}${h.pesan ? ` — ${h.pesan}` : ''}`,
         )
         this.save()
         this.emit('change')
@@ -468,6 +769,7 @@ export class Run extends EventEmitter {
     ]
     r.aksi = daftar.map((a) => ({ teks: uraiAksi(a, this.data), status: 'menunggu', ms: null }))
     this.stepIdx = i
+    this.ctl.keterangan = null
     this.pencatat.aktif(i + 1)
     this.result.current_step = i
     this.result.current_aksi = null
@@ -484,6 +786,12 @@ export class Run extends EventEmitter {
         sebagai: (who) => this.become(who),
       }),
     )
+    // "Jeda tiap langkah": kartu langkah baru sudah tampil (emit di atas); tunggu Lanjut sebelum aksi pertama.
+    if (this.ctl.jedaTiapLangkah) {
+      this.result.current_aksi = daftar.length ? 0 : null
+      this.emit('change')
+      await this.ctl.awalLangkah()
+    }
     const ts = Date.now()
     for (const [j, a] of daftar.entries()) {
       const ar = r.aksi[j]
@@ -493,15 +801,36 @@ export class Run extends EventEmitter {
       this.result.current_aksi = j
       this.emit('change')
       const ta = Date.now()
-      await jalankanAksi(a, env)
+      try {
+        await jalankanAksi(a, env)
+      } catch (e) {
+        if (e instanceof Stopped || this.ctl.stopRequested) throw e
+        // Galat menyebut aksi yang gagal, supaya penulis skenario tahu baris mana yang diperbaiki.
+        throw new Error(`aksi ${j + 1} (${ar.teks}): ${firstLine(e).replace(/^Error: /, '')}`)
+      }
       ar.ms = Date.now() - ta
       ar.status = 'selesai'
+      this.ctl.target = null
       this.emit('change')
     }
+    // Pemeriksaan UI terstruktur sesudah semua aksi (gagal non-lunak = langkah gagal).
+    if (s.cek?.length) {
+      this.sumberCek = 'cek'
+      try {
+        await jalankanCek(s.cek, env)
+      } finally {
+        this.sumberCek = 'aksi'
+      }
+    }
+    // Request tulis yang dikirim di ujung langkah (mis. klik lalu tahanan singkat) harus selesai di
+    // langkah ini: tercatat di sini dan perubahan datanya masuk snapshot langkah ini, bukan berikutnya.
+    const sisa = await this.pencatat.tungguTulis()
+    if (sisa) this.log(`Langkah ${i + 1}: ${sisa} request tulis belum selesai sesudah 10 dtk`)
     r.ms = Date.now() - ts
     r.status = 'lulus'
     this.result.current_aksi = null
     r.shot = await this.shot(`${i + 1}-${s.id}`)
+    this.lengkapiCek(i, false)
     this.saveData()
     this.save()
   }
@@ -513,7 +842,8 @@ export class Run extends EventEmitter {
   private async periksaLangkah(i: number) {
     const r = this.result.steps[i]
     if (!this.pemeriksa || !r || r.db) return
-    const mulai = this.pemeriksa.mulaiLangkah(i + 1)
+    const pd = this.pernyataanLangkah(i)
+    const mulai = this.pemeriksa.mulaiLangkah(i + 1, { pernyataan: pd.siap })
     if (!mulai) return
     r.db = {
       status: 'memeriksa',
@@ -525,6 +855,7 @@ export class Run extends EventEmitter {
     }
     this.emit('change')
     void mulai.selesai.then((db) => {
+      if (pd.galat.length) db.pernyataan = [...(db.pernyataan ?? []), ...pd.galat]
       r.db = db
       const n = i + 1
       if (db.status === 'pelanggaran')
@@ -585,6 +916,7 @@ export class Run extends EventEmitter {
 
   finish(status: RunStatus) {
     this.finished = true
+    this.ctl.keterangan = null
     this.result.ended_at = new Date().toISOString()
     this.log(`Jalan ${status}`)
     this.setStatus(status)
@@ -592,6 +924,7 @@ export class Run extends EventEmitter {
 
   private async close() {
     this.finished = true
+    lepasKunci(config.tenantSlug)
     await this.disposeApis()
     await Promise.race([
       this.cdp?.send('Page.stopScreencast').catch(() => {}),
@@ -638,6 +971,7 @@ export class Run extends EventEmitter {
 
   async stop() {
     if (['siap', 'idle'].includes(this.result.status)) {
+      lepasKunci(config.tenantSlug)
       this.finish('dihentikan')
       return
     }
@@ -694,4 +1028,9 @@ function lastIndex(r: RunResult): number | null {
   for (let i = r.steps.length - 1; i >= 0; i--)
     if (r.steps[i]?.status !== 'menunggu' && r.steps[i]?.status !== 'dilompati') return i
   return null
+}
+
+/** Sasaran memakai id/selector teknis (langsung atau di dalam `dalam`). */
+function pakaiId(s: SasaranUi): boolean {
+  return s.kartuPersetujuan !== undefined || (!!s.dalam && pakaiId(s.dalam))
 }

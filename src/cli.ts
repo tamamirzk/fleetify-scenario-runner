@@ -1,15 +1,17 @@
 // CLI Scenario Runner (tanpa panel). Format skenario sama dengan panel.
 //   bun run scenario <slug> [--headed] [--speed 1.5] [--from <n>] [--data <slug>/<waktu>] [--tanpa-pemeriksaan] [--tanpa-ui]
+//                           [--ukuran 1400x900] [--skala 0.8] [--mutu hemat|tajam]
 //   bun run scenario --list
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { Run } from './core/run.ts'
 import { bacaSemua, muatSkenario } from './core/scenarios.ts'
+import { bacaMutu, bacaTampilan, teksTampilan } from './core/tampilan.ts'
 import { teksDiff, teksHasil } from './pemeriksaan/banding.ts'
 import { teksHasilUi, teksUiLangkah } from './pemeriksaan/ui.ts'
 
 const USAGE =
-  'Pakai: bun run scenario <slug> [--headed] [--speed n] [--from n] [--data <slug>/<waktu>] [--tanpa-pemeriksaan] [--tanpa-ui] | --list'
+  'Pakai: bun run scenario <slug> [--headed] [--speed n] [--from n] [--data <slug>/<waktu>] [--tanpa-pemeriksaan] [--tanpa-ui] [--ukuran 1400x900] [--skala 0.8] [--mutu hemat|tajam] | --list'
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
@@ -22,6 +24,9 @@ const { values, positionals } = parseArgs({
     data: { type: 'string' },
     'tanpa-pemeriksaan': { type: 'boolean' },
     'tanpa-ui': { type: 'boolean' },
+    ukuran: { type: 'string' },
+    skala: { type: 'string' },
+    mutu: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
 })
@@ -46,11 +51,22 @@ if (!slug) {
 }
 
 const berkas = muatSkenario(slug)
+let tampilan: ReturnType<typeof bacaTampilan>
+let mutu: ReturnType<typeof bacaMutu>
+try {
+  tampilan = bacaTampilan(values.ukuran, values.skala)
+  mutu = bacaMutu(values.mutu)
+} catch (e) {
+  console.error((e as Error).message)
+  process.exit(2)
+}
 const run = new Run(berkas, {
   headed: !!values.headed,
   speed: Number(values.speed ?? 1),
   pemeriksaan: !values['tanpa-pemeriksaan'],
   ui: !values['tanpa-ui'],
+  tampilan,
+  mutuLangsung: mutu,
 })
 run.on('log', (l: string) => console.log(l))
 process.on('SIGINT', () => {
@@ -58,7 +74,7 @@ process.on('SIGINT', () => {
 })
 
 console.log(
-  `Skenario ${berkas.skenario.judul} (${berkas.path}, ${berkas.skenario.langkah.length} langkah) · ${values.headed ? 'headed' : 'headless'} · jalan ${run.runId}`,
+  `Skenario ${berkas.skenario.judul} (${berkas.path}, ${berkas.skenario.langkah.length} langkah) · ${values.headed ? 'headed' : 'headless'} · ${teksTampilan(tampilan)} · jalan ${run.runId}`,
 )
 await run.prepare({ fromRun: values.data })
 await run.start({ from: Math.max(0, Number(values.from ?? 1) - 1) })
