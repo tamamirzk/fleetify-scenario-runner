@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Scenario Runner · Dasbor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0c0c0e}
+a{color:rgba(255,255,255,.92);text-decoration:underline;text-decoration-color:rgba(255,255,255,.35);text-underline-offset:2px}
+a:hover{color:#ffffff;text-decoration-color:#ffffff}
+button{font:inherit;cursor:pointer}
+.panel{background:rgba(24,24,28,.62);border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.92);font-size:12px;white-space:nowrap}
+.chip:hover{background:rgba(255,255,255,.09)}
+.demo{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;border:1px dashed rgba(255,255,255,.22);color:rgba(255,255,255,.62);font-size:11px}
+.big{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-.01em}
+.eyebrow{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;margin:0}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.num{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.label{font-size:13px;color:rgba(255,255,255,.62)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.92);font-size:13px;font-weight:500;white-space:nowrap;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#ffffff;text-decoration:none}
+.btn-primary{background:rgba(255,255,255,.92);color:#000000;border-color:transparent}
+.btn-primary:hover{background:#ffffff;color:#000000}
+.nav{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;color:rgba(255,255,255,.92);font-size:15px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#ffffff;text-decoration:none}
+.sub{display:flex;align-items:center;height:34px;padding:0 10px 0 40px;border-radius:8px;color:rgba(255,255,255,.92);font-size:14px;text-decoration:none}
+.sub:hover{background:rgba(255,255,255,.05);color:#ffffff;text-decoration:none}
+.count{margin-left:auto;font-size:12px;color:rgba(255,255,255,.62)}
+.row{display:grid;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)}
+.tag{display:inline-flex;align-items:center;justify-content:center;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:600}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background-color: #0c0c0e; background-image: radial-gradient(40% 50% at 15% 18%, rgba(235,235,245,.07), transparent 70%), radial-gradient(38% 48% at 88% 80%, rgba(170,170,185,.07), transparent 70%); color: rgba(255,255,255,.92); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<aside style="flex: 1 1 250px; max-width: 100%; box-sizing: border-box; background: rgba(30,30,34,.45); border-right: 1px solid rgba(255,255,255,.08); padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 2px 4px 14px">
+<img src="../aset/logo/scenario-runner-app-icon.svg" alt="" width="30" height="30" style="display: block; width: 30px; height: 30px">
+<span style="font-size: 16px; letter-spacing: -0.02em; color: #f7f8fa; white-space: nowrap"><span style="font-weight: 500">Scenario</span> <span style="font-weight: 700">Runner</span></span>
+<button type="button" aria-label="Ciutkan menu" style="margin-left: auto; width: 32px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 4v16M16 10l-2 2 2 2"/></svg></button>
+</div>
+<nav aria-label="Menu utama" style="display: flex; flex-direction: column; gap: 2px">
+<a class="nav" href="Main.dc.html" style="background: rgba(255,255,255,.14)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dasbor</a>
+<a class="nav" href="Tugas-papan.dc.html">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Tugas saya</a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Skenario</a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>Sedang berjalan</a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat &amp; laporan</a>
+</nav>
+<p style="margin: 16px 10px 6px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.62)">Project</p>
+<div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; font-size: 15px; font-weight: 600"><span style="width: 22px; height: 22px; border-radius: 6px; background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; font-size: 11px">F</span>Fleetify v2<span class="count">7</span></div>
+<div style="display: flex; align-items: center; height: 30px; padding: 0 10px 0 28px; font-size: 11px; font-weight: 600; letter-spacing: .07em; color: rgba(255,255,255,.62)">UJI PER MODUL<span class="count">7</span></div>
+<a class="sub" href="#">Semua modul<span class="count">7</span></a>
+<a class="sub" href="#">Perbaikan Insidentil<span class="count">4</span></a>
+<a class="sub" href="#">Pengadaan &amp; Gudang<span class="count">1</span></a>
+<a class="sub" href="#">Approval &amp; Hak Akses<span class="count">1</span></a>
+<a class="sub" href="#">Lingkungan<span class="count">1</span></a>
+<a class="sub" href="#" style="color: rgba(255,255,255,.62)">+ Tambah modul</a>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 16px 10px 0; border-top: 1px solid rgba(255,255,255,.08)">
+<span style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,.62)">Sasaran</span>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span class="mono" style="font-size: 13px">localhost:5173</span><span style="font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16)">tenant mbl</span></div>
+<span style="font-size: 13px; color: #6ee787">✓ Pemeriksaan DB</span>
+<span style="font-size: 13px; color: #6ee787">✓ Pemeriksaan UI</span>
+<span style="font-size: 11px; color: rgba(255,255,255,.62)">Hanya server v2 lokal; diatur di .env.</span>
+<span style="display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12px; color: rgba(255,255,255,.62)"><span style="width: 7px; height: 7px; border-radius: 50%; background: #32d74b"></span>Sumber tugas Plane · fleetify/FMS</span>
+</div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 28px 48px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+<div>
+<p style="margin: 0 0 2px; font-size: 15px; color: rgba(255,255,255,.62)">Scenario Runner · operasional</p>
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Dasbor</h1>
+</div>
+<button class="btn" type="button">Segarkan</button>
+</header>
+
+<section class="panel" aria-labelledby="aktif-h" style="padding: 20px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>
+<h2 id="aktif-h" style="margin: 0; font-size: 15px; font-weight: 600">Sedang dikerjakan</h2>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 6px; background: rgba(10,132,255,.14); color: #8ec5ff; font-size: 11px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0a84ff"></span>1 tiket aktif</span>
+<a class="chip" href="Kerja.dc.html" style="margin-left: auto; text-decoration: none">Buka kerja <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<a class="chip mono" href="Kerja.dc.html" style="height: 22px; padding: 0 8px; font-size: 12px; text-decoration: none">FMS-87</a>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)">Plane: Ready in Staging and for Testing · diambil 16 Nov, 14.29</span>
+</div>
+<h3 style="margin: 0; font-size: 19px; font-weight: 600; line-height: 1.3; max-width: 780px">[MBL] Workshop - Konfigurasi Pilihan Pemeriksaan dan Penguncian Bagian pada Pembuatan Order Tidak Terjadwal</h3>
+</div>
+
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<li style="display: flex; flex-direction: column; gap: 10px">
+<span style="height: 40px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(10,132,255,.38), rgba(10,132,255,.06)); border-top: 2px solid #0a84ff; box-sizing: border-box"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span class="eyebrow" style="font-size: 11px; color: #8ec5ff">Tahap 1 · sekarang</span><span style="font-size: 13px; font-weight: 600">Diambil</span></span>
+</li>
+<li style="display: flex; flex-direction: column; gap: 10px">
+<span style="height: 40px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); border-top: 2px solid rgba(255,255,255,.22); box-sizing: border-box"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span class="eyebrow" style="font-size: 11px">Tahap 2 · berikutnya</span><span style="font-size: 13px; color: rgba(255,255,255,.92)">Rencana &amp; sebelum</span></span>
+</li>
+<li style="display: flex; flex-direction: column; gap: 10px">
+<span style="height: 40px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border-top: 2px solid rgba(255,255,255,.1); box-sizing: border-box"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span class="eyebrow" style="font-size: 11px">Tahap 3</span><span style="font-size: 13px; color: rgba(255,255,255,.62)">Dikerjakan</span></span>
+</li>
+<li style="display: flex; flex-direction: column; gap: 10px">
+<span style="height: 40px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border-top: 2px solid rgba(255,255,255,.1); box-sizing: border-box"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span class="eyebrow" style="font-size: 11px">Tahap 4</span><span style="font-size: 13px; color: rgba(255,255,255,.62)">Sesudah &amp; skenario</span></span>
+</li>
+<li style="display: flex; flex-direction: column; gap: 10px">
+<span style="height: 40px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border-top: 2px solid rgba(255,255,255,.1); box-sizing: border-box"></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><span class="eyebrow" style="font-size: 11px">Tahap 5</span><span style="font-size: 13px; color: rgba(255,255,255,.62)">Selesai</span></span>
+</li>
+</ol>
+
+<div style="display: flex; align-items: stretch; gap: 24px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08)">
+<div style="flex: 1 1 110px; display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Layar dipotret</span><span><span class="big">2</span> <span style="font-size: 12px; color: #6ee787">✓ sebelum</span></span></div>
+<div style="width: 1px; background: rgba(255,255,255,.1)"></div>
+<div style="flex: 1 1 110px; display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Query data</span><span><span class="big">2</span> <span style="font-size: 12px; color: #ff8a84">× 1 gagal</span></span></div>
+<div style="width: 1px; background: rgba(255,255,255,.1)"></div>
+<div style="flex: 1 1 110px; display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Commit</span><span><span class="big" style="color: rgba(255,255,255,.35)">–</span> <span style="font-size: 12px; color: rgba(255,255,255,.62)">belum ada branch</span></span></div>
+<div style="width: 1px; background: rgba(255,255,255,.1)"></div>
+<div style="flex: 1 1 110px; display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Skenario</span><span><span class="big" style="color: rgba(255,255,255,.35)">–</span> <span style="font-size: 12px; color: rgba(255,255,255,.62)">belum ditulis</span></span></div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08)">
+<span style="flex: none; width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,.06); display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span class="eyebrow" style="font-size: 11px">Langkah berikut</span>
+<span style="font-size: 13px">AI menulis rencana dan menentukan halaman serta data yang perlu dipotret.</span>
+</div>
+<button class="btn btn-primary" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>Salin perintah AI</button>
+</div>
+</div>
+
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.08)">
+<div style="position: relative; width: 260px; height: 140px; margin-top: 4px" role="img" aria-label="Kemajuan: tahap 1 dari 5, Diambil">
+<sc-for list="{{heroSeg}}" as="s" hint-placeholder-count="20">
+<span style="position: absolute; left: 50%; bottom: 0; width: 11px; height: 24px; margin-left: -5.5px; border-radius: 4px; transform-origin: 50% 100%; background: {{s.c}}; transform: {{s.t}}"></span>
+</sc-for>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 4px">
+<span class="big" style="font-size: 32px; line-height: 1">1<span style="font-size: 17px; color: rgba(255,255,255,.62); font-weight: 500"> / 5</span></span>
+<span class="eyebrow" style="font-size: 11px">Tahap kerja</span>
+</div>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: rgba(36,36,40,.96); border: 1px solid rgba(255,255,255,.14); font-size: 12px"><span style="color: #8ec5ff">Diambil</span><span style="color: rgba(255,255,255,.62)">· sejak 14.29</span></span>
+<div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between"><span class="eyebrow" style="font-size: 11px">Hasil kerja</span><span style="font-size: 12px; color: rgba(255,255,255,.62); font-variant-numeric: tabular-nums">1 / 6</span></div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px" aria-hidden="true"><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.82)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.08)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.08)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.08)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.08)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.08)"></span></div>
+<div style="display: flex; flex-direction: column">
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto; border-top: 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee787" stroke-width="2.4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Potret sebelum</span><span style="color: #6ee787; font-size: 12px">Ada</span></div>
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span>Rencana</span><span style="color: rgba(255,255,255,.62); font-size: 12px">Berikutnya</span></div>
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span style="color: rgba(255,255,255,.62)">Branch &amp; commit</span><span style="color: rgba(255,255,255,.62); font-size: 12px">Belum</span></div>
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span style="color: rgba(255,255,255,.62)">Potret sesudah</span><span style="color: rgba(255,255,255,.62); font-size: 12px">Belum</span></div>
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span style="color: rgba(255,255,255,.62)">Skenario uji</span><span style="color: rgba(255,255,255,.62); font-size: 12px">Belum</span></div>
+<div class="row" style="grid-template-columns: 14px minmax(0, 1fr) auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span style="color: rgba(255,255,255,.62)">Komentar Plane</span><span style="color: rgba(255,255,255,.62); font-size: 12px">Belum</span></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-label="Ringkasan angka" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px">
+
+<div class="panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span class="eyebrow" style="font-size: 11px">Tugas terbuka</span></div>
+<span class="big" style="font-size: 30px">55</span>
+<div style="display: flex; gap: 3px" aria-hidden="true"><span style="flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="flex: 4; height: 6px; border-radius: 3px; background: rgba(255,255,255,.5)"></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: rgba(255,255,255,.62)"><span>Semua di Ready in Staging</span><a class="chip" href="Tugas-papan.dc.html" style="height: 22px; padding: 0 8px; font-size: 11px; text-decoration: none">Plane ›</a></div>
+</div>
+
+<div class="panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="eyebrow" style="font-size: 11px">Belum ada skenario</span><span class="tag" style="margin-left: auto; background: rgba(255,159,10,.14); color: #ffb340">! Perhatian</span></div>
+<span class="big" style="font-size: 30px">43</span>
+<div style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.06); overflow: hidden" aria-hidden="true"><div style="width: 22%; height: 6px; border-radius: 3px; background: rgba(255,255,255,.5)"></div></div>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)">12 sudah punya · cakupan 22%</span>
+</div>
+
+<div class="panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg><span class="eyebrow" style="font-size: 11px">Kerja aktif</span></div>
+<span class="big" style="font-size: 30px">1</span>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px" aria-hidden="true"><span style="height: 6px; border-radius: 3px; background: #0a84ff"></span><span style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span><span style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"></span></div>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)"><span class="mono">FMS-87</span> · tahap 1 dari 5</span>
+</div>
+
+<div class="panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span class="eyebrow" style="font-size: 11px">Lulus · 7 hari</span><span class="tag" style="margin-left: auto; background: rgba(255,69,58,.14); color: #ff8a84">× 1 gagal</span></div>
+<span class="big" style="font-size: 30px">7<span style="font-size: 17px; color: rgba(255,255,255,.62); font-weight: 500">/10</span></span>
+<div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px" role="img" aria-label="7 lulus, 1 gagal, 2 dihentikan"><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="height: 6px; border-radius: 2px; background: #ff453a"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.14)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.14)"></span></div>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)"><span style="color: #6ee787">✓ 7</span> · <span style="color: #ff8a84">× 1</span> · ■ 2 dihentikan</span>
+</div>
+
+<div class="panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.7" aria-hidden="true"><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 8v12M7 13H3M21 13h-4M8 5l2 3M16 5l-2 3"/></svg><span class="eyebrow" style="font-size: 11px">Temuan bug</span><span class="tag" style="margin-left: auto; background: rgba(255,159,10,.14); color: #ffb340">! Perhatian</span></div>
+<span class="big" style="font-size: 30px">1</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px" role="img" aria-label="1 bug aplikasi dari 4 temuan"><span style="height: 6px; border-radius: 2px; background: #ff9f0a"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.14)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.14)"></span><span style="height: 6px; border-radius: 2px; background: rgba(255,255,255,.14)"></span></div>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)">dari 4 temuan tercatat</span>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+
+<section class="panel" aria-labelledby="jalan" style="flex: 3 1 560px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(255,255,255,.62)" aria-hidden="true"><rect x="3" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="3" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="3" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="3" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1"/></svg>
+<h2 id="jalan" style="margin: 0; font-size: 15px; font-weight: 600">Aktivitas jalan skenario</h2>
+<span class="demo">contoh data</span>
+<a class="chip" href="#" style="margin-left: auto; text-decoration: none">Lihat semua <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+</div>
+
+<div style="display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px">
+<span></span>
+<div style="display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 4px; font-size: 11px; color: rgba(255,255,255,.62); height: 14px">
+<sc-for list="{{months}}" as="m" hint-placeholder-count="24"><span style="white-space: nowrap; overflow: visible">{{m.label}}</span></sc-for>
+</div>
+<div style="display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); gap: 4px; font-size: 11px; color: rgba(255,255,255,.62)">
+<span style="display: flex; align-items: center">Sen</span><span></span><span style="display: flex; align-items: center">Rab</span><span></span><span style="display: flex; align-items: center">Jum</span><span></span><span style="display: flex; align-items: center">Min</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); grid-template-rows: repeat(7, auto); grid-auto-flow: column; gap: 4px" role="img" aria-label="Heatmap jumlah jalan skenario per hari, 24 minggu terakhir">
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="168">
+<div title="{{c.title}}" style="aspect-ratio: 1; border-radius: 3px; background: {{c.bg}}; box-shadow: {{c.ring}}; position: relative">
+<sc-if value="{{c.fail}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; right: 2px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: #ff453a"></span></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex-wrap: wrap; font-size: 11px; color: rgba(255,255,255,.62); margin-top: -6px">
+<span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 5px; height: 5px; border-radius: 50%; background: #ff453a"></span>ada jalan gagal</span>
+<span style="display: inline-flex; align-items: center; gap: 4px">Sedikit
+<span style="width: 11px; height: 11px; border-radius: 2px; background: rgba(255,255,255,.05)"></span><span style="width: 11px; height: 11px; border-radius: 2px; background: rgba(255,255,255,.14)"></span><span style="width: 11px; height: 11px; border-radius: 2px; background: rgba(255,255,255,.28)"></span><span style="width: 11px; height: 11px; border-radius: 2px; background: rgba(255,255,255,.5)"></span><span style="width: 11px; height: 11px; border-radius: 2px; background: rgba(255,255,255,.82)"></span>
+Banyak</span>
+</div>
+
+<div style="display: flex; align-items: stretch; gap: 24px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08)">
+<div style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px">
+<span class="eyebrow" style="font-size: 11px">Total jalan · 24 minggu</span>
+<span><span class="big" style="font-size: 30px">{{total}}</span> <span style="font-size: 12px; color: #6ee787">✓ {{passPct}} lulus</span></span>
+</div>
+<div style="width: 1px; background: rgba(255,255,255,.1)"></div>
+<div style="flex: 0 1 150px; display: flex; flex-direction: column; gap: 6px">
+<span class="eyebrow" style="font-size: 11px">Rentetan sekarang</span>
+<span class="big" style="font-size: 19px">{{streak}} hari</span>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)">Terpanjang {{longest}} hari</span>
+</div>
+<div style="flex: 0 1 150px; display: flex; flex-direction: column; gap: 6px">
+<span class="eyebrow" style="font-size: 11px">Hari tersibuk</span>
+<span class="big" style="font-size: 19px">{{peakDay}}</span>
+<span style="font-size: 12px; color: rgba(255,255,255,.62)">{{peakSum}} jalan tercatat</span>
+</div>
+</div>
+</section>
+
+<section class="panel" aria-labelledby="prod" style="flex: 2 1 380px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 10px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.6" aria-hidden="true"><path d="M5 20V11M10 20V5M15 20v-6M20 20V9"/></svg>
+<h2 id="prod" style="margin: 0; font-size: 15px; font-weight: 600">Produktivitas uji</h2>
+<span class="demo">contoh data</span>
+<button class="chip" type="button" style="margin-left: auto">{{pRange}} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Jalan selesai</span><span><span class="big">{{pTotal}}</span> <span style="font-size: 12px; color: {{pDeltaColor}}">{{pDelta}}</span></span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Lulus</span><span><span class="big">{{pPass}}</span> <span style="font-size: 12px; color: #6ee787">✓ {{pPassPct}}</span></span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span class="eyebrow" style="font-size: 11px">Rata-rata harian</span><span><span class="big">{{pAvg}}</span> <span style="font-size: 12px; color: rgba(255,255,255,.62)">jalan</span></span></div>
+</div>
+<div style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; margin-top: 34px">
+<div style="position: relative; height: 180px; font-size: 11px; color: rgba(255,255,255,.62); font-variant-numeric: tabular-nums">
+<span style="position: absolute; right: 0; top: -7px">{{pAxisMax}}</span><span style="position: absolute; right: 0; top: 83px">{{pAxisMid}}</span><span style="position: absolute; right: 0; bottom: -7px">0</span>
+</div>
+<div style="position: relative; height: 180px">
+<div style="position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed rgba(255,255,255,.08)"></div>
+<div style="position: absolute; left: 0; right: 0; top: 90px; border-top: 1px dashed rgba(255,255,255,.08)"></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid rgba(255,255,255,.12)"></div>
+<div style="position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 12px; padding: 0 4px">
+<sc-for list="{{pBars}}" as="b" hint-placeholder-count="7">
+<div style="flex: 1; position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end">
+<sc-if value="{{b.peak}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 50%; bottom: calc({{b.h}} + 10px); transform: translateX(-50%); width: 124px; padding: 8px 10px; border-radius: 10px; background: rgba(36,36,40,.96); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 12px 30px rgba(0,0,0,.45); font-size: 12px; line-height: 1.4; box-sizing: border-box; z-index: 1">
+<span style="color: rgba(255,255,255,.62)">{{b.date}}</span><br>
+<span style="font-size: 18px; font-weight: 600">{{b.n}}</span> jalan<br>
+<span style="color: #6ee787">✓ {{b.pass}}</span> · <span style="color: #ff8a84">× {{b.f}}</span>
+</div>
+</sc-if>
+<div style="height: {{b.h}}; border-radius: 6px 6px 2px 2px; background: {{b.bg}}; border-top: 2px solid {{b.cap}}; box-sizing: border-box"></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; font-size: 11px; color: rgba(255,255,255,.62); margin-top: -8px">
+<span></span>
+<div style="display: flex; gap: 12px; padding: 0 4px">
+<sc-for list="{{pBars}}" as="b" hint-placeholder-count="7"><span style="flex: 1; text-align: center; color: {{b.labelColor}}">{{b.day}}</span></sc-for>
+</div>
+</div>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; align-items: stretch">
+
+<section class="panel" aria-labelledby="grup" style="padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<h2 id="grup" class="eyebrow">Skenario per grup · 7</h2>
+<svg viewBox="0 0 420 250" style="width: 100%; height: auto; display: block" role="img" aria-label="Skenario per grup: Perbaikan Insidentil 4, Pengadaan dan Gudang 1, Approval dan Hak Akses 1, Lingkungan 1">
+<g fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1">
+<polygon points="210,45 290,125 210,205 130,125"/>
+<polygon points="210,65 270,125 210,185 150,125"/>
+<polygon points="210,85 250,125 210,165 170,125"/>
+<polygon points="210,105 230,125 210,145 190,125"/>
+<path d="M210 45V205M130 125H290"/>
+</g>
+<polygon points="210,45 230,125 210,145 190,125" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.85)" stroke-width="1.5"/>
+<g fill="rgba(255,255,255,0.92)"><circle cx="210" cy="45" r="3.5"/><circle cx="230" cy="125" r="3.5"/><circle cx="210" cy="145" r="3.5"/><circle cx="190" cy="125" r="3.5"/></g>
+<g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif" font-size="13" fill="rgba(255,255,255,0.75)">
+<text x="210" y="28" text-anchor="middle">Perbaikan Insidentil · 4</text>
+<text x="300" y="129" text-anchor="start">Pengadaan &amp; Gudang · 1</text>
+<text x="210" y="230" text-anchor="middle">Approval &amp; Hak Akses · 1</text>
+<text x="120" y="129" text-anchor="end">Lingkungan · 1</text>
+</g>
+</svg>
+</section>
+
+<section class="panel" aria-labelledby="temuan" style="padding: 20px; display: flex; flex-direction: column">
+<h2 id="temuan" class="eyebrow" style="margin-bottom: 10px">Temuan terbaru</h2>
+<div class="row" style="grid-template-columns: 82px minmax(0, 1fr) auto"><span style="color: #ff8a84">Bug aplikasi</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Perbaikan insidentil dari tiket…</span><span style="color: rgba(255,255,255,.62)">16 Nov 10.08</span></div>
+<div class="row" style="grid-template-columns: 82px minmax(0, 1fr) auto"><span style="color: rgba(255,255,255,.62)">Catatan</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Perbaikan insidentil dari tiket…</span><span style="color: rgba(255,255,255,.62)">16 Nov 10.22</span></div>
+<div class="row" style="grid-template-columns: 82px minmax(0, 1fr) auto"><span style="color: rgba(255,255,255,.62)">Catatan</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Pinjaman alat per peminjam</span><span style="color: rgba(255,255,255,.62)">13 Nov 08.59</span></div>
+<div class="row" style="grid-template-columns: 82px minmax(0, 1fr) auto"><span style="color: rgba(255,255,255,.62)">Catatan</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Siapkan zona waktu MBL</span><span style="color: rgba(255,255,255,.62)">13 Nov 08.58</span></div>
+</section>
+
+<section class="panel" aria-labelledby="aktivitas" style="padding: 20px; display: flex; flex-direction: column">
+<h2 id="aktivitas" class="eyebrow" style="margin-bottom: 10px">Aktivitas terbaru</h2>
+<div class="row" style="grid-template-columns: 48px minmax(0, 1fr) auto"><span class="tag" style="background: rgba(10,132,255,.18); color: #8ec5ff">Kerja</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><a class="mono" href="Kerja.dc.html">FMS-87</a> Potret sebelum</span><span style="color: rgba(255,255,255,.62)">14.30</span></div>
+<div class="row" style="grid-template-columns: 48px minmax(0, 1fr) auto"><span class="tag" style="background: rgba(10,132,255,.18); color: #8ec5ff">Kerja</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><a class="mono" href="Kerja.dc.html">FMS-87</a> Diambil dari Plane</span><span style="color: rgba(255,255,255,.62)">14.29</span></div>
+<div class="row" style="grid-template-columns: 48px minmax(0, 1fr) auto"><span class="tag" style="background: rgba(255,255,255,.08)">Jalan</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Perbaikan insidentil dari tiket…</span><span style="color: rgba(255,255,255,.62)">11.03</span></div>
+<div class="row" style="grid-template-columns: 48px minmax(0, 1fr) auto"><span class="tag" style="background: rgba(255,255,255,.08)">Jalan</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Perbaikan insidentil dari tiket…</span><span style="color: rgba(255,255,255,.62)">10.51</span></div>
+</section>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800}}'>
+class Component extends DCLogic {
+arc(n, r, colorAt) {
+const out = [];
+for (let i = 0; i < n; i++) {
+const a = -90 + (i * 180) / (n - 1);
+out.push({ i, c: colorAt(i), t: 'rotate(' + a.toFixed(2) + 'deg) translateY(-' + r + 'px)' });
+}
+return out;
+}
+rng(seed) {
+let s = seed;
+return () => {
+s = (s + 0x6d2b79f5) | 0;
+let t = Math.imul(s ^ (s >>> 15), 1 | s);
+t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+}
+days() {
+if (this._days) return this._days;
+const r = this.rng(87);
+const start = new Date(2026, 5, 8);
+const today = new Date(2026, 10, 16).getTime();
+const gap = new Date(2026, 10, 2).getTime();
+const out = [];
+for (let i = 0; i < 168; i++) {
+const d = new Date(2026, 5, 8 + i);
+const t = d.getTime();
+const wd = i % 7;
+let n = 0;
+let f = 0;
+const future = t > today;
+if (t === today) { n = 10; f = 1; }
+else if (!future && t < gap) {
+const x = r();
+if (wd >= 5) n = x < 0.72 ? 0 : 1 + Math.floor(r() * 2);
+else n = x < 0.12 ? 0 : 1 + Math.floor(r() * 8);
+if (n > 0 && r() < 0.13) f = 1;
+}
+out.push({ i, d, wd, n, f, future, today: t === today });
+}
+this._days = out;
+return out;
+}
+renderVals() {
+const dim = 'rgba(255,255,255,.08)';
+const heroSeg = this.arc(20, 102, (i) => (i < 4 ? '#0a84ff' : dim));
+const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const hari = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+const hariPanjang = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const ds = this.days();
+const lvl = (n) => (n === 0 ? 'rgba(255,255,255,.05)' : n <= 2 ? 'rgba(255,255,255,.14)' : n <= 4 ? 'rgba(255,255,255,.28)' : n <= 6 ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.82)');
+const cells = ds.map((x) => ({
+i: x.i,
+bg: x.future ? 'transparent' : lvl(x.n),
+ring: x.today ? '0 0 0 1.5px #0c0c0e, 0 0 0 3px #0a84ff' : 'none',
+fail: x.f > 0,
+title: hari[x.wd] + ', ' + x.d.getDate() + ' ' + mon[x.d.getMonth()] + ' · ' + (x.future ? 'belum terjadi' : x.n + ' jalan' + (x.f ? ' · ' + x.f + ' gagal' : ''))
+}));
+const months = [];
+for (let w = 0; w < 24; w++) {
+const m = ds[w * 7].d.getMonth();
+const prev = w === 0 ? -1 : ds[(w - 1) * 7].d.getMonth();
+months.push({ w, label: m !== prev ? mon[m] : '' });
+}
+const past = ds.filter((x) => !x.future);
+const total = past.reduce((a, x) => a + x.n, 0);
+const fails = past.reduce((a, x) => a + x.f, 0);
+let streak = 0;
+for (let k = past.length - 1; k >= 0 && past[k].n > 0; k--) streak++;
+let longest = 0;
+let run = 0;
+past.forEach((x) => { run = x.n > 0 ? run + 1 : 0; if (run > longest) longest = run; });
+const byWd = [0, 0, 0, 0, 0, 0, 0];
+past.forEach((x) => { byWd[x.wd] += x.n; });
+const peakWd = byWd.indexOf(Math.max.apply(null, byWd));
+
+let pw = 22;
+for (let w = 22; w >= 1; w--) {
+const s = ds.slice(w * 7, w * 7 + 7).reduce((a, x) => a + x.n, 0);
+if (s > 0) { pw = w; break; }
+}
+const week = ds.slice(pw * 7, pw * 7 + 7);
+const prevWeek = ds.slice((pw - 1) * 7, pw * 7);
+const pTotal = week.reduce((a, x) => a + x.n, 0);
+const pFail = week.reduce((a, x) => a + x.f, 0);
+const prevTotal = prevWeek.reduce((a, x) => a + x.n, 0);
+const delta = prevTotal ? Math.round(((pTotal - prevTotal) / prevTotal) * 100) : 0;
+const maxN = Math.max.apply(null, week.map((x) => x.n));
+const axisMax = Math.max(4, Math.ceil((maxN * 1.5) / 4) * 4);
+let peakIdx = 0;
+week.forEach((x, k) => { if (x.n > week[peakIdx].n) peakIdx = k; });
+const pBars = week.map((x, k) => {
+const peak = k === peakIdx;
+return {
+k,
+peak,
+n: x.n,
+f: x.f,
+pass: x.n - x.f,
+day: hari[x.wd],
+date: hariPanjang[x.wd] + ', ' + x.d.getDate() + ' ' + mon[x.d.getMonth()],
+h: Math.max(4, Math.round((x.n / axisMax) * 180)) + 'px',
+bg: peak ? 'linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,.06))' : 'linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.03))',
+cap: peak ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.4)',
+labelColor: peak ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.62)'
+};
+});
+const wkStart = week[0].d;
+const wkEnd = week[6].d;
+return {
+heroSeg,
+cells,
+months,
+total,
+passPct: total ? Math.round(((total - fails) / total) * 100) + '%' : '0%',
+streak,
+longest,
+peakDay: hariPanjang[peakWd],
+peakSum: byWd[peakWd],
+pBars,
+pRange: wkStart.getDate() + ' ' + mon[wkStart.getMonth()] + ' – ' + wkEnd.getDate() + ' ' + mon[wkEnd.getMonth()],
+pTotal,
+pPass: pTotal - pFail,
+pPassPct: pTotal ? Math.round(((pTotal - pFail) / pTotal) * 100) + '%' : '0%',
+pAvg: (pTotal / 7).toFixed(1).replace('.', ','),
+pDelta: (delta >= 0 ? '+' : '−') + Math.abs(delta) + '%',
+pDeltaColor: delta >= 0 ? '#6ee787' : '#ff8a84',
+pAxisMax: axisMax,
+pAxisMid: axisMax / 2
+};
+}
+}
+</script>
+</body>
+</html>

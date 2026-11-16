@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Kerja FMS-87 ponsel · terang</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0060c7;text-decoration:none}a:hover{color:#004a99;text-decoration:underline}
+button,input{font:inherit}
+button{cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.card{background:#ffffff;border:1px solid rgba(0,0,0,.08);border-radius:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 14px;border-radius:12px;border:1px solid rgba(0,0,0,.14);background:#ffffff;color:#1d1d1f;font-size:14px;font-weight:500;white-space:nowrap}
+.btn:hover{background:#f5f5f7;text-decoration:none}
+.btn-primary{background:#1d1d1f;color:#ffffff;border-color:#1d1d1f}
+.btn-primary:hover{background:#000000}
+.btn-team{border-color:#a78bfa;color:#5b21b6;background:#ffffff}
+.btn-team:hover{background:#f3effe}
+.seg{display:flex;padding:3px;border-radius:12px;background:#e9e9ee}
+.seg button{flex:1;height:38px;border-radius:9px;border:0;background:transparent;color:#3a3a3c;font-size:13px}
+.seg button[aria-pressed="true"]{background:#ffffff;color:#1d1d1f;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#5f5f66;font-weight:600;margin:0}
+input[type=range]{accent-color:#1d1d1f}
+</style>
+</helmet>
+<div style="width: 390px; height: 2080px; box-sizing: border-box; background: #f2f2f5; color: #1d1d1f; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-direction: column; gap: 14px; padding: 12px 16px 28px">
+
+<header style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Dasbor-ponsel-terang.dc.html" style="display: inline-flex; align-items: center; gap: 2px; height: 44px; padding-right: 8px; font-size: 15px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Dasbor</a>
+<span class="mono" style="margin-left: auto; font-size: 13px; color: #0060c7">FMS-87</span>
+</div>
+<span style="font-size: 12px; color: #5f5f66">Plane: Ready in Staging and for Testing</span>
+<h1 style="margin: 0; font-size: 19px; font-weight: 600; line-height: 1.3">[MBL] Workshop - Konfigurasi Pilihan Pemeriksaan dan Penguncian Bagian pada Pembuatan Order Tidak Terjadwal</h1>
+</header>
+
+<section class="card" aria-label="Tahap kerja" style="padding: 14px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px" aria-hidden="true">
+<span style="height: 6px; border-radius: 3px; background: #1e9e3e"></span><span style="height: 6px; border-radius: 3px; background: #1e9e3e"></span><span style="height: 6px; border-radius: 3px; background: #1e9e3e"></span><span style="height: 6px; border-radius: 3px; background: #0a6fdc"></span><span style="height: 6px; border-radius: 3px; background: #dcdce2"></span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-weight: 600; color: #0060c7">Tahap 4/5 · Sesudah &amp; skenario</span>
+<button type="button" style="height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); background: #ffffff; color: #1d1d1f; font-size: 12px">Pindah tahap</button>
+</div>
+<span style="font-size: 13px; color: #3a3a3c"><span style="color: #5f5f66">Berikutnya:</span> AI menulis skenario uji.</span>
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<button class="btn btn-primary" type="button" style="width: 100%"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>Salin perintah AI</button>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button class="btn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Potret ulang</button>
+<button class="btn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Segarkan</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 14px; border: 1px dashed #a78bfa; background: #f7f4ff">
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5b21b6"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.8c2.2.6 3.5 2.3 3.5 5.2"/></svg>Terlihat tim · Plane</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<a class="btn btn-team" href="Dialog-plane.dc.html">Komentar…</a>
+<a class="btn btn-team" href="Dialog-plane.dc.html">Pindah status…</a>
+</div>
+</div>
+</div>
+
+<section class="card" aria-labelledby="mk-layar" style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 id="mk-layar" style="margin: 0; font-size: 15px; font-weight: 600">Layar</h2>
+<span style="font-size: 12px; color: #5f5f66">2 halaman · 3 area berubah</span>
+</div>
+<div style="display: flex; gap: 6px; overflow-x: auto">
+<button type="button" aria-pressed="true" style="flex: none; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid #1d1d1f; background: #1d1d1f; color: #ffffff; font-size: 12px; display: inline-flex; align-items: center; gap: 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>daftar-order</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(0,0,0,.14); background: #ffffff; color: #1d1d1f; font-size: 12px; display: inline-flex; align-items: center; gap: 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>daftar-pemeriksaan-mekanik</button>
+</div>
+<div class="seg" aria-label="Mode perbandingan">
+<button type="button" aria-pressed="{{pSebelum}}" onClick="{{setSebelum}}">Sebelum</button>
+<button type="button" aria-pressed="{{pSesudah}}" onClick="{{setSesudah}}">Sesudah</button>
+<button type="button" aria-pressed="{{pGeser}}" onClick="{{setGeser}}">Geser</button>
+</div>
+
+<div style="position: relative; height: 250px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(0,0,0,.12); background: #f5f5f7">
+<div style="position: absolute; inset: 0; display: flex; background: #f5f5f7">
+<div style="width: 18%; background: #ffffff; border-right: 1px solid #e5e5ea; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box"><span style="width: 62%; height: 7px; border-radius: 2px; background: #facc15"></span><span style="width: 80%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 70%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 90%; height: 9px; border-radius: 3px; background: #fde68a"></span><span style="width: 64%; height: 4px; border-radius: 2px; background: #d1d1d6"></span></div>
+<div style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 7px; min-width: 0">
+<span style="width: 26%; height: 7px; border-radius: 2px; background: #3a3a3c"></span>
+<div style="display: flex; gap: 5px"><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span></div>
+<div style="display: flex; gap: 4px"><span style="width: 28px; height: 9px; border-radius: 3px; background: #fde68a"></span><span style="width: 22px; height: 9px; border-radius: 3px; background: #e5e5ea"></span><span style="width: 26px; height: 9px; border-radius: 3px; background: #e5e5ea"></span></div>
+<div style="background: #ffffff; border: 1px solid #e5e5ea; border-radius: 4px; padding: 0 6px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<div style="display: flex; gap: 5px; align-items: center; height: 16px; border-bottom: 1px solid #f0f0f3"><span style="width: 24%; height: 4px; border-radius: 2px; background: #a1a1aa"></span><span style="width: 12%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 16%; height: 6px; border-radius: 2px; background: #fed7aa"></span><span style="width: 18%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 12%; height: 6px; border-radius: 2px; background: {{r.tag}}"></span></div>
+</sc-for>
+</div>
+</div>
+</div>
+<div style="position: absolute; inset: 0; display: flex; background: #f5f5f7; clip-path: {{afterClip}}">
+<div style="width: 18%; background: #ffffff; border-right: 1px solid #e5e5ea; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box"><span style="width: 62%; height: 7px; border-radius: 2px; background: #facc15"></span><span style="width: 80%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 70%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 90%; height: 9px; border-radius: 3px; background: #fde68a"></span><span style="width: 64%; height: 4px; border-radius: 2px; background: #d1d1d6"></span></div>
+<div style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 7px; min-width: 0">
+<span style="width: 26%; height: 7px; border-radius: 2px; background: #3a3a3c"></span>
+<div style="display: flex; gap: 5px"><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span><span style="flex: 1; height: 24px; border-radius: 4px; background: #ffffff; border: 1px solid #e5e5ea"></span></div>
+<div style="display: flex; gap: 4px"><span style="width: 28px; height: 9px; border-radius: 3px; background: #fde68a"></span><span style="width: 22px; height: 9px; border-radius: 3px; background: #e5e5ea"></span><span style="width: 32px; height: 9px; border-radius: 3px; background: #bfdbfe; outline: 2px solid #ff9f0a; outline-offset: 2px"></span><span style="width: 26px; height: 9px; border-radius: 3px; background: #e5e5ea"></span></div>
+<div style="background: #ffffff; border: 1px solid #e5e5ea; border-radius: 4px; padding: 0 6px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<div style="display: flex; gap: 5px; align-items: center; height: 16px; border-bottom: 1px solid #f0f0f3"><span style="width: 24%; height: 4px; border-radius: 2px; background: #a1a1aa"></span><span style="width: 12%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 16%; height: 6px; border-radius: 2px; background: #fed7aa"></span><span style="width: 11%; height: 6px; border-radius: 2px; background: {{r.policy}}; outline: 1.5px solid #ff9f0a"></span><span style="width: 12%; height: 4px; border-radius: 2px; background: #d1d1d6"></span><span style="width: 12%; height: 6px; border-radius: 2px; background: {{r.tag}}"></span></div>
+</sc-for>
+</div>
+</div>
+</div>
+<sc-if value="{{isGeser}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; top: 0; bottom: 0; left: {{posPct}}; width: 2px; margin-left: -1px; background: #1d1d1f"></div>
+<div style="position: absolute; top: 50%; left: {{posPct}}; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; background: #1d1d1f; color: #ffffff; display: flex; align-items: center; justify-content: center" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></div>
+</sc-if>
+<span style="position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 6px; background: rgba(29,29,31,.85); color: #ffffff; font-size: 11px; font-weight: 600">{{frameLabel}}</span>
+</div>
+<sc-if value="{{isGeser}}" hint-placeholder-val="{{ false }}">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #3a3a3c">Posisi penggeser
+<input type="range" min="0" max="100" value="{{pos}}" onChange="{{onPos}}" style="width: 100%; height: 28px">
+</label>
+</sc-if>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: #fdf0dc; color: #9a5a00; font-size: 12px; font-weight: 500">1 · Tab status</span>
+<span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: #fdf0dc; color: #9a5a00; font-size: 12px; font-weight: 500">2 · Kolom tabel</span>
+</div>
+<button class="btn" type="button" style="width: 100%"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Ukuran penuh</button>
+</section>
+
+<section class="card" aria-labelledby="mk-data" style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 id="mk-data" style="margin: 0; font-size: 15px; font-weight: 600">Data</h2>
+<span style="font-size: 12px; color: #5f5f66">2 query · 1 gagal</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-weight: 600; font-size: 14px">order-kebijakan-pemeriksaan</span>
+<p style="margin: 0; font-size: 14px">Order <strong>REQUIRED</strong> naik dari 153 jadi 158, dan muncul kebijakan baru <strong>OPTIONAL</strong> dengan 4 order.</p>
+<div style="display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; overflow: hidden">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px 12px; background: #eefaf1">
+<span style="display: flex; flex-direction: column"><span style="font-size: 12px; font-weight: 600; color: #1e7f34; display: inline-flex; align-items: center; gap: 4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Baru</span><span class="mono" style="font-size: 13px">OPTIONAL</span></span>
+<span style="align-self: center; font-size: 14px"><span style="color: #5f5f66">—</span> → <strong>4</strong></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px 12px; background: #eef4fd; border-top: 1px solid rgba(0,0,0,.06)">
+<span style="display: flex; flex-direction: column"><span style="font-size: 12px; font-weight: 600; color: #0060c7; display: inline-flex; align-items: center; gap: 4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></svg>Berubah · jumlah</span><span class="mono" style="font-size: 13px">REQUIRED</span></span>
+<span style="align-self: center; font-size: 14px"><span style="color: #5f5f66; text-decoration: line-through">153</span> → <strong>158</strong></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px 12px; border-top: 1px solid rgba(0,0,0,.06)">
+<span style="display: flex; flex-direction: column"><span style="font-size: 12px; color: #5f5f66">Sama</span><span class="mono" style="font-size: 13px; color: #3a3a3c">SKIPPED</span></span>
+<span style="align-self: center; font-size: 14px; color: #3a3a3c">9 → 9</span>
+</div>
+</div>
+</div>
+<div style="height: 1px; background: rgba(0,0,0,.08)"></div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-weight: 600; font-size: 14px">salah-sengaja</span>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid #f3b4b4; background: #fdf1f1">
+<span style="font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4161c" stroke-width="2.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span style="color: #c4161c">Gagal</span> · tidak ada yang dibandingkan</span>
+<code class="mono" style="font-size: 12px; color: #a3121a; word-break: break-word">column "kolom_tidak_ada" does not exist</code>
+</div>
+</div>
+</section>
+
+<details class="card" style="padding: 14px">
+<summary style="cursor: pointer; font-size: 15px; font-weight: 600; min-height: 24px">Ringkasan &amp; riwayat</summary>
+<p style="margin: 10px 0 0; font-size: 13px; color: #3a3a3c">Branch, commit, waktu potret, dan linimasa perpindahan tahap.</p>
+</details>
+<details class="card" style="padding: 14px">
+<summary style="cursor: pointer; font-size: 15px; font-weight: 600; min-height: 24px">Rencana</summary>
+<p style="margin: 10px 0 0; font-size: 13px; color: #3a3a3c">Dokumen rencana dari AI (kerja/FMS-87/rencana.md).</p>
+</details>
+<details class="card" style="padding: 14px">
+<summary style="cursor: pointer; font-size: 15px; font-weight: 600; min-height: 24px">Tiket Plane</summary>
+<p style="margin: 10px 0 0; font-size: 13px; color: #3a3a3c">Salinan deskripsi tiket, hanya dibaca.</p>
+</details>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2080}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { mode: 'sesudah', pos: 50 };
+}
+renderVals() {
+const s = this.state;
+const tags = ['#bbf7d0', '#bbf7d0', '#fde68a', '#bbf7d0', '#e5e5ea', '#bbf7d0', '#fde68a', '#bbf7d0'];
+const pol = ['#bfdbfe', '#bfdbfe', '#e9d5ff', '#bfdbfe', '#bfdbfe', '#e9d5ff', '#bfdbfe', '#bfdbfe'];
+const rows = tags.map((t, i) => ({ i, tag: t, policy: pol[i] }));
+let clip = 'none';
+if (s.mode === 'sebelum') clip = 'inset(0 0 0 100%)';
+if (s.mode === 'geser') clip = 'inset(0 0 0 ' + s.pos + '%)';
+return {
+rows,
+pSebelum: s.mode === 'sebelum' ? 'true' : 'false',
+pSesudah: s.mode === 'sesudah' ? 'true' : 'false',
+pGeser: s.mode === 'geser' ? 'true' : 'false',
+setSebelum: () => this.setState({ mode: 'sebelum' }),
+setSesudah: () => this.setState({ mode: 'sesudah' }),
+setGeser: () => this.setState({ mode: 'geser', pos: 50 }),
+isGeser: s.mode === 'geser',
+afterClip: clip,
+pos: s.pos,
+posPct: s.pos + '%',
+onPos: (e) => this.setState({ pos: Number(e.target.value) }),
+frameLabel: s.mode === 'sebelum' ? 'SEBELUM · 14.30' : (s.mode === 'sesudah' ? 'SESUDAH · 16.12' : 'SEBELUM | SESUDAH')
+};
+}
+}
+</script>
+</body>
+</html>

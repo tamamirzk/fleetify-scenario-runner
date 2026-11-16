@@ -15,7 +15,8 @@
     "check:scenarios": "bun src/check-scenarios.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "riwayat": "bun src/riwayat.ts"
+    "riwayat": "bun src/riwayat.ts",
+    "kerja": "bun src/kerja.ts"
   },
   "dependencies": {
     "playwright": "1.64.0",

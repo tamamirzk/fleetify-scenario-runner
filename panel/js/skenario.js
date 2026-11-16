@@ -256,9 +256,10 @@ export function sidebar({
       )}</div>`
     : ''
   const totalProject = jumlahSemua
-  const kepala = `<div class="sb-kepala"><button type="button" class="btn icon sb-ciut-btn" id="sb-ciut" aria-expanded="${!ciut}" aria-label="${ciut ? 'Buka sidebar' : 'Ciutkan sidebar'}" title="${ciut ? 'Buka sidebar' : 'Ciutkan sidebar'} (tombol \\)">${ik(ciut ? 'M4 4h16v16H4zM9 4v16M13 9l3 3-3 3' : 'M4 4h16v16H4zM9 4v16M16 9l-3 3 3 3')}</button></div>`
+  const kepala = `<div class="sb-kepala"><a class="sb-merek" href="#/dasbor" aria-label="Scenario Runner — Dashboard"><img src="/aset/logo.svg" alt="" width="30" height="30"><span><span class="tipis">Scenario</span> <b>Runner</b></span></a><button type="button" class="btn icon sb-ciut-btn" id="sb-ciut" aria-expanded="${!ciut}" aria-label="${ciut ? 'Buka sidebar' : 'Ciutkan sidebar'}" title="${ciut ? 'Buka sidebar' : 'Ciutkan sidebar'} (tombol \\)">${ik(ciut ? 'M4 4h16v16H4zM9 4v16M13 9l3 3-3 3' : 'M4 4h16v16H4zM9 4v16M16 9l-3 3 3 3')}</button></div>`
   return `${kepala}<nav class="sb-nav" aria-label="Navigasi">
-      <span class="sb-item mati" aria-disabled="true" title="${ciut ? 'Tugas saya · belum tersedia' : 'Plane/Jira lewat MCP belum tersedia'}">${ik('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0')}<span>Tugas saya</span><small>belum tersedia</small></span>
+      ${nav('dasbor', '#/dasbor', 'Dashboard', ik('M4 13h6v7H4zM14 4h6v16h-6zM4 4h6v5H4z'))}
+      ${nav('tugas', '#/tugas', 'Tugas saya', ik('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0'))}
       ${nav('skenario', '#/', 'Skenario', ik('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'))}
       ${nav('jalan', '#/jalan', 'Sedang berjalan', ik('M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z'), jalanAktif ? '<span class="sb-dot" aria-label="ada jalan aktif"></span>' : '')}
       ${nav('riwayat', '#/riwayat', 'Riwayat & laporan', ik('M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM12 7v5l3 2'))}
@@ -273,10 +274,16 @@ export function sidebar({
 }
 
 /** Sumber tugas: satu baris redup; dibuka → rincian singkat. */
-function bagSumberTugas(tutup) {
+function bagSumberTugas(tutup, plane = null) {
   const buka = terbuka(tutup, 'mcp')
-  return `<section class="sb-bag sb-mcp">${tombolGrup('mcp', buka, '<span class="sb-titik" aria-hidden="true"></span><span>Sumber tugas Plane/Jira · belum tersedia</span>', 'sb-mcp-hd', 'Sumber tugas Plane/Jira')}
-      <div class="sb-isi sb-status dim" data-isi="mcp" id="${idGrup('mcp')}"${buka ? '' : ' hidden'}>Tugas dari Plane/Jira (MCP) belum tersambung; "Tugas saya" dan "Impor dari tugas" menyusul. Tiket tertaut tetap tampil sebagai chip dari field "tiket".</div></section>`
+  const judul = plane
+    ? `<span class="sb-titik ok" aria-hidden="true"></span><span>Sumber tugas Plane · ${esc(plane.workspace)}/${esc(plane.project)}</span>`
+    : '<span class="sb-titik" aria-hidden="true"></span><span>Sumber tugas Plane · belum tersambung</span>'
+  const isi = plane
+    ? `"Tugas saya" membaca isu ${esc(plane.project)} yang di-assign ke Anda di ${esc(hostDari(plane.url))} (hanya baca). Tiket tertaut tampil sebagai chip dari field "tiket".`
+    : 'Isi PLANE_API_KEY di .env lalu nyalakan ulang panel untuk menampilkan "Tugas saya". Tiket tertaut tetap tampil sebagai chip dari field "tiket".'
+  return `<section class="sb-bag sb-mcp">${tombolGrup('mcp', buka, judul, 'sb-mcp-hd', 'Sumber tugas Plane')}
+      <div class="sb-isi sb-status dim" data-isi="mcp" id="${idGrup('mcp')}"${buka ? '' : ' hidden'}>${isi}</div></section>`
 }
 
 /** Origin tanpa skema untuk tampilan ringkas, mis. "localhost:5173". */
@@ -299,6 +306,6 @@ export function sidebarBawah(info = null, tutup = new Set()) {
   return `<div class="sb-bawah" id="sb-bawah-modul">
     <section class="sb-bag" aria-labelledby="sb-h-sasaran">${tombolGrup('sasaran', buka, '<span class="sb-judul" id="sb-h-sasaran">Sasaran</span>', 'sb-bag-hd', 'Sasaran')}
       <div class="sb-isi sb-isi-bag" data-isi="sasaran" id="${idGrup('sasaran')}"${buka ? '' : ' hidden'}>${isi}</div></section>
-    ${bagSumberTugas(tutup)}
+    ${bagSumberTugas(tutup, info?.plane ?? null)}
   </div>`
 }

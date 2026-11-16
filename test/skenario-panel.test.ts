@@ -182,7 +182,7 @@ describe('daftar skenario', () => {
     expect(h).toContain('aria-label="Draf"')
   })
 
-  it('sidebar: Project › Modul dengan jumlah; Tugas saya belum tersedia (tanpa data palsu)', () => {
+  it('sidebar: Project › Modul dengan jumlah; Tugas saya menaut ke halaman Tugas', () => {
     const h = sidebar({
       halaman: 'skenario',
       project: {
@@ -194,7 +194,8 @@ describe('daftar skenario', () => {
       jumlahSemua: 25,
       jalanAktif: true,
     })
-    expect(h).toContain('Tugas saya</span><small>belum tersedia</small>')
+    expect(h).toContain('href="#/tugas"')
+    expect(h).not.toContain('belum tersedia</small>')
     expect(h).toContain('<span>Semua modul</span><span class="n">25</span>')
     expect(h).toContain(
       'href="#/modul/gudang" aria-current="true"><span>Gudang</span><span class="n">4</span>',

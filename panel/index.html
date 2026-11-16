@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fleetify Runner</title>
+<title>Scenario Runner</title>
+<link rel="icon" type="image/png" href="/aset/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/tokens.css">
@@ -17,6 +18,8 @@
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script type="module">
+import { halamanDasbor } from '/js/dasbor.js'
+import { halamanKerja } from '/js/kerja.js'
 import { aksiKini, chipJalan, chipTiketDaftar, cincinTarget, durasiPanjang, esc, jamDetik, kartuLangkah, kerangkaRunner, langkahKini, lunakGagal, petaLangkah, relLangkah } from '/js/komponen.js'
 import { cekTerpilih, chipTabel, kartuCek, kartuLangkahHasil, kartuRingkasan, kartuRingkasanDb, kartuTransaksi, kerangkaLaporanDb, kerangkaLaporanUi, kotakMerah, LEBAR_PANEL_DB, langkahAwal, REL_HASIL, relHasil, saringTransaksi, subJudul, tabelTransaksi } from '/js/laporan.js'
 import { menuKecepatan, muatPilihan, rasioLaptop, simpanPilihan, teksKecepatan, teksSkala } from '/js/pilihan.js'
@@ -26,6 +29,7 @@ import { isiKonfirmasi, lebihLama, ringkasHapus, teksByte } from '/js/riwayat.js
 import { balik, bukaAktif, grupAktif, lipatSemua, muatSidebar, simpanSidebar, terbuka } from '/js/sidebar-ciut.js'
 import { chipFilter, daftarSkenario, kelompokModul, LABEL_FILTER, labelNilai, metaSkenario, nilaiFilter, papanSkenario, saringSkenario, sidebar, sidebarBawah } from '/js/skenario.js'
 import { perluGeser } from '/js/tata-letak.js'
+import { halamanTugas } from '/js/tugas.js'
 
 // ── Utilitas ───────────────────────────────────────────────────────────────
 const $ = (s, r = document) => r.querySelector(s)
@@ -84,7 +88,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -122,7 +126,7 @@ function runStatusText(r) {
 const webSasaran = () => S.cfg?.web_url ?? ''
 const labelSasaran = () => `Server v2 lokal · tenant ${S.cfg?.tenant ?? '?'}`
 /** Info sasaran untuk blok bawah sidebar (tetap: server v2 lokal dari .env). */
-const infoSasaran = () => (S.cfg ? { web: S.cfg.web_url, tenant: S.cfg.tenant, db: !!S.cfg.pemeriksaan, ui: !!S.cfg.pemeriksaan_ui } : null)
+const infoSasaran = () => (S.cfg ? { web: S.cfg.web_url, tenant: S.cfg.tenant, db: !!S.cfg.pemeriksaan, ui: !!S.cfg.pemeriksaan_ui, plane: S.cfg.plane ?? null } : null)
 
 // ── Tata letak aplikasi (sidebar) untuk Skenario, Ringkasan, Riwayat ───────────────────────
 /** Pasang sidebar + area utama (sekali), perbarui sidebar; kembalikan elemen utama. */
@@ -226,6 +230,131 @@ function modal(judul, isi) {
 }
 
 // ── Layar Manajemen skenario: Project › Modul › Skenario ──────────────────────
+// ── Dasbor operasional ─────────────────────────────────────────────────────
+async function renderDasbor() {
+  const main = appMain('dasbor')
+  if (!S.dasbor) main.innerHTML = halamanDasbor(null)
+  try { S.dasbor = await api('/api/dasbor'); S.dasborGalat = null } catch (e) { S.dasborGalat = e.message }
+  if (route()[0] !== 'dasbor') return
+  gambarDasbor()
+}
+function gambarDasbor() {
+  const main = appMain('dasbor')
+  main.innerHTML = halamanDasbor(S.dasbor, { galat: S.dasborGalat, minggu: S.dbMinggu })
+  $('#db-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderDasbor() })
+  for (const b of main.querySelectorAll('[data-db-salin]')) b.addEventListener('click', () => salin(b.dataset.dbSalin, `Disalin: ${b.dataset.dbSalin}`))
+  for (const b of main.querySelectorAll('[data-db-minggu]')) b.addEventListener('click', () => {
+    const label = b.getAttribute('aria-label')
+    S.dbMinggu = Number(b.dataset.dbMinggu) || 0
+    gambarDasbor()
+    // Fokus tetap di tombol arah yang sama (atau pasangannya bila sudah di ujung).
+    const sama = $(`[data-db-minggu][aria-label="${label}"]`)
+    ;(sama && !sama.disabled ? sama : $('[data-db-minggu]:not(:disabled)'))?.focus()
+  })
+}
+
+// ── Kerja satu tiket ───────────────────────────────────────────────────────
+/**
+ * Dialog konfirmasi (elemen <dialog>, bukan window.confirm). `isi` = HTML; `kolom` opsional berupa
+ * {label, jenis: 'teks'|'pilih', opsi}. Resolve nilai kolom ('' bila tanpa kolom) atau null bila batal.
+ */
+function konfirmasi(judul, isi, { tombol = 'Kirim', kolom = null } = {}) {
+  return new Promise((resolve) => {
+    const d = document.createElement('dialog')
+    d.className = 'kj-dialog'
+    const k = kolom
+      ? kolom.jenis === 'pilih'
+        ? `<label class="kj-field"><span>${esc(kolom.label)}</span><select id="kj-nilai">${kolom.opsi.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>`
+        : `<label class="kj-field"><span>${esc(kolom.label)}</span><textarea id="kj-nilai" rows="3"></textarea></label>`
+      : ''
+    d.innerHTML = `<form method="dialog"><h2>${esc(judul)}</h2><div class="kj-dialog-isi">${isi}</div>${k}<div class="kj-dialog-aksi"><button class="btn tb" value="batal">Batal</button><button class="btn tb utama-tb" value="ok">${esc(tombol)}</button></div></form>`
+    document.body.append(d)
+    d.addEventListener('close', () => {
+      const v = d.returnValue === 'ok' ? ($('#kj-nilai', d)?.value ?? '') : null
+      d.remove()
+      resolve(v)
+    })
+    d.showModal()
+  })
+}
+function gambarKerja(key) {
+  const main = $('#app-main')
+  if (!main || route()[0] !== 'kerja' || route()[1] !== key) return
+  main.innerHTML = halamanKerja(S.kj, { galat: S.kjGalat, sibuk: S.kjSibuk })
+  const aksi = async (label, fn) => {
+    S.kjSibuk = label; S.kjGalat = null; gambarKerja(key)
+    try { S.kj = await fn() } catch (e) { S.kjGalat = e.message }
+    S.kjSibuk = null; gambarKerja(key)
+  }
+  $('#kj-salin')?.addEventListener('click', () => salin(`/kerjakan ${key}`, `Perintah disalin: /kerjakan ${key}`))
+  for (const f of ['sebelum', 'sesudah'])
+    $(`#kj-potret-${f}`)?.addEventListener('click', () => aksi(`Memotret ${f}`, () => api(`/api/kerja/${key}/potret`, { fase: f })))
+  $('#kj-ambil')?.addEventListener('click', () => aksi('Mengambil ulang dari Plane', () => api(`/api/kerja/${key}/ambil`, {})))
+  for (const b of main.querySelectorAll('[data-kj-tahap]'))
+    b.onclick = () => aksi('Memindah tahap', () => api(`/api/kerja/${key}/tahap`, { tahap: b.dataset.kjTahap, catatan: 'Dipindah dari panel' }))
+  $('#kj-komentar')?.addEventListener('click', async () => {
+    const v = await konfirmasi(`Kirim komentar ke ${key}?`, `<p>Komentar ini <b>terlihat oleh tim</b> di Plane. Pratinjau:</p><div class="kj-pratinjau">${S.kj.komentar}</div>`, { tombol: 'Kirim ke Plane', kolom: { label: 'Catatan tambahan (opsional)', jenis: 'teks' } })
+    if (v === null) return
+    aksi('Mengirim komentar ke Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'komentar', catatan: v, konfirmasi: true }))
+  })
+  $('#kj-status')?.addEventListener('click', async () => {
+    const opsi = (S.tugas?.status ?? []).map((s) => s.nama).filter((n) => n !== S.kj.kerja.plane.status)
+    const v = await konfirmasi(`Pindah status ${key} di Plane?`, `<p>Status sekarang: <b>${esc(S.kj.kerja.plane.status)}</b>. Perubahan ini <b>terlihat oleh tim</b>.</p>`, { tombol: 'Pindahkan', kolom: opsi.length ? { label: 'Status baru', jenis: 'pilih', opsi } : { label: 'Nama status baru (mis. Done)', jenis: 'teks' } })
+    if (!v) return
+    aksi('Memindah status di Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'status', status: v, konfirmasi: true }))
+  })
+}
+async function renderKerja(key) {
+  const main = appMain('kerja')
+  if (S.kj?.kerja?.key !== key) { S.kj = null; S.kjGalat = null; main.innerHTML = halamanKerja(null) }
+  try { S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`); S.kjGalat = null } catch (e) { S.kj = null; S.kjGalat = e.message }
+  // Daftar status Plane untuk dialog Pindah status (dari halaman Tugas; dimuat sekali bila belum).
+  if (!S.tugas && S.cfg?.plane) api('/api/tugas').then((t) => { S.tugas = t }).catch(() => {})
+  gambarKerja(key)
+}
+
+// ── Tugas saya (Plane) ─────────────────────────────────────────────────────
+/** Pilihan halaman Tugas (tampilan + saringan) per peramban; tanpa storage tetap jalan dengan bawaan. */
+const TG_KUNCI = 'sr.tugas'
+function muatPilihanTugas() {
+  try { return { tampilan: 'papan', saring: { skenario: 'semua', selesai: false }, ...JSON.parse(localStorage.getItem(TG_KUNCI) ?? '{}') } } catch { return { tampilan: 'papan', saring: { skenario: 'semua', selesai: false } } }
+}
+function simpanPilihanTugas() {
+  try { localStorage.setItem(TG_KUNCI, JSON.stringify(S.tgPilihan)) } catch {}
+}
+function gambarTugas() {
+  const main = $('#app-main')
+  if (!main || route()[0] !== 'tugas') return
+  const x = window.scrollX
+  const papan = main.querySelector('.tg-papan')?.scrollLeft ?? 0
+  main.innerHTML = halamanTugas(S.tugas, { galat: S.tugasGalat, ...S.tgPilihan })
+  const p2 = main.querySelector('.tg-papan')
+  if (p2) p2.scrollLeft = papan
+  window.scrollTo(x, window.scrollY)
+  $('#tg-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderTugas(true) })
+  for (const b of main.querySelectorAll('[data-tg-tampilan]')) b.onclick = () => { S.tgPilihan.tampilan = b.dataset.tgTampilan; simpanPilihanTugas(); gambarTugas() }
+  for (const b of main.querySelectorAll('[data-tg-saring]')) b.onclick = () => { S.tgPilihan.saring.skenario = b.dataset.tgSaring; simpanPilihanTugas(); gambarTugas() }
+  $('#tg-selesai')?.addEventListener('change', (e) => { S.tgPilihan.saring.selesai = e.target.checked; simpanPilihanTugas(); gambarTugas() })
+  for (const b of main.querySelectorAll('[data-tg-ambil]'))
+    b.onclick = async () => {
+      b.disabled = true
+      b.textContent = 'Mengambil…'
+      try { S.kj = await api(`/api/kerja/${b.dataset.tgAmbil}/ambil`, {}); location.hash = `#/kerja/${b.dataset.tgAmbil}` } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ambil' }
+    }
+}
+/** Halaman Tugas saya: GET /api/tugas; Segarkan melewati cache 60 detik di server. */
+async function renderTugas(segarkan = false) {
+  const main = appMain('tugas')
+  S.tgPilihan ??= muatPilihanTugas()
+  if (!S.tugas) main.innerHTML = halamanTugas(null, { memuat: true })
+  try {
+    S.tugas = await api(`/api/tugas${segarkan ? '?segarkan=1' : ''}`)
+    S.tugasGalat = null
+  } catch (e) {
+    S.tugasGalat = e.message
+  }
+  gambarTugas()
+}
 async function renderSkenario() {
   const [r, a, b] = route()
   S.modulAktif = r === 'modul' || r === 'task' ? a : null
@@ -1270,7 +1399,7 @@ async function renderRunDetail(id) {
 let lastPage = ''
 async function render() {
   const [r, a, b] = route()
-  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : 'skenario'
+  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'kerja' ? 'kerja' : 'skenario'
   if (page !== 'laporan') document.querySelector('.win')?.classList.remove('lapor')
   if (page === 'jalan' || page === 'laporan') document.querySelector('.win')?.classList.remove('sb-mode')
   if (page !== 'jalan') { closeLive(); S.frame = false; S.fokus = false; S.peta = false }
@@ -1285,6 +1414,9 @@ async function render() {
   else if (page === 'laporan') await renderLaporan(a, b, ...route().slice(3))
   else if (page === 'riwayat') await renderRiwayat(a && b ? `${a}/${b}` : null)
   else if (page === 'ringkasan') await renderRingkasan(a)
+  else if (page === 'tugas') await renderTugas()
+  else if (page === 'dasbor') await renderDasbor()
+  else if (page === 'kerja') await renderKerja(a)
   else await renderSkenario()
 }
 async function loadFiles(notify) {

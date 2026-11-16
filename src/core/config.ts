@@ -49,6 +49,15 @@ const Schema = z
     HEADLESS_HOLD: z.coerce.number().min(0).max(1).default(0.15),
     TEMUAN_FILE: z.string().default('docs/TEMUAN.md'),
     TICKET_URL: z.url().optional(),
+    /** Plane (sumber "Tugas saya"): API key pribadi; tanpa ini fitur tugas tidak aktif. */
+    PLANE_API_KEY: z.string().min(1).optional(),
+    /** Asal Plane dan workspace; bawaan diturunkan dari TICKET_URL (https://host/<workspace>/...). */
+    PLANE_URL: z.url().optional(),
+    PLANE_WORKSPACE: z.string().min(1).optional(),
+    /** Identifier project Plane (awalan kunci tiket), mis. FMS. */
+    PLANE_PROJECT: z.string().min(1).default('FMS'),
+    /** Nama status Plane yang dianggap selesai dan disembunyikan (dipisah koma); grup cancelled selalu disembunyikan. */
+    PLANE_STATUS_SELESAI: z.string().default('Done'),
     V2_BACKEND_DIR: z.string().optional(),
     /** DB Postgres lokal v2 untuk Pemeriksaan (hanya SELECT); pagar host ada di core/db.ts. */
     V2_DATABASE_URL: z.string().min(1).optional(),
@@ -95,6 +104,17 @@ export function loadConfig(env: Record<string, string | undefined>) {
     headlessHold: c.HEADLESS_HOLD,
     temuanFile: path.resolve(ROOT, c.TEMUAN_FILE),
     ticketUrl: c.TICKET_URL ?? null,
+    plane: {
+      apiKey: c.PLANE_API_KEY ?? null,
+      url: (c.PLANE_URL ?? (c.TICKET_URL ? new URL(c.TICKET_URL).origin : '')).replace(/\/$/, ''),
+      workspace:
+        c.PLANE_WORKSPACE ??
+        (c.TICKET_URL ? (new URL(c.TICKET_URL).pathname.split('/').filter(Boolean)[0] ?? '') : ''),
+      project: c.PLANE_PROJECT,
+      statusSelesai: c.PLANE_STATUS_SELESAI.split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    },
     v2BackendDir: c.V2_BACKEND_DIR ? path.resolve(ROOT, c.V2_BACKEND_DIR) : null,
     v2DatabaseUrl: c.V2_DATABASE_URL ?? null,
     v2Dir: c.V2_DIR ? path.resolve(ROOT, c.V2_DIR) : null,

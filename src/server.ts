@@ -7,11 +7,33 @@ import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
 import { config, ROOT } from './core/config.ts'
+import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
+import {
+  adaKerja,
+  bacaBerkasKerja,
+  bacaKerja,
+  bedaBaris,
+  daftarKerja,
+  FASE,
+  type Fase,
+  KERJA_DIR,
+  komentarHtml,
+  TAHAP,
+  type Tahap,
+} from './core/kerja.ts'
+import {
+  ambilKerja,
+  komentarKePlane,
+  potretKerja,
+  setTahap,
+  statusKePlane,
+} from './core/kerja-aksi.ts'
 import { jalanTerkunci, lepasKunci, pemegangLain } from './core/kunci.ts'
 import { susunDataLaporan } from './core/laporan-data.ts'
 import { closeSharedBrowser } from './core/lib.ts'
 import { personaName } from './core/personas.ts'
+import { planeDikonfigurasi, tugasSaya } from './core/plane.ts'
 import { modulProject, PROJECTS, statusSkenario } from './core/project.ts'
 import {
   bacaRetensi,
@@ -58,7 +80,7 @@ const PANEL_DIR = path.join(ROOT, 'panel')
 const BERKAS_RETENSI = path.join(config.cacheDir, 'riwayat-retensi.json')
 const PANEL = path.join(PANEL_DIR, 'index.html')
 /** Berkas statis panel: token, CSS komponen, modul JS (tanpa subfolder lain, tanpa titik ganda). */
-const ASET_PANEL = /^\/((?:js\/)?[a-z0-9-]+\.(?:css|js))$/
+const ASET_PANEL = /^\/((?:js\/|aset\/)?[a-z0-9-]+\.(?:css|js|svg|png))$/
 
 let current: Run | null = null
 let antrean: string[] = []
@@ -251,6 +273,7 @@ const TYPES: Record<string, string> = {
   '.md': 'text/markdown; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml',
 }
 
 function requireRun(): Run {
@@ -383,6 +406,103 @@ function hapusBanyak(body: Record<string, unknown>, jenis: 'jalan' | 'trace') {
   return { dihapus, gagal, byte }
 }
 
+/** Detail kerja untuk panel: keadaan, tiket, rencana, beda DB sebelum/sesudah per query. */
+function detailKerja(key: string) {
+  const k = bacaKerja(key)
+  const baca = (fase: Fase, file: string | null) => {
+    if (!file) return null
+    const f = path.join(KERJA_DIR, key, fase, file)
+    return existsSync(f)
+      ? (JSON.parse(readFileSync(f, 'utf8')).baris as Record<string, unknown>[])
+      : null
+  }
+  const db = k.target.db.map((t) => {
+    const a = baca('sebelum', k.potret.sebelum?.db.find((d) => d.nama === t.nama)?.file ?? null)
+    const b = baca('sesudah', k.potret.sesudah?.db.find((d) => d.nama === t.nama)?.file ?? null)
+    const beda = a && b ? bedaBaris(a, b) : null
+    const galat = (fase: Fase) => k.potret[fase]?.db.find((d) => d.nama === t.nama)?.galat ?? null
+    return {
+      nama: t.nama,
+      galatSebelum: galat('sebelum'),
+      galatSesudah: galat('sesudah'),
+      keterangan: t.keterangan ?? null,
+      sql: t.sql,
+      sebelum: a,
+      sesudah: b,
+      beda: beda && {
+        ditambah: beda.ditambah.length,
+        dihapus: beda.dihapus.length,
+        berubah: beda.berubah.length,
+        kolom: [...new Set(beda.berubah.flatMap((x) => x.kolom))],
+      },
+    }
+  })
+  return {
+    kerja: k,
+    tiket: bacaBerkasKerja(key, 'tiket.md'),
+    rencana: bacaBerkasKerja(key, 'rencana.md'),
+    db,
+    komentar: komentarHtml(k),
+  }
+}
+
+/** Satu potret per waktu dalam proses panel (di samping kunci tenant). */
+let potretBerjalan: string | null = null
+
+async function rutekerja(req: IncomingMessage, key: string, aksi: string | null) {
+  const body = req.method === 'POST' ? await readBody(req) : {}
+  if (req.method === 'GET' && !aksi) {
+    if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
+    return detailKerja(key)
+  }
+  if (req.method !== 'POST') throw new HttpError(405, 'Metode tidak didukung')
+  if (aksi === 'ambil') {
+    if (!planeDikonfigurasi()) throw new HttpError(400, 'Plane belum dikonfigurasi')
+    try {
+      await ambilKerja(key)
+    } catch (e) {
+      throw new HttpError(502, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'tahap') {
+    const t = String(body.tahap ?? '') as Tahap
+    if (!TAHAP.includes(t)) throw new HttpError(400, `Tahap tidak dikenal: ${t}`)
+    setTahap(key, t, String(body.catatan ?? ''))
+    return detailKerja(key)
+  }
+  if (aksi === 'potret') {
+    const f = String(body.fase ?? '') as Fase
+    if (!FASE.includes(f)) throw new HttpError(400, 'fase harus sebelum atau sesudah')
+    if (current && ACTIVE.includes(current.result.status))
+      throw new HttpError(409, 'Ada jalan skenario aktif; potret setelah jalan selesai')
+    if (potretBerjalan) throw new HttpError(409, `Sedang memotret ${potretBerjalan}`)
+    potretBerjalan = `${key} ${f}`
+    try {
+      await potretKerja(key, f, (l) => console.log(`Kerja ${key}: ${l}`))
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    } finally {
+      potretBerjalan = null
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'plane') {
+    // Menulis ke Plane terlihat tim: panel mengirim konfirmasi: true hanya dari dialog yang disetujui.
+    if (body.konfirmasi !== true) throw new HttpError(400, 'Butuh konfirmasi pengguna')
+    try {
+      if (body.jenis === 'komentar') await komentarKePlane(key, String(body.catatan ?? ''))
+      else if (body.jenis === 'status') await statusKePlane(key, String(body.status ?? ''))
+      else throw new HttpError(400, 'jenis harus komentar atau status')
+    } catch (e) {
+      if (e instanceof HttpError) throw e
+      throw new HttpError(502, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  throw new HttpError(404, 'Aksi kerja tidak dikenal')
+}
+
 type Handler = (body: Record<string, unknown>, url: URL) => Promise<unknown>
 const routes: Record<string, Handler> = {
   'GET /api/config': async () => ({
@@ -396,6 +516,10 @@ const routes: Record<string, Handler> = {
     // Pemeriksaan UI: false = V2_DIR kosong atau tidak memuat Frontend/scripts/check-design.ts.
     pemeriksaan_ui: new PemeriksaUi().dikonfigurasi,
     v2_dir: config.v2Dir,
+    // Sumber "Tugas saya": false = PLANE_API_KEY kosong.
+    plane: planeDikonfigurasi()
+      ? { url: config.plane.url, workspace: config.plane.workspace, project: config.plane.project }
+      : null,
   }),
   'GET /api/scenarios': async () => {
     const semua = bacaSemua()
@@ -408,6 +532,72 @@ const routes: Record<string, Handler> = {
     return {
       projects: PROJECTS.map((p) => ({ id: p.id, nama: p.nama, modul: modulProject(p, jumlah) })),
     }
+  },
+  /** Tugas saya dari Plane, tiap tugas dengan skenario yang menautkan tiketnya. ?segarkan=1 lewati cache. */
+  'GET /api/tugas': async (_b, url) => {
+    if (!planeDikonfigurasi()) return { dikonfigurasi: false, tugas: [] }
+    const semua = bacaSemua()
+    let hasil: Awaited<ReturnType<typeof tugasSaya>>
+    try {
+      hasil = await tugasSaya(url.searchParams.get('segarkan') === '1')
+    } catch (e) {
+      throw new HttpError(502, (e as Error).message)
+    }
+    const kerja = new Map(daftarKerja().map((k) => [k.key, k]))
+    return {
+      dikonfigurasi: true,
+      ...hasil,
+      tugas: hasil.tugas.map((t) => ({
+        ...t,
+        // Tahap Kerja bila tiket sudah diambil (panel menampilkan chip tahap, bukan tombol Ambil).
+        kerja: kerja.has(t.key) ? { tahap: kerja.get(t.key)?.tahap } : null,
+        skenario: semua
+          .filter((b) => b.skenario?.tiket.includes(t.key))
+          .map((b) => ({
+            slug: b.slug,
+            judul: b.skenario?.judul ?? b.slug,
+            task: b.task,
+            alur: infoAlur(b, semua),
+          })),
+      })),
+    }
+  },
+  'GET /api/kerja': async () => ({ kerja: daftarKerja() }),
+  /** Dasbor operasional: tugas Plane (cache), kerja, jalan, skenario, temuan, aktivitas. */
+  'GET /api/dasbor': async () => {
+    let tugas: TugasRingkas[] | null = null
+    let tugasGalat: string | null = null
+    if (planeDikonfigurasi())
+      try {
+        const semua = bacaSemua()
+        tugas = (await tugasSaya()).tugas.map((t) => ({
+          ...t,
+          skenario: semua.filter((b) => b.skenario?.tiket.includes(t.key)).map((b) => b.slug),
+        }))
+      } catch (e) {
+        tugasGalat = (e as Error).message
+      }
+    else tugasGalat = 'Plane belum dikonfigurasi'
+    const semua = bacaSemua()
+    const jumlah = new Map<string, number>()
+    for (const b of semua) jumlah.set(b.task, (jumlah.get(b.task) ?? 0) + 1)
+    const p = PROJECTS[0]
+    return susunDasbor({
+      tugas,
+      tugasGalat,
+      kerja: daftarKerja(),
+      jalan: listRuns(),
+      skenario: semua.map((b) => {
+        const k = kartu(b, semua)
+        return { slug: k.slug, task: k.task, valid: k.valid, status: k.status }
+      }),
+      modul: p ? modulProject(p, jumlah) : [],
+      temuan: existsSync(config.temuanFile)
+        ? bacaTemuan(readFileSync(config.temuanFile, 'utf8'))
+        : [],
+      adaRencana: (key) => bacaBerkasKerja(key, 'rencana.md') !== null,
+      memotret: potretBerjalan,
+    })
   },
   'GET /api/state': async () => ({ ...snapshot(), logs }),
   'GET /api/runs': async (_b, url) => listRuns(url.searchParams.get('scenario') || undefined),
@@ -608,6 +798,19 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       TYPES[path.extname(file)] ?? 'application/octet-stream',
     )
   }
+  if (req.method === 'GET' && url.pathname.startsWith('/kerja/')) {
+    const file = path.resolve(KERJA_DIR, decodeURIComponent(url.pathname.slice('/kerja/'.length)))
+    if (!file.startsWith(KERJA_DIR + path.sep) || !existsSync(file))
+      return send(res, 404, { error: 'Tidak ada' })
+    return send(
+      res,
+      200,
+      readFileSync(file),
+      TYPES[path.extname(file)] ?? 'application/octet-stream',
+    )
+  }
+  const mk = url.pathname.match(/^\/api\/kerja\/([A-Z]+-\d+)(?:\/([a-z]+))?$/)
+  if (mk?.[1]) return send(res, 200, await rutekerja(req, mk[1], mk[2] ?? null))
   let m = url.pathname.match(/^\/api\/scenarios\/([a-z0-9-]+)$/)
   if (req.method === 'GET' && m?.[1]) return send(res, 200, detail(bacaSatu(m[1])))
   m = url.pathname.match(/^\/api\/runs\/([a-z0-9-]+\/[0-9T-]+)$/)

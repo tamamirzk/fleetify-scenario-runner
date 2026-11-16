@@ -113,3 +113,84 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+/* Scenario Runner — token tambahan untuk Dasbor baru.
+   Melengkapi tokens.css asli; nilai lama tidak diubah.
+   Mode gelap (bawaan). Nilai mode terang di bawah adalah usulan awal. */
+
+:root {
+  /* Sorot tipis di tepi atas panel (efek kaca) */
+  --sr-panel-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* Chip kecil di kepala kartu ("Lihat semua ›", pemilih minggu) */
+  --sr-chip-height: 26px;
+  --sr-chip-radius: 8px;
+  --sr-chip-bg: rgba(255, 255, 255, 0.04);
+  --sr-chip-bg-hover: rgba(255, 255, 255, 0.09);
+
+  /* Label kapital kecil di atas angka */
+  --sr-label-size: 11px;
+  --sr-label-tracking: 0.07em;
+
+  /* Angka besar di kartu */
+  --sr-number-xl: 30px;
+
+  /* Tooltip grafik */
+  --sr-tooltip-bg: rgba(36, 36, 40, 0.96);
+  --sr-tooltip-border: rgba(255, 255, 255, 0.14);
+  --sr-tooltip-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+
+  /* Heatmap: 0 · 1–2 · 3–4 · 5–6 · ≥7 jalan per hari */
+  --sr-heat-0: rgba(255, 255, 255, 0.05);
+  --sr-heat-1: rgba(255, 255, 255, 0.14);
+  --sr-heat-2: rgba(255, 255, 255, 0.28);
+  --sr-heat-3: rgba(255, 255, 255, 0.5);
+  --sr-heat-4: rgba(255, 255, 255, 0.82);
+
+  /* Batang grafik */
+  --sr-bar-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
+  --sr-bar-cap: rgba(255, 255, 255, 0.4);
+  --sr-bar-peak-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.06));
+  --sr-bar-peak-cap: rgba(255, 255, 255, 0.95);
+  --sr-grid-line: rgba(255, 255, 255, 0.08);
+
+  /* Penanda tahap kerja (batang 40 px di panel Sedang dikerjakan) */
+  --sr-stage-current: linear-gradient(180deg, rgba(10, 132, 255, 0.38), rgba(10, 132, 255, 0.06));
+  --sr-stage-next: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  --sr-stage-todo: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  --sr-stage-done: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04));
+
+  /* Segmen gauge */
+  --sr-gauge-on: rgba(255, 255, 255, 0.7);
+  --sr-gauge-current: var(--sr-info);
+  --sr-gauge-off: rgba(255, 255, 255, 0.08);
+
+  /* Aksi yang terlihat tim (tulis ke Plane) — untuk halaman Kerja dan dialog */
+  --sr-team: #6d4aff;
+  --sr-team-text: #d8ccff;
+  --sr-team-line: rgba(167, 139, 250, 0.5);
+  --sr-team-bg: rgba(109, 74, 255, 0.12);
+}
+
+[data-theme="light"] {
+  --sr-panel-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --sr-chip-bg: rgba(0, 0, 0, 0.03);
+  --sr-chip-bg-hover: rgba(0, 0, 0, 0.06);
+  --sr-tooltip-bg: rgba(255, 255, 255, 0.98);
+  --sr-tooltip-border: rgba(0, 0, 0, 0.1);
+  --sr-tooltip-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --sr-heat-0: rgba(0, 0, 0, 0.05);
+  --sr-heat-1: rgba(0, 0, 0, 0.14);
+  --sr-heat-2: rgba(0, 0, 0, 0.28);
+  --sr-heat-3: rgba(0, 0, 0, 0.5);
+  --sr-heat-4: rgba(0, 0, 0, 0.8);
+  --sr-bar-fill: linear-gradient(180deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.03));
+  --sr-bar-cap: rgba(0, 0, 0, 0.35);
+  --sr-bar-peak-fill: linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.06));
+  --sr-bar-peak-cap: rgba(0, 0, 0, 0.9);
+  --sr-grid-line: rgba(0, 0, 0, 0.08);
+  --sr-gauge-on: rgba(0, 0, 0, 0.7);
+  --sr-gauge-off: rgba(0, 0, 0, 0.08);
+  --sr-team-text: #5b21b6;
+  --sr-team-bg: #f3effe;
+}

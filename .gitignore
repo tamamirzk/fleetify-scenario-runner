@@ -1,6 +1,8 @@
 node_modules/
 runs/
+kerja/
 .cache/
 .env
 docs/TEMUAN.md
 .DS_Store
+.claude/settings.local.json

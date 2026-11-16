@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Scenario Runner · Tugas saya</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0c0c0e}
+a{color:#8ec5ff;text-decoration:none}a:hover{color:#b9dbff;text-decoration:underline}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.card{background:#16161a;border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#a1a1aa;font-weight:600;margin:0}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#ececef;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{background:rgba(255,255,255,.09);text-decoration:none}
+.btn-sm{height:32px;padding:0 12px;font-size:12px}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.seg button{height:30px;padding:0 14px;border-radius:999px;border:0;background:transparent;color:#c7c7cc;font-size:13px}
+.seg button[aria-pressed="true"]{background:#ececef;color:#0c0c0e;font-weight:600}
+.nav{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;color:#c7c7cc;font-size:14px}
+.nav:hover{background:rgba(255,255,255,.05);color:#ececef;text-decoration:none}
+.tcard{background:#1b1b20;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tcard:hover{border-color:rgba(255,255,255,.18)}
+.title{margin:0;font-size:13px;font-weight:500;line-height:1.4;color:#ececef;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #0c0c0e; color: #ececef; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<aside style="flex: 1 1 232px; max-width: 100%; box-sizing: border-box; background: #111114; border-right: 1px solid rgba(255,255,255,.07); padding: 20px 14px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<img src="../aset/logo/scenario-runner-app-icon.svg" alt="" width="30" height="30" style="display: block; width: 30px; height: 30px">
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 15px; letter-spacing: -0.02em; color: #f7f8fa; white-space: nowrap"><span style="font-weight: 500">Scenario</span> <span style="font-weight: 700">Runner</span></span>
+<span style="font-size: 11px; color: #a1a1aa">Fleetify v2 · internal</span>
+</div>
+</div>
+<nav aria-label="Menu utama" style="display: flex; flex-direction: column; gap: 2px">
+<a class="nav" href="Main.dc.html">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dasbor</a>
+<a class="nav" href="Tugas-papan.dc.html" style="background: rgba(255,255,255,.09); color: #ffffff">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Tugas saya<span style="margin-left: auto; font-size: 12px; color: #a1a1aa">55</span></a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Skenario<span style="margin-left: auto; font-size: 12px; color: #a1a1aa">7</span></a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>Sedang berjalan</a>
+<a class="nav" href="#">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat &amp; laporan</a>
+</nav>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px 10px 0; border-top: 1px solid rgba(255,255,255,.07)">
+<p class="eyebrow">Sumber tugas</p>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c7c7cc"><span style="width: 8px; height: 8px; border-radius: 50%; background: #32d74b"></span>Plane · fleetify/FMS</span>
+<span style="font-size: 11px; color: #a1a1aa">Hanya dibaca. Diambil 14.31.</span>
+</div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 40px 48px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+<div>
+<p style="margin: 0 0 4px; color: #a1a1aa; font-size: 13px">Plane · Fleetify v2 · rizky.tamami</p>
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em">Tugas saya</h1>
+</div>
+<dl style="display: flex; gap: 28px; margin: 0">
+<div><dt style="font-size: 12px; color: #a1a1aa">Terbuka</dt><dd style="margin: 0; font-size: 22px; font-weight: 600">55</dd></div>
+<div><dt style="font-size: 12px; color: #a1a1aa">Punya skenario</dt><dd style="margin: 0; font-size: 22px; font-weight: 600">12</dd></div>
+<div><dt style="font-size: 12px; color: #a1a1aa">Belum ada skenario</dt><dd style="margin: 0; font-size: 22px; font-weight: 600; color: #ffb340">43</dd></div>
+</dl>
+</header>
+
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<div class="seg" aria-label="Tampilan">
+<button type="button" aria-pressed="true">Papan</button>
+<button type="button" aria-pressed="false">Daftar</button>
+</div>
+<div class="seg" aria-label="Saringan skenario">
+<button type="button" aria-pressed="true">Semua</button>
+<button type="button" aria-pressed="false">Punya skenario</button>
+<button type="button" aria-pressed="false">Belum ada skenario</button>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); flex: 1 1 200px; min-width: 180px; max-width: 320px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Cari tugas</span>
+<input type="search" placeholder="Cari kunci atau judul" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #ececef; font-size: 13px">
+</label>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c7c7cc">Kelompokkan
+<select style="height: 34px; padding: 0 10px; border-radius: 8px; background: #1b1b20; color: #ececef; border: 1px solid rgba(255,255,255,.12)">
+<option>Skenario</option>
+<option>Modul (prefiks judul)</option>
+<option>Tanpa kelompok</option>
+</select>
+</label>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 12px">
+<label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c7c7cc"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #ececef">Done &amp; Cancelled</label>
+<button class="btn" type="button">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Segarkan</button>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #a1a1aa">
+<span>Status kosong, diciutkan:</span>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.18); background: transparent; color: #c7c7cc; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>Backlog 0</button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.18); background: transparent; color: #c7c7cc; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>Todo 0</button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.18); background: transparent; color: #c7c7cc; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="#ffb340" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="#ffb340"/></svg>In Progress 0</button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.18); background: transparent; color: #c7c7cc; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="#8ec5ff" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="#8ec5ff"/></svg>Code Complete 0</button>
+</div>
+
+<section style="border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: #131316; padding: 16px; display: flex; flex-direction: column; gap: 18px" aria-labelledby="kolom-ready">
+<div style="display: flex; align-items: center; gap: 10px">
+<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0a84ff"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#ffffff" stroke-width="2.4" fill="none"/></svg>
+<h2 id="kolom-ready" style="margin: 0; font-size: 14px; font-weight: 600">Ready in Staging and for Testing</h2>
+<span style="font-size: 13px; color: #a1a1aa">55</span>
+<span style="margin-left: auto; font-size: 12px; color: #a1a1aa">Satu-satunya status berisi, jadi kolom ini dilebarkan jadi kisi</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-expanded="true" style="display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #ececef; padding: 0; font-size: 13px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>Sedang dikerjakan</button>
+<span style="font-size: 12px; color: #a1a1aa">1</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px">
+<article class="tcard" style="border-color: rgba(10,132,255,.45); background: #17202c">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-87</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Konfigurasi Pilihan Pemeriksaan dan Penguncian Bagian pada Pembuatan Order Tidak Terjadwal</h3>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #c7c7cc; min-width: 0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Tiket sampai Order dan pemeriksaan ulang</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)">
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px" aria-hidden="true">
+<span style="height: 5px; border-radius: 3px; background: #0a84ff"></span><span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,.12)"></span><span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,.12)"></span><span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,.12)"></span><span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,.12)"></span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-size: 12px; color: #8ec5ff; font-weight: 600">Tahap 1/5 · Diambil</span>
+<a class="btn btn-sm" href="Kerja.dc.html">Buka kerja</a>
+</div>
+</div>
+</article>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-expanded="true" style="display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #ececef; padding: 0; font-size: 13px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>Punya skenario</button>
+<span style="font-size: 12px; color: #a1a1aa">12</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px">
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-31</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Persetujuan Manual dan Pencegahan Lolos Otomatis pada Review Hasil Sesi Kerja</h3>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #c7c7cc; min-width: 0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Sesi kerja ditolak lalu diulang</span></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-32</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Penyimpanan Riwayat Sesi Pengerjaan dan Versi Perubahan Data pada Work Order</h3>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #c7c7cc; min-width: 0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Sesi kerja ditolak lalu diulang</span></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<button type="button" style="border: 1px dashed rgba(255,255,255,.16); border-radius: 12px; background: transparent; color: #c7c7cc; font-size: 13px; min-height: 120px">Tampilkan 9 lainnya</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-expanded="true" style="display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #ececef; padding: 0; font-size: 13px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>Belum ada skenario</button>
+<span style="font-size: 12px; color: #ffb340">43</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px">
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-10</a>
+<span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); font-size: 11px; color: #c7c7cc"><span style="width: 6px; height: 6px; border-radius: 50%; background: #32d74b"></span>Tested</span>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[FLTY] Maintenance Schedule Engine: Tangga Status Prakiraan PB (Meter &amp; Hari)</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-11</a>
+<span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); font-size: 11px; color: #c7c7cc"><span style="width: 6px; height: 6px; border-radius: 50%; background: #32d74b"></span>Tested</span>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[FLTY] Maintenance Schedule View: Kuota Section Perlu Perhatian &amp; Kecepatan Data Jadwal</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-12</a>
+<span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); font-size: 11px; color: #c7c7cc"><span style="width: 6px; height: 6px; border-radius: 50%; background: #32d74b"></span>Tested</span>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[FLTY] Order PB: Penggabungan Dua Jadwal Servis Sekaligus (Coverage Dual-Interval)</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-13</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[FLTY] Order Execution: Pemisahan Alur Kerja SPK Manual vs Proses WO Fleetify</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-30</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Pemisahan Peran Pelaksana, Pencatat, dan Penyetuju serta Riwayat Mekanik</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-33</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Pemisahan Tampilan Riwayat Sesi Pengerjaan dan Hasil Perbaikan Final pada Detail Work Order</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<article class="tcard">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="#" class="mono" style="font-size: 12px; color: #8ec5ff">FMS-36</a>
+<svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label="Prioritas dari Plane" style="margin-left: auto"><rect x="2" y="9" width="3" height="5" rx="1" fill="#ff9f0a"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#ff9f0a"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#ff9f0a"/></svg>
+</div>
+<h3 class="title">[MBL] Workshop - Otomasi Pembuatan Tugas Verifikasi Akhir WO Berdasarkan Evaluasi Kesiapan Sistem</h3>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08)"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #ffb340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/></svg>Belum ada skenario</span><button class="btn btn-sm" type="button">Ambil</button></div>
+</article>
+<button type="button" style="border: 1px dashed rgba(255,255,255,.16); border-radius: 12px; background: transparent; color: #c7c7cc; font-size: 13px; min-height: 120px">Tampilkan 36 lainnya</button>
+</div>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

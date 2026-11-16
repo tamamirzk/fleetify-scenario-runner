@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Dasbor ponsel · terang</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0060c7;text-decoration:none}a:hover{color:#004a99;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.card{background:#ffffff;border:1px solid rgba(0,0,0,.08);border-radius:14px}
+.row{display:grid;grid-template-columns:32px minmax(0,1fr) 16px;gap:12px;align-items:center;padding:12px 14px;color:#1d1d1f;min-height:44px;box-sizing:border-box}
+.row:hover{background:rgba(0,0,0,.03);text-decoration:none}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(0,0,0,.1);background:#ffffff;color:#1d1d1f;display:flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div style="width: 390px; height: 1720px; box-sizing: border-box; background: #f2f2f5; color: #1d1d1f; font-family: Inter, -apple-system, system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-direction: column; gap: 16px; padding: 12px 16px 28px">
+
+<header style="display: flex; align-items: center; gap: 10px">
+<button class="iconbtn" type="button" aria-label="Buka menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 12px; color: #5f5f66">Scenario Runner · 14.31</span>
+<h1 style="margin: 0; font-size: 22px; font-weight: 600; line-height: 1.2">Dasbor</h1>
+</div>
+<button class="iconbtn" type="button" aria-label="Segarkan" style="margin-left: auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+</header>
+
+<section class="card" aria-labelledby="m-perlu" style="overflow: hidden">
+<h2 id="m-perlu" style="margin: 0; padding: 14px 14px 6px; font-size: 15px; font-weight: 600">Perlu tindakan <span style="font-weight: 400; color: #5f5f66; font-size: 13px">· 3</span></h2>
+<a class="row" href="#">
+<span style="width: 32px; height: 32px; border-radius: 9px; background: #fde8e8; color: #c4161c; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; font-size: 14px"><span style="color: #c4161c">Gagal</span> · 1 jalan dalam 7 hari</span><span style="font-size: 12px; color: #5f5f66">7 dari 10 lulus · 2 dihentikan</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</a>
+<a class="row" href="Kerja-ponsel-terang.dc.html" style="border-top: 1px solid rgba(0,0,0,.06)">
+<span style="width: 32px; height: 32px; border-radius: 9px; background: #e3effd; color: #0060c7; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; font-size: 14px"><span class="mono" style="color: #0060c7; font-size: 13px">FMS-87</span> menunggu rencana AI</span><span style="font-size: 12px; color: #5f5f66">Tahap 1 · 1 query gagal</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</a>
+<a class="row" href="#" style="border-top: 1px solid rgba(0,0,0,.06)">
+<span style="width: 32px; height: 32px; border-radius: 9px; background: #fdf0dc; color: #9a5a00; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 8v12M7 13H3M21 13h-4M8 5l2 3M16 5l-2 3"/></svg></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; font-size: 14px"><span style="color: #9a5a00">Bug aplikasi</span> · 1 temuan</span><span style="font-size: 12px; color: #5f5f66; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Perbaikan insidentil dari tiket… · 10.08</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</a>
+</section>
+
+<section aria-label="Ringkasan angka" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5f5f66">Tugas terbuka</span><span style="font-size: 24px; font-weight: 600; line-height: 1.15">55</span></div>
+<div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5f5f66">Belum ada skenario</span><span style="font-size: 24px; font-weight: 600; line-height: 1.15; color: #9a5a00">43</span></div>
+<div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5f5f66">Lulus · 7 hari</span><span style="font-size: 24px; font-weight: 600; line-height: 1.15">7<span style="font-size: 14px; color: #5f5f66; font-weight: 500">/10</span></span></div>
+<div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5f5f66">Temuan bug</span><span style="font-size: 24px; font-weight: 600; line-height: 1.15; color: #9a5a00">1</span></div>
+</section>
+
+<section class="card" aria-labelledby="m-kerja" style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 id="m-kerja" style="margin: 0; font-size: 15px; font-weight: 600">Kerja aktif</h2>
+<span style="font-size: 12px; color: #5f5f66">1 tiket</span>
+</div>
+<a href="Kerja-ponsel-terang.dc.html" style="display: flex; flex-direction: column; gap: 8px; color: #1d1d1f; padding: 12px; border-radius: 12px; background: #f6f9fe; border: 1px solid #cfe0f7; text-decoration: none">
+<span class="mono" style="font-size: 12px; color: #0060c7">FMS-87</span>
+<span style="font-size: 14px; font-weight: 500; line-height: 1.35">[MBL] Workshop - Konfigurasi Pilihan Pemeriksaan dan Penguncian Bagian…</span>
+<span style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px" aria-hidden="true"><span style="height: 5px; border-radius: 3px; background: #0a6fdc"></span><span style="height: 5px; border-radius: 3px; background: #dcdce2"></span><span style="height: 5px; border-radius: 3px; background: #dcdce2"></span><span style="height: 5px; border-radius: 3px; background: #dcdce2"></span><span style="height: 5px; border-radius: 3px; background: #dcdce2"></span></span>
+<span style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px">
+<span style="color: #0060c7; font-weight: 600">Tahap 1/5 · Diambil</span>
+<span style="display: inline-flex; align-items: center; gap: 3px; color: #1e7f34"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>sebelum</span>
+<span style="display: inline-flex; align-items: center; gap: 3px; color: #5f5f66"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>sesudah</span>
+<span style="display: inline-flex; align-items: center; gap: 3px; color: #5f5f66"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>skenario</span>
+</span>
+</a>
+</section>
+
+<section class="card" aria-labelledby="m-jalan" style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="m-jalan" style="margin: 0; font-size: 15px; font-weight: 600">Jalan skenario · 14 hari</h2>
+<div style="display: flex; align-items: flex-end; gap: 4px; height: 96px; border-bottom: 1px solid rgba(0,0,0,.12); padding-bottom: 4px">
+<span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span><span style="flex: 1; height: 2px; background: #dcdce2"></span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="height: 16px; background: #8e8e93; border-radius: 3px 3px 0 0"></span><span style="height: 8px; background: #d70015"></span><span style="height: 56px; background: #1e9e3e"></span></span>
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 11px; color: #5f5f66; margin-top: -6px"><span>3 Nov</span><span style="color: #1d1d1f; font-weight: 600">16 Nov</span></div>
+<div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #3a3a3c">
+<span style="display: inline-flex; align-items: center; gap: 4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1e7f34" stroke-width="2.8" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>7 lulus</span>
+<span style="display: inline-flex; align-items: center; gap: 4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c4161c" stroke-width="2.8" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>1 gagal</span>
+<span style="display: inline-flex; align-items: center; gap: 4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="#8e8e93" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>2 dihentikan</span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0">
+<li style="display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,.06)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e7f34" stroke-width="2.6" role="img" aria-label="Lulus"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px">Perbaikan insidentil dari tiket…</span><span style="font-size: 12px; color: #5f5f66">11.03</span></li>
+<li style="display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,.06)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e7f34" stroke-width="2.6" role="img" aria-label="Lulus"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px">Perbaikan insidentil dari tiket…</span><span style="font-size: 12px; color: #5f5f66">10.51</span></li>
+<li style="display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(0,0,0,.06)"><svg width="14" height="14" viewBox="0 0 24 24" fill="#8e8e93" role="img" aria-label="Dihentikan"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px">Perbaikan insidentil dari tiket…</span><span style="font-size: 12px; color: #5f5f66">10.36</span></li>
+</ul>
+<a href="#" style="font-size: 13px">Semua jalan</a>
+</section>
+
+<section class="card" aria-labelledby="m-temuan" style="padding: 14px; display: flex; flex-direction: column">
+<h2 id="m-temuan" style="margin: 0 0 6px; font-size: 15px; font-weight: 600">Temuan terbaru</h2>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-top: 1px solid rgba(0,0,0,.06)"><span style="font-size: 12px; font-weight: 600; color: #9a5a00">Bug aplikasi · 16 Nov 10.08</span><span style="font-size: 13px">Perbaikan insidentil dari tiket sampai WO selesai</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-top: 1px solid rgba(0,0,0,.06)"><span style="font-size: 12px; color: #5f5f66">Catatan · 16 Nov 10.22</span><span style="font-size: 13px">Perbaikan insidentil dari tiket sampai WO selesai</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 0 0; border-top: 1px solid rgba(0,0,0,.06)"><span style="font-size: 12px; color: #5f5f66">Catatan · 13 Nov 08.59</span><span style="font-size: 13px">Pinjaman alat per peminjam</span></div>
+</section>
+
+<section class="card" aria-labelledby="m-grup" style="padding: 14px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="m-grup" style="margin: 0; font-size: 15px; font-weight: 600">Skenario per grup</h2>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 18px; gap: 8px; align-items: center; font-size: 13px"><span>Perbaikan Insidentil</span><span style="height: 8px; border-radius: 999px; background: #e5e5ea"><span style="display: block; width: 100%; height: 8px; border-radius: 999px; background: #3a3a3c"></span></span><span style="text-align: right">4</span></div>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 18px; gap: 8px; align-items: center; font-size: 13px"><span>Pengadaan &amp; Gudang</span><span style="height: 8px; border-radius: 999px; background: #e5e5ea"><span style="display: block; width: 25%; height: 8px; border-radius: 999px; background: #3a3a3c"></span></span><span style="text-align: right">1</span></div>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 18px; gap: 8px; align-items: center; font-size: 13px"><span>Approval &amp; Hak Akses</span><span style="height: 8px; border-radius: 999px; background: #e5e5ea"><span style="display: block; width: 25%; height: 8px; border-radius: 999px; background: #3a3a3c"></span></span><span style="text-align: right">1</span></div>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 18px; gap: 8px; align-items: center; font-size: 13px"><span>Lingkungan</span><span style="height: 8px; border-radius: 999px; background: #e5e5ea"><span style="display: block; width: 25%; height: 8px; border-radius: 999px; background: #3a3a3c"></span></span><span style="text-align: right">1</span></div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
