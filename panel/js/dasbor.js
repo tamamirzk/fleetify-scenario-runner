@@ -67,49 +67,58 @@ const kosong = '<span class="db-big redup">–</span>'
 
 export const TAHAP = [
   ['diambil', 'Diambil'],
-  ['rencana', 'Rencana & sebelum'],
-  ['dikerjakan', 'Dikerjakan'],
-  ['dokumentasi', 'Sesudah & skenario'],
+  ['dipelajari', 'Dipelajari'],
+  ['dikerjakan', 'Dikerjakan (AI)'],
+  ['diverifikasi', 'Diverifikasi'],
+  ['didokumentasikan', 'Didokumentasikan'],
   ['selesai', 'Selesai'],
 ]
 export const LANGKAH_BERIKUT = {
-  diambil: 'AI menulis rencana dan menentukan halaman serta data yang perlu dipotret.',
-  rencana: 'AI mengubah kode di branch tiket.',
-  dikerjakan: 'Potret sesudah, lalu AI menulis skenario uji.',
-  dokumentasi: 'Kirim komentar ke Plane dan pindah status (terlihat tim).',
+  diambil:
+    'Pelajari tiket: tulis catatan (apa yang diminta, di mana fiturnya di v2, kriteria), lalu potret sebelum.',
+  dipelajari:
+    'AI mengimplementasikan di v2 bila fiturnya belum ada; bila sudah ada, langsung cek tiap kriteria.',
+  dikerjakan: 'AI menyelesaikan kode di branch tiket, lalu tiap kriteria dicek dan dicatat (✓/×).',
+  diverifikasi: 'Potret sesudah. Tulis atau tautkan skenario modul bila alurnya baru atau berubah.',
+  didokumentasikan: 'Kirim komentar verifikasi ke Plane dan pindah status (terlihat tim).',
   selesai: 'Tiket selesai. Ambil tiket berikutnya di Tugas saya.',
 }
 
 /** Penanda lima tahap: selesai (✓), sekarang (biru), berikutnya, belum. */
 export function penandaTahap(no) {
-  return `<ol class="db-tahap" aria-label="Tahap ${no} dari 5">${TAHAP.map(([, nama], i) => {
-    const n = i + 1
-    const kelas = n < no ? 'lewat' : n === no ? 'kini' : n === no + 1 ? 'lanjut' : 'belum'
-    const label =
-      n === no ? `Tahap ${n} · sekarang` : n === no + 1 ? `Tahap ${n} · berikutnya` : `Tahap ${n}`
-    return `<li class="${kelas}"${n === no ? ' aria-current="step"' : ''}><span class="db-tahap-bar"></span><span class="db-tahap-tk"><span class="db-eyebrow">${label}</span><span class="db-tahap-nama">${n < no ? '✓ ' : ''}${esc(nama)}</span></span></li>`
-  }).join('')}</ol>`
+  return `<ol class="db-tahap" aria-label="Tahap ${no} dari ${TAHAP.length}">${TAHAP.map(
+    ([, nama], i) => {
+      const n = i + 1
+      const kelas = n < no ? 'lewat' : n === no ? 'kini' : n === no + 1 ? 'lanjut' : 'belum'
+      const label =
+        n === no ? `Tahap ${n} · sekarang` : n === no + 1 ? `Tahap ${n} · berikutnya` : `Tahap ${n}`
+      return `<li class="${kelas}"${n === no ? ' aria-current="step"' : ''}><span class="db-tahap-bar"></span><span class="db-tahap-tk"><span class="db-eyebrow">${label}</span><span class="db-tahap-nama">${n < no ? '✓ ' : ''}${esc(nama)}</span></span></li>`
+    },
+  ).join('')}</ol>`
 }
 
 /** Gauge setengah lingkaran: 20 segmen, 4 per tahap. */
 export function gauge(no, label) {
-  const seg = Array.from({ length: 20 }, (_, i) => {
-    const sudut = (-90 + (i * 180) / 19).toFixed(2)
-    const t = Math.floor(i / 4) + 1
+  const PER = 3
+  const jumlah = TAHAP.length * PER
+  const seg = Array.from({ length: jumlah }, (_, i) => {
+    const sudut = (-90 + (i * 180) / (jumlah - 1)).toFixed(2)
+    const t = Math.floor(i / PER) + 1
     const k = t < no ? 'on' : t === no ? 'kini' : 'off'
     return `<span class="db-gseg ${k}" style="transform:rotate(${sudut}deg) translateY(-102px)"></span>`
   }).join('')
-  return `<div class="db-gauge" role="img" aria-label="Kemajuan: tahap ${no} dari 5, ${esc(label)}">${seg}<div class="db-gauge-isi"><span class="db-big db-gauge-n">${no}<span class="db-per"> / 5</span></span><span class="db-eyebrow">Tahap kerja</span></div></div>`
+  return `<div class="db-gauge" role="img" aria-label="Kemajuan: tahap ${no} dari ${TAHAP.length}, ${esc(label)}">${seg}<div class="db-gauge-isi"><span class="db-big db-gauge-n">${no}<span class="db-per"> / ${TAHAP.length}</span></span><span class="db-eyebrow">Tahap kerja</span></div></div>`
 }
 
-/** Enam hasil kerja; yang belum pertama berstatus "Berikutnya". */
+/** Hasil monitoring; yang belum pertama berstatus "Berikutnya". Skenario modul opsional, tidak dihitung. */
 export function hasilKerja(k) {
+  const v = k.verifikasi ?? { total: 0, belum: 0 }
   const item = [
+    ['Catatan', k.catatan],
     ['Potret sebelum', k.sebelum],
-    ['Rencana', k.rencana],
-    ['Branch & commit', k.commit > 0],
+    ...(k.pakaiKode ? [['Kode v2 (commit)', k.commit > 0]] : []),
+    ['Verifikasi kriteria', v.total > 0 && v.belum === 0],
     ['Potret sesudah', k.sesudah],
-    ['Skenario uji', k.skenario > 0],
     ['Komentar Plane', k.komentar],
   ]
   const n = item.filter(([, ok]) => ok).length
@@ -120,7 +129,7 @@ export function hasilKerja(k) {
       return `<li class="${ok ? 'ok' : i === pertama ? 'lanjut' : 'belum'}">${ok ? `<span class="ok-t">${ikon('centang', 14)}</span>` : `<span class="redup">${ikon('bulat', 14)}</span>`}<span>${esc(nama)}</span><span class="db-st">${st}</span></li>`
     })
     .join('')
-  return `<div class="db-hasil"><div class="db-hasil-hd"><span class="db-eyebrow">Hasil kerja</span><span class="dim db-num">${n} / 6</span></div><div class="db-hasil-pita" aria-hidden="true">${item.map(([, ok]) => `<span class="${ok ? 'on' : ''}"></span>`).join('')}</div><ul>${baris}</ul></div>`
+  return `<div class="db-hasil"><div class="db-hasil-hd"><span class="db-eyebrow">Hasil kerja</span><span class="dim db-num">${n} / ${item.length}</span></div><div class="db-hasil-pita" style="grid-template-columns:repeat(${item.length},minmax(0,1fr))" aria-hidden="true">${item.map(([, ok]) => `<span class="${ok ? 'on' : ''}"></span>`).join('')}</div><ul>${baris}</ul></div>`
 }
 
 function teksBerikut(k) {
@@ -164,19 +173,36 @@ export function panelAktif(aktif) {
             : '<span class="db-ket dim">belum dipotret</span>'
           : '<span class="db-ket dim">belum ada target</span>',
     ),
+    ...(k.pakaiKode
+      ? [
+          blokAngka(
+            'Commit',
+            k.commit ? `<span class="db-big">${k.commit}</span>` : kosong,
+            k.branch
+              ? `<span class="db-ket dim mono">${esc(k.branch)}</span>`
+              : '<span class="db-ket dim">belum ada branch</span>',
+          ),
+        ]
+      : []),
     blokAngka(
-      'Commit',
-      k.commit ? `<span class="db-big">${k.commit}</span>` : kosong,
-      k.branch
-        ? `<span class="db-ket dim mono">${esc(k.branch)}</span>`
-        : '<span class="db-ket dim">belum ada branch</span>',
+      'Verifikasi',
+      k.verifikasi?.total
+        ? `<span class="db-big">${k.verifikasi.lulus}<span class="db-per">/${k.verifikasi.total}</span></span>`
+        : kosong,
+      !k.verifikasi?.total
+        ? '<span class="db-ket dim">belum ada kriteria</span>'
+        : k.verifikasi.gagal
+          ? `<span class="db-ket bad-t">× ${k.verifikasi.gagal} gagal</span>`
+          : k.verifikasi.belum
+            ? `<span class="db-ket dim">○ ${k.verifikasi.belum} belum</span>`
+            : '<span class="db-ket ok-t">✓ semua lulus</span>',
     ),
     blokAngka(
       'Skenario',
       k.skenario ? `<span class="db-big">${k.skenario}</span>` : kosong,
       k.skenario
-        ? '<span class="db-ket ok-t">✓ ditulis</span>'
-        : '<span class="db-ket dim">belum ditulis</span>',
+        ? '<span class="db-ket ok-t">✓ tertaut</span>'
+        : '<span class="db-ket dim">opsional</span>',
     ),
   ].join('<span class="db-pisah" aria-hidden="true"></span>')
   const kiri = `<div class="db-aktif-kiri">
@@ -240,9 +266,16 @@ export function kotakAngka(d) {
     'putar',
     'Kerja aktif',
     d.kerja.aktif.length,
-    `<div class="db-mini" style="grid-template-columns:repeat(5,minmax(0,1fr))" aria-hidden="true">${[1, 2, 3, 4, 5].map((n) => `<span class="${top ? (n < top.tahapNo ? 'lewat' : n === top.tahapNo ? 'kini' : '') : ''}"></span>`).join('')}</div>`,
+    `<div class="db-mini" style="grid-template-columns:repeat(${TAHAP.length},minmax(0,1fr))" aria-hidden="true">${TAHAP.map(
+      (_, i) => i + 1,
+    )
+      .map(
+        (n) =>
+          `<span class="${top ? (n < top.tahapNo ? 'lewat' : n === top.tahapNo ? 'kini' : '') : ''}"></span>`,
+      )
+      .join('')}</div>`,
     top
-      ? `<span><span class="mono">${esc(top.key)}</span> · tahap ${top.tahapNo} dari 5</span>`
+      ? `<span><span class="mono">${esc(top.key)}</span> · tahap ${top.tahapNo} dari ${TAHAP.length}</span>`
       : 'Tidak ada tiket aktif',
   )
   const j = d.jalan.tujuhHari

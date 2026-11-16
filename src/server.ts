@@ -18,7 +18,9 @@ import {
   FASE,
   type Fase,
   KERJA_DIR,
+  type Kerja,
   komentarHtml,
+  perubahanQuery,
   TAHAP,
   type Tahap,
 } from './core/kerja.ts'
@@ -29,11 +31,12 @@ import {
   setTahap,
   statusKePlane,
 } from './core/kerja-aksi.ts'
+import { kodeKerja } from './core/kode.ts'
 import { jalanTerkunci, lepasKunci, pemegangLain } from './core/kunci.ts'
 import { susunDataLaporan } from './core/laporan-data.ts'
 import { closeSharedBrowser } from './core/lib.ts'
 import { personaName } from './core/personas.ts'
-import { planeDikonfigurasi, tugasSaya } from './core/plane.ts'
+import { planeDikonfigurasi, tugasSaya, tugasSayaTersimpan, waktuTugasSaya } from './core/plane.ts'
 import { modulProject, PROJECTS, statusSkenario } from './core/project.ts'
 import {
   bacaRetensi,
@@ -407,8 +410,36 @@ function hapusBanyak(body: Record<string, unknown>, jenis: 'jalan' | 'trace') {
 }
 
 /** Detail kerja untuk panel: keadaan, tiket, rencana, beda DB sebelum/sesudah per query. */
-function detailKerja(key: string) {
-  const k = bacaKerja(key)
+/**
+ * Status Plane terkini per kunci, dari daftar Tugas saya (cache 60 detik). Salinan di
+ * kerja.json hanya status saat tiket diambil; status di Plane bisa berubah sesudahnya.
+ * Plane tak terjangkau → peta kosong, dan status salinan yang dipakai.
+ */
+/** Status Plane per tiket; `segar` = datang dari Plane (atau cache < 60 dtk), bukan salinan lama. */
+async function statusPlaneTerkini(): Promise<{ status: Map<string, string>; segar: boolean }> {
+  if (!planeDikonfigurasi()) return { status: new Map(), segar: false }
+  const peta = (h: ReturnType<typeof tugasSayaTersimpan>) =>
+    new Map((h?.tugas ?? []).map((t) => [t.key, t.status]))
+  try {
+    // Plane lambat tidak boleh menahan laporan: lewat 2 detik, pakai daftar terakhir yang
+    // tersimpan (jam ceknya ikut tampil, ditandai belum segar), sementara pengambilan ulang jalan terus.
+    const batas = new Promise<null>((r) => setTimeout(() => r(null), 2000))
+    const hasil = await Promise.race([tugasSaya(), batas])
+    return hasil
+      ? { status: peta(hasil), segar: true }
+      : { status: peta(tugasSayaTersimpan()), segar: false }
+  } catch {
+    return { status: peta(tugasSayaTersimpan()), segar: false }
+  }
+}
+const denganStatusTerkini = (k: Kerja, status: Map<string, string>): Kerja => {
+  const kini = status.get(k.key)
+  return kini && kini !== k.plane.status ? { ...k, plane: { ...k.plane, status: kini } } : k
+}
+
+async function detailKerja(key: string) {
+  const { status, segar } = await statusPlaneTerkini()
+  const k = denganStatusTerkini(bacaKerja(key), status)
   const baca = (fase: Fase, file: string | null) => {
     if (!file) return null
     const f = path.join(KERJA_DIR, key, fase, file)
@@ -435,12 +466,16 @@ function detailKerja(key: string) {
         berubah: beda.berubah.length,
         kolom: [...new Set(beda.berubah.flatMap((x) => x.kolom))],
       },
+      // Bentuk "Perubahan data" laporan skenario, untuk panel kanan tab Data.
+      perubahan: a && b ? perubahanQuery(t.nama, a, b) : [],
     }
   })
   return {
     kerja: k,
     tiket: bacaBerkasKerja(key, 'tiket.md'),
-    rencana: bacaBerkasKerja(key, 'rencana.md'),
+    catatan: bacaBerkasKerja(key, 'catatan.md'),
+    // Kapan status Plane terakhir dicek; segar = status di atas datang dari Plane, bukan salinan.
+    plane: { dicek: waktuTugasSaya(), segar: segar && status.has(key) },
     db,
     komentar: komentarHtml(k),
   }
@@ -454,6 +489,10 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
   if (req.method === 'GET' && !aksi) {
     if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
     return detailKerja(key)
+  }
+  if (req.method === 'GET' && aksi === 'kode') {
+    if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
+    return kodeKerja(bacaKerja(key), config.v2RepoDir)
   }
   if (req.method !== 'POST') throw new HttpError(405, 'Metode tidak didukung')
   if (aksi === 'ambil') {
@@ -585,7 +624,9 @@ const routes: Record<string, Handler> = {
     return susunDasbor({
       tugas,
       tugasGalat,
-      kerja: daftarKerja(),
+      kerja: daftarKerja().map((k) =>
+        denganStatusTerkini(k, new Map((tugas ?? []).map((t) => [t.key, t.status]))),
+      ),
       jalan: listRuns(),
       skenario: semua.map((b) => {
         const k = kartu(b, semua)
@@ -595,7 +636,7 @@ const routes: Record<string, Handler> = {
       temuan: existsSync(config.temuanFile)
         ? bacaTemuan(readFileSync(config.temuanFile, 'utf8'))
         : [],
-      adaRencana: (key) => bacaBerkasKerja(key, 'rencana.md') !== null,
+      adaCatatan: (key) => bacaBerkasKerja(key, 'catatan.md') !== null,
       memotret: potretBerjalan,
     })
   },
@@ -844,6 +885,8 @@ if (existsSync(config.scenariosDir))
   })
 
 server.listen(config.port, HOST, () => {
+  // Isi cache Tugas saya sejak awal: laporan Kerja dan Dashboard memakai status Plane terkini.
+  if (planeDikonfigurasi()) tugasSaya().catch(() => {})
   console.log(
     `Scenario Runner Fleetify: http://127.0.0.1:${config.port} (${headed ? 'headed' : 'headless'}) · ${config.webUrl} · tenant ${config.tenantSlug}`,
   )

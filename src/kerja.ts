@@ -1,11 +1,12 @@
-// bun run kerja — alur Kerja per tiket Plane (docs/KERJA.md). Dipakai AI di sesi Claude Code dan developer.
+// bun run kerja — monitoring dan dokumentasi tugas Plane (docs/KERJA.md). Dipakai di sesi Claude Code dan langsung.
 //   bun run kerja daftar
 //   bun run kerja ambil FMS-87                  salin tiket dari Plane ke kerja/FMS-87/
-//   bun run kerja lihat FMS-87                  ringkasan keadaan (untuk AI)
-//   bun run kerja tahap FMS-87 rencana "catatan"
+//   bun run kerja lihat FMS-87                  ringkasan keadaan
+//   bun run kerja tahap FMS-87 dipelajari "catatan"
 //   bun run kerja target FMS-87 target.json     sasaran potret (halaman + query DB)
 //   bun run kerja potret FMS-87 sebelum|sesudah
-//   bun run kerja catat FMS-87 --branch feat/x --commit abc123 --skenario slug
+//   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
+//   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123]   rujukan
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
 //   bun run kerja plane FMS-87 status "Done" [--ya]
 
@@ -15,6 +16,8 @@ import {
   daftarKerja,
   FASE,
   type Fase,
+  HASIL_CEK,
+  type HasilCek,
   type Kerja,
   komentarHtml,
   LABEL_TAHAP,
@@ -24,6 +27,7 @@ import {
 import {
   ambilKerja,
   catatKerja,
+  cekKerja,
   komentarKePlane,
   potretKerja,
   setTahap,
@@ -53,19 +57,27 @@ function ringkas(k: Kerja) {
   console.log(`${k.key} · ${k.judul}`)
   console.log(`  Tahap      : ${LABEL_TAHAP[k.tahap]} (${k.tahap})`)
   console.log(`  Plane      : ${k.plane.status} · ${k.url}`)
-  console.log(`  Branch     : ${k.branch ?? '-'} · commit ${k.commit.join(', ') || '-'}`)
+  const tanda = { lulus: '✓', gagal: '×', belum: '○' } as const
+  const v = k.verifikasi
+  console.log(
+    `  Verifikasi : ${v.length ? `${v.filter((c) => c.hasil === 'lulus').length} lulus, ${v.filter((c) => c.hasil === 'gagal').length} gagal, ${v.filter((c) => c.hasil === 'belum').length} belum` : 'belum ada kriteria'}`,
+  )
+  for (const c of v)
+    console.log(`               ${tanda[c.hasil]} ${c.kriteria}${c.bukti ? ` — ${c.bukti}` : ''}`)
+  if (k.branch || k.commit.length)
+    console.log(`  Kode v2    : ${k.branch ?? '-'} · commit ${k.commit.join(', ') || '-'}`)
   console.log(`  Target     : ${k.target.layar.length} layar, ${k.target.db.length} query`)
   console.log(`  Sebelum    : ${p('sebelum')}`)
   console.log(`  Sesudah    : ${p('sesudah')}`)
   console.log(`  Skenario   : ${k.skenario.join(', ') || '-'}`)
   console.log(
-    `  Rencana    : ${bacaBerkasKerja(k.key, 'rencana.md') ? `ada (kerja/${k.key}/rencana.md)` : 'belum'}`,
+    `  Catatan    : ${bacaBerkasKerja(k.key, 'catatan.md') ? `ada (kerja/${k.key}/catatan.md)` : 'belum'}`,
   )
   console.log(`  Komentar   : ${k.plane.komentar_at ?? '-'}`)
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -108,9 +120,18 @@ try {
       console.log(`\nBerkas: kerja/${key}/${f}/`)
       break
     }
+    case 'cek': {
+      const hasil = posisi[0] as HasilCek
+      if (!key || !HASIL_CEK.includes(hasil) || !posisi[1])
+        throw new Error(
+          `Pakai: bun run kerja cek KEY <${HASIL_CEK.join('|')}> "kriteria" ["bukti"]`,
+        )
+      ringkas(cekKerja(key, posisi[1], hasil, posisi.slice(2).join(' ')))
+      break
+    }
     case 'catat': {
       if (!key)
-        throw new Error('Pakai: bun run kerja catat KEY [--branch b] [--commit c] [--skenario s]')
+        throw new Error('Pakai: bun run kerja catat KEY [--skenario s] [--branch b] [--commit c]')
       ringkas(
         catatKerja(key, {
           branch: opsi('branch')[0],

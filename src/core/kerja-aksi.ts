@@ -1,4 +1,4 @@
-// Aksi Kerja yang dipakai CLI (bun run kerja) dan panel: ambil dari Plane, target, potret, catat,
+// Aksi Kerja yang dipakai CLI (bun run kerja) dan panel: ambil dari Plane, target, potret, cek, catat,
 // tulis ke Plane. Menulis ke Plane terlihat tim: pemanggil wajib sudah mendapat konfirmasi pengguna.
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -7,10 +7,12 @@ import {
   bacaKerja,
   dirKerja,
   type Fase,
+  type HasilCek,
   type Kerja,
   kerjaDariTiket,
   komentarHtml,
   pindahTahap,
+  setCek,
   simpanKerja,
   type Tahap,
   TargetSchema,
@@ -51,7 +53,7 @@ export async function potretKerja(
   log?: (l: string) => void,
 ): Promise<Kerja> {
   const hasil = await potret(bacaKerja(key), fase, log)
-  // Baca ulang: kerja.json bisa berubah selama memotret (mis. AI mencatat commit).
+  // Baca ulang: kerja.json bisa berubah selama memotret (mis. hasil cek dicatat).
   const k = bacaKerja(key)
   const gagal = [...hasil.layar, ...hasil.db].filter((x) => x.galat).length
   const k2 = pindahTahap(
@@ -77,6 +79,13 @@ export function catatKerja(
   }
   simpanKerja(k2)
   return k2
+}
+
+/** Catat hasil verifikasi satu kriteria tiket. */
+export function cekKerja(key: string, kriteria: string, hasil: HasilCek, bukti = ''): Kerja {
+  const k = setCek(bacaKerja(key), kriteria, hasil, bukti)
+  simpanKerja(k)
+  return k
 }
 
 /** Kirim komentar dokumentasi ke tiket Plane. Hanya setelah dikonfirmasi pengguna. */

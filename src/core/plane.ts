@@ -170,6 +170,10 @@ let cache: {
   data: { saya: string; project: string; status: StatusPlane[]; tugas: Tugas[] }
 } | null = null
 const UMUR_CACHE = 60_000
+/** Kapan daftar Tugas saya terakhir diambil dari Plane (ISO), atau null bila belum pernah. */
+export const waktuTugasSaya = () => (cache ? new Date(cache.at).toISOString() : null)
+/** Daftar Tugas saya terakhir yang tersimpan, berapa pun umurnya (null bila belum pernah). */
+export const tugasSayaTersimpan = () => cache?.data ?? null
 
 /** Tugas saya dari Plane. `segarkan` melewati cache. */
 export async function tugasSaya(segarkan = false) {

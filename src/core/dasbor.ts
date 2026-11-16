@@ -1,6 +1,6 @@
 // Data halaman Dasbor operasional: tugas Plane, kerja per tahap, jalan skenario, cakupan skenario,
 // temuan, dan aktivitas terbaru. Fungsi murni atas data yang sudah dibaca (diuji Vitest).
-import { type Kerja, LABEL_TAHAP, TAHAP, type Tahap } from './kerja.ts'
+import { type Kerja, LABEL_TAHAP, ringkasCek, TAHAP, type Tahap } from './kerja.ts'
 
 export interface JalanRingkas {
   run_id: string
@@ -128,8 +128,8 @@ export function susunDasbor(o: {
   skenario: SkenarioRingkas[]
   modul: { id: string; nama: string }[]
   temuan: { at: string; jenis: string; judul: string }[]
-  /** Ada kerja/<KEY>/rencana.md. */
-  adaRencana?: (key: string) => boolean
+  /** Ada kerja/<KEY>/catatan.md. */
+  adaCatatan?: (key: string) => boolean
   /** "FMS-87 sebelum" saat potret sedang berjalan. */
   memotret?: string | null
 }) {
@@ -171,11 +171,15 @@ export function susunDasbor(o: {
         layar: k.target.layar.length,
         query: k.target.db.length,
         queryGagal: (potret?.db ?? []).filter((q) => q.galat).map((q) => q.nama),
+        verifikasi: ringkasCek(k.verifikasi ?? []),
+        // Tiket yang dikerjakan AI (pernah di tahap Dikerjakan atau punya rujukan kode).
+        pakaiKode:
+          !!k.branch || k.commit.length > 0 || k.riwayat.some((r) => r.tahap === 'dikerjakan'),
         branch: k.branch,
         commit: k.commit.length,
         sebelum: !!k.potret.sebelum,
         sesudah: !!k.potret.sesudah,
-        rencana: o.adaRencana?.(k.key) ?? false,
+        catatan: o.adaCatatan?.(k.key) ?? false,
         skenario: k.skenario.length,
         komentar: !!k.plane.komentar_at,
         memotret: o.memotret?.split(' ')[0] === k.key ? (o.memotret.split(' ')[1] ?? '') : null,

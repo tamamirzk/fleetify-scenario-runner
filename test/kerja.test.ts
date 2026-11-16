@@ -12,7 +12,19 @@ import {
   penandaTahap,
   radar,
 } from '../panel/js/dasbor.js'
-import { bandingDb, halamanKerja, langkahTahap, mdRingan } from '../panel/js/kerja.js'
+import {
+  batangDiff,
+  daftarVerifikasi,
+  langkahTahap,
+  laporanKerja,
+  mdRingan,
+  pesanCommitMd,
+  pisahBukti,
+  poinCommit,
+  rapikanSql,
+  refTiket,
+  tiketTanpaKepala,
+} from '../panel/js/kerja.js'
 import { aksiKerja } from '../panel/js/tugas.js'
 import {
   bacaTemuan,
@@ -29,7 +41,11 @@ import {
   type Kerja,
   kerjaDariTiket,
   komentarHtml,
+  normalkanKerja,
+  perubahanQuery,
   pindahTahap,
+  ringkasCek,
+  setCek,
   TargetSchema,
 } from '../src/core/kerja.ts'
 
@@ -69,10 +85,10 @@ describe('kerja: model', () => {
   })
 
   it('ambil ulang mempertahankan tahap dan potret, memperbarui judul dan status', () => {
-    const lama = kerjaContoh({ tahap: 'dikerjakan', branch: 'feat/x' })
+    const lama = kerjaContoh({ tahap: 'diverifikasi', branch: 'feat/x' })
     const { kerja } = kerjaDariTiket({ ...tiket, judul: 'Judul baru', status: 'Done' }, lama)
     expect(kerja).toMatchObject({
-      tahap: 'dikerjakan',
+      tahap: 'diverifikasi',
       branch: 'feat/x',
       judul: 'Judul baru',
       plane: { status: 'Done', id: 'isu-1' },
@@ -80,17 +96,49 @@ describe('kerja: model', () => {
   })
 
   it('pindah tahap mencatat riwayat; tahap tak dikenal ditolak; hitung per tahap', () => {
-    const k = pindahTahap(kerjaContoh(), 'rencana', 'Rencana ditulis')
-    expect(k.tahap).toBe('rencana')
-    expect(k.riwayat.at(-1)).toMatchObject({ tahap: 'rencana', catatan: 'Rencana ditulis' })
+    const k = pindahTahap(kerjaContoh(), 'dipelajari', 'Catatan ditulis')
+    expect(k.tahap).toBe('dipelajari')
+    expect(k.riwayat.at(-1)).toMatchObject({ tahap: 'dipelajari', catatan: 'Catatan ditulis' })
     expect(() => pindahTahap(k, 'aneh' as never)).toThrow()
     expect(hitungTahap([k, kerjaContoh(), kerjaContoh({ tahap: 'selesai' })])).toEqual({
       diambil: 1,
-      rencana: 1,
+      dipelajari: 1,
       dikerjakan: 0,
-      dokumentasi: 0,
+      diverifikasi: 0,
+      didokumentasikan: 0,
       selesai: 1,
     })
+  })
+
+  it('kerja.json lama: tahap dipetakan ke alur monitoring, verifikasi diberi nilai awal', () => {
+    const lama = {
+      ...kerjaContoh(),
+      tahap: 'rencana',
+      riwayat: [{ at: 'x', tahap: 'rencana', catatan: '' }],
+      verifikasi: undefined,
+    } as unknown as Kerja
+    const k = normalkanKerja(lama)
+    expect(k.tahap).toBe('dipelajari')
+    expect(k.riwayat[0]?.tahap).toBe('dipelajari')
+    expect(k.verifikasi).toEqual([])
+    expect(normalkanKerja({ ...lama, tahap: 'dokumentasi' } as unknown as Kerja).tahap).toBe(
+      'didokumentasikan',
+    )
+  })
+
+  it('cek per kriteria: tambah, timpa tanpa peka huruf, tolak kosong dan hasil asing', () => {
+    let k = setCek(kerjaContoh(), 'Alasan wajib', 'lulus', 'dialog menolak')
+    k = setCek(k, 'Approval tetap wajib', 'gagal')
+    k = setCek(k, 'alasan WAJIB', 'gagal', 'ternyata lolos')
+    expect(k.verifikasi).toHaveLength(2)
+    expect(k.verifikasi[0]).toMatchObject({
+      kriteria: 'alasan WAJIB',
+      hasil: 'gagal',
+      bukti: 'ternyata lolos',
+    })
+    expect(ringkasCek(k.verifikasi)).toEqual({ total: 2, lulus: 0, gagal: 2, belum: 0 })
+    expect(() => setCek(k, '  ', 'lulus')).toThrow(/kosong/)
+    expect(() => setCek(k, 'x', 'aneh' as never)).toThrow()
   })
 })
 
@@ -126,19 +174,64 @@ describe('kerja: beda DB dan komentar Plane', () => {
     )
     expect(b.ditambah).toEqual([{ id: 3, s: 'D' }])
     expect(b.dihapus).toEqual([{ id: 1, s: 'A' }])
-    expect(b.berubah).toEqual([{ baris: { id: 2, s: 'C' }, kolom: ['s'] }])
+    expect(b.berubah).toEqual([{ baris: { id: 2, s: 'C' }, lama: { id: 2, s: 'B' }, kolom: ['s'] }])
   })
 
-  it('tanpa kolom id: baris dibandingkan dari isinya', () => {
-    const b = bedaBaris([{ p: 'REQUIRED', n: 153 }], [{ p: 'REQUIRED', n: 154 }])
-    expect(b.ditambah).toHaveLength(1)
-    expect(b.dihapus).toHaveLength(1)
+  it('tanpa kolom id: baris dipasangkan lewat kolom bukan-angka, angka yang berubah = berubah', () => {
+    const b = bedaBaris(
+      [
+        { p: 'REQUIRED', n: 153 },
+        { p: 'SKIPPED', n: 9 },
+      ],
+      [
+        { p: 'REQUIRED', n: 154 },
+        { p: 'SKIPPED', n: 9 },
+      ],
+    )
+    expect(b.ditambah).toHaveLength(0)
+    expect(b.dihapus).toHaveLength(0)
+    expect(b.berubah).toEqual([
+      { baris: { p: 'REQUIRED', n: 154 }, lama: { p: 'REQUIRED', n: 153 }, kolom: ['n'] },
+    ])
+    const p = perubahanQuery('q', [{ p: 'REQUIRED', n: 153 }], [{ p: 'REQUIRED', n: 154 }])
+    expect(p[0]?.baris[0]).toEqual({
+      operasi: 'UPDATE',
+      kunci: 'REQUIRED',
+      kolom: [{ kolom: 'n', dari: 153, ke: 154 }],
+    })
+  })
+
+  it('tanpa kolom id dan kunci bukan-angka tidak unik: dibandingkan dari seluruh isi', () => {
+    const b = bedaBaris(
+      [
+        { p: 'A', n: 1 },
+        { p: 'A', n: 2 },
+      ],
+      [
+        { p: 'A', n: 1 },
+        { p: 'A', n: 3 },
+      ],
+    )
+    expect(b.ditambah).toEqual([{ p: 'A', n: 3 }])
+    expect(b.dihapus).toEqual([{ p: 'A', n: 2 }])
     expect(b.berubah).toHaveLength(0)
   })
 
-  it('komentar Plane merangkum tahap, branch, potret, skenario; isi di-escape', () => {
-    const k = kerjaContoh({ branch: 'feat/<x>', skenario: ['tiket-order'], commit: ['abc123'] })
+  it('komentar Plane merangkum verifikasi, potret, skenario, kode v2; isi di-escape', () => {
+    const k = setCek(
+      kerjaContoh({ branch: 'feat/<x>', skenario: ['tiket-order'], commit: ['abc123'] }),
+      'Alasan <wajib>',
+      'lulus',
+      'dialog',
+    )
     const h = komentarHtml(k, 'Catatan <b>uji</b>')
+    expect(h).toContain('Kriteria: 1 lulus, 0 gagal.')
+    expect(h).toContain('✓ Alasan &lt;wajib&gt; — dialog')
+    const lokal = komentarHtml(
+      setCek(kerjaContoh(), 'Lulus', 'lulus', 'Tampil benar (verifikasi/1-a.png)'),
+    )
+    expect(lokal).toContain('✓ Lulus — Tampil benar')
+    expect(lokal).not.toContain('.png')
     expect(h).toContain('feat/&lt;x&gt;')
     expect(h).toContain('Catatan &lt;b&gt;uji&lt;/b&gt;')
     expect(h).toContain('<code>tiket-order</code>')
@@ -158,7 +251,7 @@ describe('dasbor', () => {
     { run_id: 'c/1', scenario: 'c', status: 'selesai', started_at: '2026-10-01T08:00:00Z' },
   ]
   const kerjaAktif = {
-    ...pindahTahap(kerjaContoh(), 'rencana', 'r'),
+    ...setCek(pindahTahap(kerjaContoh(), 'dipelajari', 'r'), 'Alasan wajib', 'lulus'),
     target: {
       layar: [{ nama: 'order', sebagai: 'mbl.planner', rute: '/' }],
       db: [{ nama: 'q', sql: 'select 1' }],
@@ -191,7 +284,7 @@ describe('dasbor', () => {
     temuan: bacaTemuan(
       '# T\n\n## 2026-11-16 10:08 · Bug aplikasi · Satu\n\n## 2026-11-16 10:22 · Catatan · Dua\n\n## 2026-11-13 08:58 · Lama tanpa jenis\n',
     ),
-    adaRencana: (k) => k === 'FMS-87',
+    adaCatatan: (k) => k === 'FMS-87',
     memotret: null,
   })
 
@@ -201,7 +294,7 @@ describe('dasbor', () => {
       punyaSkenario: 1,
       perStatus: [{ status: 'Ready', n: 2 }],
     })
-    expect(d.kerja.perTahap.find((t) => t.tahap === 'rencana')?.n).toBe(1)
+    expect(d.kerja.perTahap.find((t) => t.tahap === 'dipelajari')?.n).toBe(1)
     expect(d.kerja.aktif).toHaveLength(1)
     expect(d.kerja.aktif[0]).toMatchObject({
       key: 'FMS-87',
@@ -211,8 +304,8 @@ describe('dasbor', () => {
       queryGagal: ['salah-sengaja'],
       sebelum: true,
       sesudah: false,
-      rencana: true,
-      commit: 0,
+      catatan: true,
+      verifikasi: { total: 1, lulus: 1, gagal: 0, belum: 0 },
       komentar: false,
       memotret: null,
     })
@@ -271,18 +364,23 @@ describe('dasbor', () => {
     const p = panelAktif(d.kerja.aktif)
     expect(p).toContain('href="#/kerja/FMS-87"')
     expect(p).toContain('data-db-salin="/kerjakan FMS-87"')
-    expect(p).toContain('AI mengubah kode di branch tiket.')
+    expect(p).toContain('AI mengimplementasikan di v2 bila fiturnya belum ada')
     expect(p).toContain('<code>salah-sengaja</code> masih gagal')
     expect(p).toContain('× 1 gagal')
     expect(penandaTahap(2)).toContain('✓ Diambil')
     expect(penandaTahap(2)).toContain('Tahap 2 · sekarang')
     expect(penandaTahap(2)).toContain('Tahap 3 · berikutnya')
     const g = gauge(2, 'Rencana')
-    expect(g.match(/db-gseg on/g)).toHaveLength(4)
-    expect(g.match(/db-gseg kini/g)).toHaveLength(4)
+    expect(g.match(/db-gseg on/g)).toHaveLength(3)
+    expect(g.match(/db-gseg kini/g)).toHaveLength(3)
     const hk = hasilKerja(d.kerja.aktif[0])
-    expect(hk).toContain('2 / 6')
-    expect(hk).toMatch(/Branch &amp; commit<\/span><span class="db-st">Berikutnya/)
+    expect(hk).toContain('3 / 5')
+    expect(hk).toMatch(/Potret sesudah<\/span><span class="db-st">Berikutnya/)
+    // Tiket yang dikerjakan AI: butir dan angka kode v2 ikut tampil.
+    const ai = { ...d.kerja.aktif[0], pakaiKode: true, commit: 2, branch: 'feat/fms-105' }
+    expect(hasilKerja(ai)).toContain('Kode v2 (commit)')
+    expect(hasilKerja(ai)).toContain('4 / 6')
+    expect(panelAktif([ai])).toContain('feat/fms-105')
     expect(panelAktif([])).toContain('Buka Tugas saya')
     const dua = panelAktif([d.kerja.aktif[0], { ...d.kerja.aktif[0], key: 'FMS-5' }])
     expect(dua).toContain('2 tiket aktif')
@@ -342,7 +440,7 @@ describe('dasbor', () => {
 
 describe('halaman Kerja', () => {
   it('penanda tahap: sebelum dicentang, kini disorot', () => {
-    const h = langkahTahap('dikerjakan')
+    const h = langkahTahap('diverifikasi')
     expect(h).toContain('class="lewat"')
     expect(h).toContain('aria-current="step"')
   })
@@ -355,31 +453,205 @@ describe('halaman Kerja', () => {
     expect(h).toContain('<b>tebal</b>')
   })
 
-  it('beda DB tampil sebagai chip; tabel sebelum/sesudah', () => {
-    const h = bandingDb([
-      {
-        nama: 'q',
-        sql: 'SELECT 1',
-        sebelum: [{ a: 1 }],
-        sesudah: [{ a: 2 }],
-        beda: { ditambah: 1, dihapus: 1, berubah: 0, kolom: [] },
-      },
-    ])
-    expect(h).toContain('+1 baris')
-    expect(h).toContain('<td>2</td>')
+  it('laporan kerja: bar dengan tab dan aksi; tab kosong memberi petunjuk', () => {
+    const k = kerjaContoh()
+    const d = { kerja: k, tiket: '# t', catatan: null, db: [], komentar: '' }
+    const { bar, view } = laporanKerja(d)
+    expect(bar).toContain('Kerja</em> · ')
+    expect(bar).toContain('id="kj-komentar"')
+    expect(bar).toContain('Salin perintah AI')
+    // Ringkasan di atas, lalu laporan bertab di bawahnya.
+    expect(view.indexOf('kj-ringkas')).toBeLessThan(view.indexOf('kj-laporan'))
+    expect(view).toContain('aria-selected="true">Layar')
+    expect(view).toContain('Belum ada halaman untuk dipotret')
+    expect(view).toContain('Belum ada kriteria yang dicek')
+    expect(view).toContain('Riwayat terbaru')
+    expect(laporanKerja(d, { tab: 'catatan' }).view).toContain('Belum ada catatan')
+    // Tanpa commit/branch: kotak kosong + perintah catat, panel "Tanpa kode" (bukan memuat selamanya).
+    const kosong = laporanKerja(d, { tab: 'kode' }).view
+    expect(kosong).toContain('Belum ada commit untuk tiket ini')
+    expect(kosong).toContain('Tanpa kode')
+    expect(kosong).toContain('data-kj-salin="bun run kerja catat')
+    const adaCommit = { ...d, kerja: { ...k, commit: ['abc1234'] } }
+    expect(laporanKerja(adaCommit, { tab: 'kode' }).view).toContain('Memuat perubahan kode')
   })
 
-  it('halaman: aksi, target kosong, rencana belum ada', () => {
+  it('keadaan: memuat berkerangka, gagal dengan Coba lagi, status Plane belum segar', () => {
+    const memuat = laporanKerja(null, { kunci: 'FMS-1' })
+    expect(memuat.bar).toContain('FMS-1')
+    expect(memuat.bar).toContain('Memuat kerja…')
+    expect(memuat.bar).toContain('disabled')
+    expect(memuat.view).toContain('class="skel"')
+    const gagal = laporanKerja(null, { kunci: 'FMS-1', galat: 'putus' })
+    expect(gagal.view).toContain('putus')
+    expect(gagal.view).toContain('GET /api/kerja/FMS-1')
+    expect(gagal.view).toContain('data-kj-ulang')
     const k = kerjaContoh()
-    const h = halamanKerja({ kerja: k, tiket: '# t', rencana: null, db: [], komentar: '' })
-    expect(h).toContain('Salin perintah AI')
-    expect(h).toContain('Belum ada target potret')
-    expect(h).toContain('Belum ada rencana')
+    const d = {
+      kerja: k,
+      tiket: '',
+      catatan: null,
+      db: [],
+      komentar: '',
+      plane: { dicek: '2026-11-16T09:34:00Z', segar: false },
+    }
+    expect(laporanKerja(d, { cekPlane: 'memeriksa' }).bar).toMatch(
+      /<i>Plane: .*\?<\/i> · cache .*memeriksa…/,
+    )
+    expect(laporanKerja(d, { cekPlane: 'gagal' }).bar).toContain('gagal dicek')
+    expect(laporanKerja(d, { cekPlane: 'gagal' }).bar).toContain('data-kj-cek-plane')
+    const segar = laporanKerja({ ...d, plane: { ...d.plane, segar: true } }).bar
+    expect(segar).toContain('· dicek ')
+    expect(segar).not.toContain('?</i>')
+  })
+
+  it('tab Data: tabel query, galat ditandai, perubahan baris memakai komponen laporan', () => {
+    const k = kerjaContoh()
+    const db = [
+      {
+        nama: 'q-satu',
+        sql: 'SELECT 1',
+        sebelum: [{ id: 1, a: 1 }],
+        sesudah: [{ id: 1, a: 2 }],
+        galatSebelum: null,
+        galatSesudah: null,
+        beda: { ditambah: 0, dihapus: 0, berubah: 1, kolom: ['a'] },
+        perubahan: perubahanQuery('q-satu', [{ id: 1, a: 1 }], [{ id: 1, a: 2 }]),
+      },
+      {
+        nama: 'q-dua',
+        sql: 'SELECT x',
+        sebelum: null,
+        sesudah: null,
+        galatSebelum: 'kolom x tidak ada',
+        galatSesudah: null,
+        beda: null,
+        perubahan: [],
+      },
+    ]
+    const { view } = laporanKerja(
+      { kerja: k, tiket: '', catatan: null, db, komentar: '' },
+      { tab: 'data', pilih: 1 },
+    )
+    expect(view).toContain('aria-label="1 query gagal"')
+    expect(view).toContain('~1 berubah')
+    expect(view).toContain('class="rel-no s-gagal')
+    expect(view).toContain('class="lama">1</span>')
+    expect(view).toContain('class="baru">2</span>')
+  })
+
+  it('ringkasan: tiket tanpa kepala, ref modul + REQ, poin commit, bukti tanpa berkas lokal', () => {
+    const md =
+      '# FMS-1 · Judul\n\nStatus Plane: Todo · https://x\n\nScope / Modules Affected\n\n- Fleet & Asset / Meter Reading (KM / HM)\n\nRef Request: REQ-2026-033 | Sheet'
+    expect(tiketTanpaKepala(md)).toMatch(/^Scope/)
+    expect(refTiket(md)).toBe('Fleet & Asset / Meter Reading · REQ-2026-033')
+    const kode = {
+      commits: [
+        {
+          isi: 'Ringkas.\n\n- Satu butir\n  lanjutan baris\n- Dua\n\nCo-Authored-By: X <x@y>',
+        },
+      ],
+    }
+    expect(poinCommit(kode)).toEqual(['Satu butir lanjutan baris', 'Dua'])
+    expect(pisahBukti('Tampil benar (verifikasi/1-a.png)')).toEqual({
+      teks: 'Tampil benar',
+      berkas: ['verifikasi/1-a.png'],
+    })
+    expect(pisahBukti('Tanpa berkas (catatan kecil)').berkas).toEqual([])
+  })
+
+  it('ringkasan di laporan: bilah tahap, Bukti bertaut tab, kepala Laporan dengan jumlah butir', () => {
+    const k = setCek(
+      kerjaContoh({ tahap: 'diverifikasi' }),
+      'A',
+      'lulus',
+      'ok (verifikasi/1-a.png)',
+    )
+    const d = {
+      kerja: k,
+      tiket: '# t',
+      catatan: 'isi',
+      db: [],
+      komentar: '',
+      plane: { dicek: '2026-11-16T11:09:00Z', segar: true },
+    }
+    const { bar, view } = laporanKerja(d, { buka: new Set(['kriteria']) })
+    expect(bar).toContain('dicek ')
+    expect(view).toContain('aria-current="step"')
+    expect(view).toContain('data-kj-ke="layar"')
+    expect(view).toContain('src="/kerja/FMS-87/verifikasi/1-a.png"')
+    expect(view).not.toContain('(verifikasi/1-a.png)')
+    expect(view).toContain('id="kj-lap-hd"')
+    expect(view).toContain('Layar <span class="n">0</span>')
+  })
+
+  it('tab Kode: berkas per folder teratas, batang diffstat, pesan commit jadi markdown', () => {
+    const k = kerjaContoh({ commit: ['abc12345'] })
+    const kode = {
+      branch: 'feat/x',
+      diRemote: true,
+      belumDiPush: 0,
+      commits: [
+        {
+          sha: 'abc12345ff',
+          judul: 'feat: x',
+          isi: '- satu butir\n  lanjutan\n- dua\n\nCo-Authored-By: A <a@b>',
+          penulis: 'Tams',
+          tanggal: '2026-11-16T10:00:00Z',
+          berkas: [
+            { path: 'Backend/src/a.ts', tambah: 4, hapus: 1, diff: '', terpotong: false },
+            { path: 'Frontend/src/b.tsx', tambah: 2, hapus: 0, diff: '', terpotong: false },
+          ],
+        },
+      ],
+    }
+    const { view } = laporanKerja(
+      { kerja: k, tiket: '', catatan: null, db: [], komentar: '' },
+      { tab: 'kode', kode },
+    )
+    expect(view).toContain('Backend · 1 berkas')
+    expect(view).toContain('Frontend · 1 berkas')
+    expect(view).toContain('<span class="dim">Backend/src/</span>a.ts')
+    expect(view).toContain('✓ Sudah di remote')
+    expect(pesanCommitMd(kode.commits[0]?.isi)).toBe('- satu butir lanjutan\n- dua')
+    expect(batangDiff(4, 1)).toBe(
+      '<span class="kj-batang" aria-hidden="true"><i class="k t"></i><i class="k t"></i><i class="k t"></i><i class="k t"></i><i class="k h"></i></span>',
+    )
+    expect(rapikanSql('SELECT a FROM t WHERE x = 1 AND y = 2 ORDER BY 1')).toBe(
+      'SELECT a\nFROM t\nWHERE x = 1\n  AND y = 2\nORDER BY 1',
+    )
+  })
+
+  it('perubahan query: UPDATE per kolom, INSERT, DELETE', () => {
+    const p = perubahanQuery(
+      'q',
+      [
+        { id: 1, a: 1 },
+        { id: 2, a: 5 },
+      ],
+      [
+        { id: 1, a: 2 },
+        { id: 3, a: 9 },
+      ],
+    )
+    const ops = p[0]?.baris.map((b) => b.operasi)
+    expect(ops).toEqual(['UPDATE', 'INSERT', 'DELETE'])
+    expect(p[0]?.baris[0]?.kolom).toEqual([{ kolom: 'a', dari: 1, ke: 2 }])
+    expect(perubahanQuery('q', [{ id: 1 }], [{ id: 1 }])).toEqual([])
+  })
+
+  it('verifikasi per kriteria: tanda dan teks, bukan warna saja', () => {
+    const k = setCek(setCek(kerjaContoh(), 'A', 'lulus', 'bukti a'), 'B', 'gagal')
+    const h = daftarVerifikasi(k)
+    expect(h).toContain('✓ 1 lulus')
+    expect(h).toContain('× 1 gagal')
+    expect(h).toContain('aria-label="gagal">×')
+    expect(h).toContain('bukti a')
   })
 
   it('Tugas saya: tombol Ambil atau chip tahap', () => {
     expect(aksiKerja({ key: 'FMS-1', kerja: null })).toContain('data-tg-ambil="FMS-1"')
-    expect(aksiKerja({ key: 'FMS-1', kerja: { tahap: 'rencana' } })).toContain(
+    expect(aksiKerja({ key: 'FMS-1', kerja: { tahap: 'dipelajari' } })).toContain(
       'href="#/kerja/FMS-1"',
     )
   })

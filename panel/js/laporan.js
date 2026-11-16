@@ -254,11 +254,15 @@ export function diffHtml(perubahan, maks = 12) {
     .sort((x, y) => URUT[x.b.operasi] - URUT[y.b.operasi])
   const tampil = semua.slice(0, maks)
   const blok = tampil.map(({ p, b }) => {
-    const op = {
-      INSERT: 'baris baru',
-      DELETE: 'baris dihapus',
-      UPDATE: `id ${pendekKunci(b.kunci)}`,
+    // Kepala blok: chip operasi + nilai kunci. Baris ber-id: "id d9032c60…". Baris ringkasan tanpa
+    // id (query hitungan di laporan Kerja): nilai kolom kuncinya + "kunci: <kolom>".
+    const [opTeks, opNada] = {
+      INSERT: ['+ baru', 'ok'],
+      DELETE: ['− hapus', 'bad'],
+      UPDATE: ['~ berubah', 'warn'],
     }[b.operasi]
+    const kunci = b.kunci ? (p.kunciKolom ? b.kunci : `id ${pendekKunci(b.kunci)}`) : ''
+    const op = `${opTeks}${kunci ? ` ${kunci}` : ''}`
     let baris = []
     let sembunyi = false
     if (b.operasi === 'UPDATE') {
@@ -276,7 +280,7 @@ export function diffHtml(perubahan, maks = 12) {
           `<tr><th scope="row">${esc(x.kolom)}</th><td><span class="${b.operasi === 'INSERT' ? 'baru' : 'lama'}">${esc(nilaiPendek(b.operasi === 'INSERT' ? x.ke : x.dari))}</span></td></tr>`,
       )
     }
-    return `<div class="df-blok"><div class="df-kepala"><span class="mono">${esc(p.tabel)}</span> · ${esc(op)}</div><table class="df-t" aria-label="${esc(`${p.tabel} · ${op}`)}"><tbody>${baris.join('')}${sembunyi ? '<tr><th scope="row" class="dim">updated_at</th><td class="dim">ikut berubah</td></tr>' : ''}</tbody></table></div>`
+    return `<div class="df-blok"><div class="df-kepala">${p.sembunyiTabel ? '' : `<span class="mono">${esc(p.tabel)}</span>`}${chipStatus(opTeks, opNada)}${kunci ? `<b class="mono">${esc(kunci)}</b>` : ''}${p.kunciKolom?.length ? `<span class="mono df-kunci">kunci: ${esc(p.kunciKolom.join(' · '))}</span>` : ''}</div><table class="df-t" aria-label="${esc(`${p.tabel} · ${op}`)}"><tbody>${baris.join('')}${sembunyi ? '<tr><th scope="row" class="dim">updated_at</th><td class="dim">ikut berubah</td></tr>' : ''}</tbody></table></div>`
   })
   const sisa = semua.length - tampil.length
   return (

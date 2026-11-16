@@ -19,7 +19,7 @@
 
 <script type="module">
 import { halamanDasbor } from '/js/dasbor.js'
-import { halamanKerja } from '/js/kerja.js'
+import { laporanKerja } from '/js/kerja.js'
 import { aksiKini, chipJalan, chipTiketDaftar, cincinTarget, durasiPanjang, esc, jamDetik, kartuLangkah, kerangkaRunner, langkahKini, lunakGagal, petaLangkah, relLangkah } from '/js/komponen.js'
 import { cekTerpilih, chipTabel, kartuCek, kartuLangkahHasil, kartuRingkasan, kartuRingkasanDb, kartuTransaksi, kerangkaLaporanDb, kerangkaLaporanUi, kotakMerah, LEBAR_PANEL_DB, langkahAwal, REL_HASIL, relHasil, saringTransaksi, subJudul, tabelTransaksi } from '/js/laporan.js'
 import { menuKecepatan, muatPilihan, rasioLaptop, simpanPilihan, teksKecepatan, teksSkala } from '/js/pilihan.js'
@@ -88,7 +88,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjKode: null, kjKodeGalat: null, kjMode: 'sesudah', kjBuka: new Set(), kjGulir: false, kjIO: null, kjSinkron: true, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -254,62 +254,289 @@ function gambarDasbor() {
 }
 
 // ── Kerja satu tiket ───────────────────────────────────────────────────────
+/** Laporan Kerja: jendela penuh seperti Laporan skenario (#bar + #view, tanpa sidebar). */
+function bingkaiLaporan() {
+  const win = document.querySelector('.win')
+  win?.classList.remove('runner', 'sb-mode')
+  win?.classList.add('lapor')
+}
+function gambarKerja(key) {
+  const [r, k, tab = 'layar', sel] = route()
+  if (r !== 'kerja' || k !== key) return
+  bingkaiLaporan()
+  const view = $('#view')
+  // Buka-tutup diff per berkas bertahan saat digambar ulang.
+  const terbuka = new Set([...view.querySelectorAll('details.kj-berkas[open]')].map((x) => x.dataset.k))
+  const { bar, view: isi } = laporanKerja(S.kj, { tab, pilih: Number(sel) || 1, mode: S.kjMode, galat: S.kjGalat, sibuk: S.kjSibuk, kode: S.kjKode, kodeGalat: S.kjKodeGalat, kembali: svg('back', 16), buka: S.kjBuka, sinkron: S.kjSinkron, kunci: key, cekPlane: S.kjCekPlane, kabar: S.kjKabar })
+  $('#bar').innerHTML = bar
+  view.innerHTML = isi
+  for (const x of view.querySelectorAll('details.kj-berkas')) if (terbuka.has(x.dataset.k)) x.open = true
+  for (const b of document.querySelectorAll('#view [data-kj-salin]')) b.onclick = () => salin(b.dataset.kjSalin, b.dataset.kjSalinPesan ?? 'Perintah disalin')
+  $('#view [data-kj-ulang]')?.addEventListener('click', () => { S.kj = null; renderKerja(key, true) })
+  if (!S.kj) return
+  for (const b of document.querySelectorAll('[data-kj-cek-plane]')) b.onclick = () => cekPlane(key)
+  // Kepala Laporan: konteks + "↑ Ringkasan" hanya saat menempel (sentinel tepat di atasnya).
+  S.kjIO?.disconnect()
+  const hd = $('#kj-lap-hd'), sentinel = $('#kj-sentinel')
+  if (hd && sentinel && 'IntersectionObserver' in window) {
+    // rootMargin −2px: sentinel tepat di tepi atas sudah dihitung lewat, jadi kepala dianggap menempel.
+    S.kjIO = new IntersectionObserver(([e]) => hd.classList.toggle('menempel', !e.isIntersecting && e.boundingClientRect.top <= 1), { rootMargin: '-2px 0px 0px 0px' })
+    S.kjIO.observe(sentinel)
+  }
+  if (S.kjGulir) { S.kjGulir = false; $('#kj-laporan')?.scrollIntoView({ block: 'start' }) }
+  for (const b of document.querySelectorAll('#view [data-kj-buka]'))
+    b.onclick = () => { const id = b.dataset.kjBuka; S.kjBuka.has(id) ? S.kjBuka.delete(id) : S.kjBuka.add(id); gambarKerja(key) }
+  for (const a of document.querySelectorAll('#view [data-kj-ke]'))
+    a.onclick = (e) => {
+      // Baris Bukti / "Semua ›": buka tab itu lalu gulir ke Laporan (juga bila tab itu sudah terbuka).
+      e.preventDefault()
+      S.kjGulir = true
+      const tujuan = `#/kerja/${key}/${a.dataset.kjKe}`
+      if (location.hash === tujuan) gambarKerja(key)
+      else location.hash = tujuan
+    }
+  $('#view [data-kj-atas]')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
+  $('#view [data-kj-sinkron]')?.addEventListener('click', () => { S.kjSinkron = !S.kjSinkron; gambarKerja(key) })
+  for (const b of document.querySelectorAll('#view [data-kj-penuh]')) b.onclick = () => layarPenuh(b.dataset.kjPenuh)
+  for (const b of document.querySelectorAll('#view [data-kj-salin-sql]')) b.onclick = () => salin(b.dataset.kjSalinSql, 'SQL disalin')
+  $('#view [data-kj-buka-semua]')?.addEventListener('click', (e) => {
+    const semua = [...document.querySelectorAll('#view details.kj-berkas')]
+    const buka = semua.some((x) => !x.open)
+    for (const x of semua) x.open = buka
+    e.currentTarget.textContent = buka ? 'Tutup semua' : 'Buka semua'
+  })
+  pasangPeta()
+  const aksi = async (label, fn) => {
+    S.kjSibuk = label; S.kjGalat = null; S.kjKabar = null; gambarKerja(key)
+    let ok = true
+    try { S.kj = await fn() } catch (e) { S.kjGalat = e.message; ok = false }
+    S.kjSibuk = null; gambarKerja(key)
+    return ok
+  }
+  const ke = (n) => { location.hash = `#/kerja/${key}/${tab}/${n}` }
+  for (const b of document.querySelectorAll('#view [data-kj-pilih]')) {
+    b.onclick = () => ke(b.dataset.kjPilih)
+    b.onkeydown = (e) => { if (e.key === 'Enter') ke(b.dataset.kjPilih) }
+  }
+  for (const b of document.querySelectorAll('#view [data-kj-mode]')) b.onclick = () => { S.kjMode = b.dataset.kjMode; gambarKerja(key) }
+  for (const b of document.querySelectorAll('#view [data-kj-loncat]')) b.onclick = () => $(b.dataset.kjLoncat === '2' ? '#kj-tiket' : '#kj-catatan')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  $('#kj-salin')?.addEventListener('click', () => salin(`/kerjakan ${key}`, `Perintah disalin: /kerjakan ${key}`))
+  for (const f of ['sebelum', 'sesudah'])
+    $(`#kj-potret-${f}`)?.addEventListener('click', async () => {
+      // Potret ulang menimpa bukti yang ada — terutama "sebelum", yang tak bisa diambil lagi setelah kode berubah.
+      if (S.kj.kerja.potret[f] && !(await dialogTimpa(key, f))) return kabarKerja(key, `Potret ${f} tidak diubah.`)
+      aksi(`Memotret ${f}`, () => api(`/api/kerja/${key}/potret`, { fase: f }))
+    })
+  for (const b of document.querySelectorAll('#view [data-kj-tahap]'))
+    b.onclick = () => aksi('Memindah tahap', () => api(`/api/kerja/${key}/tahap`, { tahap: b.dataset.kjTahap, catatan: 'Dipindah dari panel' }))
+  $('#kj-komentar')?.addEventListener('click', async () => {
+    const v = await dialogKomentar(key)
+    if (v === null) return kabarKerja(key, 'Tidak ada yang dikirim ke Plane.')
+    if (await aksi('Mengirim komentar ke Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'komentar', catatan: v, konfirmasi: true })))
+      kabarKerja(key, `<span class="ok-t">✓</span> Komentar terkirim ke ${esc(key)}<a class="btn tb kj-kecil" href="${esc(S.kj.kerja.url)}" target="_blank" rel="noopener">Buka di Plane ↗</a>`, 8000)
+  })
+  $('#kj-status')?.addEventListener('click', async () => {
+    const v = await dialogStatus(key)
+    if (!v) return kabarKerja(key, 'Status Plane tidak diubah.')
+    if (await aksi('Memindah status di Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'status', status: v, konfirmasi: true }))) {
+      kabarKerja(key, `<span class="ok-t">✓</span> Status ${esc(key)} di Plane: ${esc(v)}`, 6000)
+      cekPlane(key, true)
+    }
+  })
+}
+/** Pil kabar sesaat di bawah bar (HTML tepercaya; teks dari pengguna harus di-esc pemanggil). */
+function kabarKerja(key, html, lama = 4000) {
+  S.kjKabar = html
+  clearTimeout(S.kjKabarT)
+  S.kjKabarT = setTimeout(() => { S.kjKabar = null; gambarKerja(key) }, lama)
+  gambarKerja(key)
+}
 /**
- * Dialog konfirmasi (elemen <dialog>, bukan window.confirm). `isi` = HTML; `kolom` opsional berupa
- * {label, jenis: 'teks'|'pilih', opsi}. Resolve nilai kolom ('' bila tanpa kolom) atau null bila batal.
+ * Periksa ulang status Plane (melewati cache), lalu muat ulang data kerja. Selama memeriksa,
+ * status cache tampil miring bertanda "?"; gagal → chip oranye + Cek ulang (§6.1).
  */
-function konfirmasi(judul, isi, { tombol = 'Kirim', kolom = null } = {}) {
+async function cekPlane(key, diam = false) {
+  if (!S.cfg?.plane) return
+  if (!diam) { S.kjCekPlane = 'memeriksa'; gambarKerja(key) }
+  try {
+    S.tugas = await api('/api/tugas?segarkan=1')
+    const d = await api(`/api/kerja/${encodeURIComponent(key)}`)
+    if (S.kj?.kerja?.key !== key) return
+    S.kj = d
+    S.kjCekPlane = d.plane?.segar ? null : 'gagal'
+  } catch { S.kjCekPlane = 'gagal' }
+  gambarKerja(key)
+}
+/** <dialog> kerja: isi HTML, `pasang(d)` untuk wiring; resolve returnValue form ('' bila Esc). */
+function bukaDialogKerja(html, pasang = () => {}, lebar = 560) {
   return new Promise((resolve) => {
     const d = document.createElement('dialog')
     d.className = 'kj-dialog'
-    const k = kolom
-      ? kolom.jenis === 'pilih'
-        ? `<label class="kj-field"><span>${esc(kolom.label)}</span><select id="kj-nilai">${kolom.opsi.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>`
-        : `<label class="kj-field"><span>${esc(kolom.label)}</span><textarea id="kj-nilai" rows="3"></textarea></label>`
-      : ''
-    d.innerHTML = `<form method="dialog"><h2>${esc(judul)}</h2><div class="kj-dialog-isi">${isi}</div>${k}<div class="kj-dialog-aksi"><button class="btn tb" value="batal">Batal</button><button class="btn tb utama-tb" value="ok">${esc(tombol)}</button></div></form>`
+    d.style.width = `min(${lebar}px, calc(100vw - 32px))`
+    d.innerHTML = `<form method="dialog">${html}</form>`
     document.body.append(d)
-    d.addEventListener('close', () => {
-      const v = d.returnValue === 'ok' ? ($('#kj-nilai', d)?.value ?? '') : null
-      d.remove()
-      resolve(v)
-    })
+    const hasil = { nilai: null }
+    pasang(d, hasil)
+    d.addEventListener('close', () => { const v = d.returnValue === 'ok' ? (hasil.nilai ?? '') : null; d.remove(); resolve(v) })
     d.showModal()
+    d.querySelector('[autofocus]')?.focus()
   })
 }
-function gambarKerja(key) {
-  const main = $('#app-main')
-  if (!main || route()[0] !== 'kerja' || route()[1] !== key) return
-  main.innerHTML = halamanKerja(S.kj, { galat: S.kjGalat, sibuk: S.kjSibuk })
-  const aksi = async (label, fn) => {
-    S.kjSibuk = label; S.kjGalat = null; gambarKerja(key)
-    try { S.kj = await fn() } catch (e) { S.kjGalat = e.message }
-    S.kjSibuk = null; gambarKerja(key)
+const IKON_TIM = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>'
+const jamKerja = (iso) => (iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '')
+/** §5.1 Timpa potret: gambar mini potret lama, jumlahnya, dan peringatan bila sudah ada commit. */
+function dialogTimpa(key, f) {
+  const lama = S.kj.kerja.potret[f]
+  const layar = lama.layar.filter((l) => l.file)
+  const mini = layar.slice(0, 3).map((l) => `<span class="kj-mini"><img src="/kerja/${encodeURIComponent(key)}/${f}/${encodeURIComponent(l.file)}" alt=""></span>`).join('')
+  const waktu = new Date(lama.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  // Commit sesudah potret sebelum: potret baru akan merekam kode yang sudah berubah.
+  const commits = (S.kjKode?.commits ?? []).filter((c) => !c.galat && c.tanggal && new Date(c.tanggal) > new Date(lama.at))
+  const adaCommit = f === 'sebelum' && (commits.length || (!S.kjKode && S.kj.kerja.commit.length))
+  const c = commits[0]
+  const peringatan = adaCommit
+    ? `<div class="kj-peringatan"><span class="warn-t" aria-hidden="true"><b>!</b></span><span>Sudah ada commit tercatat${c ? ` (<span class="mono">${esc(c.sha.slice(0, 8))}</span>, ${esc(jamKerja(c.tanggal))})` : ''}. Potret baru akan merekam keadaan <b>sesudah</b> perubahan, dan keadaan sebelum tidak bisa dipotret lagi.</span></div>`
+    : ''
+  const html = `<div class="kj-dialog-kepala"><span class="kj-dialog-ikon" aria-hidden="true">!</span><h2>Timpa potret ${f}?</h2></div>
+    <p>Potret ${f} yang ada akan <b>diganti</b>.${f === 'sebelum' ? ' Potret ini adalah bukti keadaan sebelum kode diubah.' : ''}</p>
+    <div class="kartu-box kj-timpa-kotak">${mini ? `<span class="kj-mini-baris" aria-hidden="true">${mini}</span>` : ''}<span class="kj-catatan-kecil"><b>${esc(waktu)}</b><br><span class="dim">${layar.length} layar · ${lama.db.filter((x) => x.file).length} query</span></span></div>
+    ${peringatan}
+    <div class="kj-dialog-aksi"><button class="btn tb" value="batal" autofocus>Batal</button><button class="btn tb ${f === 'sebelum' ? 'bahaya-isi' : 'utama-tb'}" value="ok">Timpa potret ${f}</button></div>`
+  return bukaDialogKerja(html).then((v) => v !== null)
+}
+/** §5.2 Komentar Plane: chip Terlihat tim, status terkini, pratinjau Seperti di Plane / sumber HTML. */
+function dialogKomentar(key) {
+  const d0 = S.kj
+  const status = d0.plane?.segar ? `${esc(d0.kerja.plane.status)} · dicek ${esc(jamKerja(d0.plane.dicek))}` : `<i>${esc(d0.kerja.plane.status)}?</i> · belum dicek ulang`
+  // Catatan tambahan masuk tepat sesudah judul, sama seperti komentarHtml di server.
+  const dengan = (catatan) => catatan.trim() ? d0.komentar.replace('</p>', `</p><p>${esc(catatan.trim())}</p>`) : d0.komentar
+  const html = `<div class="kj-dialog-kepala"><h2>Kirim komentar ke ${esc(key)}?</h2><span class="chip tim">${IKON_TIM}Terlihat tim</span></div>
+    <p class="dim kj-catatan-kecil">Komentar muncul di tiket Plane dan terlihat oleh seluruh tim. Status tiket: ${status}.</p>
+    <div class="kj-pratinjau-hd"><span class="db-eyebrow">Pratinjau</span><div class="pill" role="group" aria-label="Bentuk pratinjau"><button type="button" data-p="tampil" aria-pressed="true">Seperti di Plane</button><button type="button" data-p="sumber" aria-pressed="false">HTML</button></div></div>
+    <div class="kj-pratinjau" id="kj-prat"></div>
+    <label class="kj-field"><span>Catatan tambahan <span class="dim">(opsional)</span></span><textarea id="kj-nilai" rows="3" placeholder="Misalnya keputusan yang masih terbuka"></textarea></label>
+    <div class="kj-dialog-aksi"><span class="dim kj-dialog-catatan">Tidak bisa ditarik kembali dari sini.</span><button class="btn tb" value="batal">Batal</button><button class="btn tb tim-isi" value="ok">Kirim ke Plane</button></div>`
+  return bukaDialogKerja(html, (d, hasil) => {
+    let bentuk = 'tampil'
+    const ta = d.querySelector('#kj-nilai'), prat = d.querySelector('#kj-prat')
+    const gambar = () => {
+      const h = dengan(ta.value)
+      prat.innerHTML = bentuk === 'tampil' ? h : `<pre class="kj-pratinjau-sumber">${esc(h.replace(/<\/(p|ul|li)>/g, '</$1>\n'))}</pre>`
+      hasil.nilai = ta.value
+    }
+    for (const b of d.querySelectorAll('[data-p]'))
+      b.onclick = () => { bentuk = b.dataset.p; for (const x of d.querySelectorAll('[data-p]')) x.setAttribute('aria-pressed', String(x === b)); gambar() }
+    ta.addEventListener('input', gambar)
+    gambar()
+  }, 600)
+}
+const KET_GRUP = { backlog: 'Backlog', unstarted: 'Belum dimulai', started: 'Sedang berjalan', completed: 'Selesai', cancelled: 'Dibatalkan', triage: 'Triage' }
+/** §5.3 Status Plane: status dicek ulang saat dialog dibuka; tombol kirim aktif setelah ada jawaban. */
+function dialogStatus(key) {
+  const html = `<div class="kj-dialog-kepala"><h2>Ubah status Plane ${esc(key)}?</h2><span class="chip tim">${IKON_TIM}Terlihat tim</span></div>
+    <div class="kj-catatan-kecil" id="kj-st-kini" role="status"><span class="putar kecil" aria-hidden="true"></span>Memeriksa status terkini di Plane…</div>
+    <fieldset id="kj-st-opsi"><legend class="db-eyebrow">Status baru</legend></fieldset>
+    <div class="kj-pratinjau kj-perubahan-status" id="kj-st-ubah" hidden></div>
+    <div class="kj-dialog-aksi"><button class="btn tb" value="batal">Batal</button><button class="btn tb tim-isi" value="ok" id="kj-st-ok" disabled>Ubah status</button></div>`
+  return bukaDialogKerja(html, (d, hasil) => {
+    const kini = d.querySelector('#kj-st-kini'), opsi = d.querySelector('#kj-st-opsi'), ubah = d.querySelector('#kj-st-ubah'), ok = d.querySelector('#kj-st-ok')
+    const periksa = async () => {
+      ok.disabled = true
+      kini.innerHTML = '<span class="putar kecil" aria-hidden="true"></span>Memeriksa status terkini di Plane…'
+      try {
+        const t = await api('/api/tugas?segarkan=1')
+        S.tugas = t
+        const tg = t.tugas.find((x) => x.key === key)
+        const sekarang = tg?.status ?? S.kj.kerja.plane.status
+        kini.innerHTML = tg
+          ? `<span class="ok-t">✓</span> Status terkini dicek ${esc(jamKerja(new Date().toISOString()))}: <b>${esc(sekarang)}</b>`
+          : `<span class="warn-t">!</span> ${esc(key)} tidak ada di Tugas saya; status tersimpan: <b>${esc(sekarang)}</b>`
+        const daftar = t.status ?? []
+        const iKini = daftar.findIndex((s) => s.nama === sekarang)
+        const awal = daftar[iKini + 1] && !daftar[iKini + 1].selesai ? daftar[iKini + 1] : daftar.find((s) => s.nama !== sekarang)
+        opsi.innerHTML = `<legend class="db-eyebrow">Status baru</legend>${daftar
+          .map((s) => {
+            const ini = s.nama === sekarang
+            return `<label class="kj-pilihan"><input type="radio" name="kj-st" value="${esc(s.nama)}"${ini ? ' disabled' : ''}${s === awal ? ' checked' : ''}><span><b>${esc(s.nama)}</b><span class="kj-ket">${ini ? 'Status sekarang' : esc(KET_GRUP[s.grup] ?? s.grup)}</span></span></label>`
+          })
+          .join('')}<p class="dim kj-catatan-kecil">Daftar diambil dari state proyek Plane.</p>`
+        const pilih = () => {
+          const v = opsi.querySelector('input:checked')?.value
+          hasil.nilai = v ?? null
+          ok.disabled = !v
+          ok.textContent = v ? `Ubah ke ${v}` : 'Ubah status'
+          ubah.hidden = !v
+          ubah.innerHTML = v ? `<span class="db-eyebrow">Perubahan</span><span>${esc(sekarang)}</span><span class="dim">→</span><b>${esc(v)}</b>` : ''
+        }
+        for (const r of opsi.querySelectorAll('input')) r.onchange = pilih
+        pilih()
+      } catch (e) {
+        kini.innerHTML = `<span class="chip warn">! Status tidak bisa dicek</span> <span class="dim mono">${esc(e.message)}</span> <button type="button" class="btn tb kj-kecil" id="kj-st-ulang">Cek ulang</button>`
+        d.querySelector('#kj-st-ulang').onclick = periksa
+      }
+    }
+    periksa()
+  }, 520)
+}
+/** Peta mini (kotak = bagian yang terlihat; klik/seret untuk loncat) dan gulir bersama Berdampingan. */
+function pasangPeta() {
+  const gulir = (f) => document.querySelector(`#view [data-kj-gulir="${f}"]`)
+  for (const peta of document.querySelectorAll('#view [data-kj-peta]')) {
+    const f = peta.dataset.kjPeta
+    const utama = f === 'dua' ? gulir('sesudah') ?? gulir('sebelum') : gulir(f)
+    if (!utama) continue
+    const isi = peta.querySelector('.isi'), kotak = peta.querySelector('.kotak'), img = peta.querySelector('img')
+    const atur = () => {
+      // Halaman sangat tinggi: peta dipadatkan ke tinggi bingkainya (skala tegak saja).
+      const maks = peta.clientHeight - 8
+      if (img?.naturalHeight && img.naturalHeight * (isi.clientWidth / img.naturalWidth) > maks) { img.style.height = `${maks}px`; img.style.objectFit = 'fill' }
+      const sh = utama.scrollHeight, h = isi.offsetHeight
+      if (!sh || !h) return
+      kotak.style.top = `${(utama.scrollTop / sh) * h}px`
+      kotak.style.height = `${Math.min(1, utama.clientHeight / sh) * h}px`
+      const akhir = peta.querySelector('.kj-akhir'), a = gulir('sebelum'), b = gulir('sesudah')
+      if (akhir && a && b && a.scrollHeight < b.scrollHeight - 4) { akhir.hidden = false; akhir.style.top = `${(a.scrollHeight / b.scrollHeight) * h}px` }
+    }
+    utama.addEventListener('scroll', atur, { passive: true })
+    for (const x of [img, ...document.querySelectorAll('#view [data-kj-gulir] img')]) x?.addEventListener('load', atur)
+    atur()
+    const ke = (e) => { const r = isi.getBoundingClientRect(); utama.scrollTop = ((e.clientY - r.top) / r.height) * utama.scrollHeight - utama.clientHeight / 2 }
+    peta.onpointerdown = (e) => { ke(e); peta.setPointerCapture(e.pointerId); peta.onpointermove = ke }
+    peta.onpointerup = () => { peta.onpointermove = null }
   }
-  $('#kj-salin')?.addEventListener('click', () => salin(`/kerjakan ${key}`, `Perintah disalin: /kerjakan ${key}`))
-  for (const f of ['sebelum', 'sesudah'])
-    $(`#kj-potret-${f}`)?.addEventListener('click', () => aksi(`Memotret ${f}`, () => api(`/api/kerja/${key}/potret`, { fase: f })))
-  $('#kj-ambil')?.addEventListener('click', () => aksi('Mengambil ulang dari Plane', () => api(`/api/kerja/${key}/ambil`, {})))
-  for (const b of main.querySelectorAll('[data-kj-tahap]'))
-    b.onclick = () => aksi('Memindah tahap', () => api(`/api/kerja/${key}/tahap`, { tahap: b.dataset.kjTahap, catatan: 'Dipindah dari panel' }))
-  $('#kj-komentar')?.addEventListener('click', async () => {
-    const v = await konfirmasi(`Kirim komentar ke ${key}?`, `<p>Komentar ini <b>terlihat oleh tim</b> di Plane. Pratinjau:</p><div class="kj-pratinjau">${S.kj.komentar}</div>`, { tombol: 'Kirim ke Plane', kolom: { label: 'Catatan tambahan (opsional)', jenis: 'teks' } })
-    if (v === null) return
-    aksi('Mengirim komentar ke Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'komentar', catatan: v, konfirmasi: true }))
-  })
-  $('#kj-status')?.addEventListener('click', async () => {
-    const opsi = (S.tugas?.status ?? []).map((s) => s.nama).filter((n) => n !== S.kj.kerja.plane.status)
-    const v = await konfirmasi(`Pindah status ${key} di Plane?`, `<p>Status sekarang: <b>${esc(S.kj.kerja.plane.status)}</b>. Perubahan ini <b>terlihat oleh tim</b>.</p>`, { tombol: 'Pindahkan', kolom: opsi.length ? { label: 'Status baru', jenis: 'pilih', opsi } : { label: 'Nama status baru (mis. Done)', jenis: 'teks' } })
-    if (!v) return
-    aksi('Memindah status di Plane', () => api(`/api/kerja/${key}/plane`, { jenis: 'status', status: v, konfirmasi: true }))
-  })
+  const a = gulir('sebelum'), b = gulir('sesudah')
+  if (a && b && $('#view [data-kj-dua]') && S.kjSinkron) {
+    let ikut = false
+    const sama = (dari, ke) => () => { if (ikut) return; ikut = true; ke.scrollTop = dari.scrollTop; requestAnimationFrame(() => { ikut = false }) }
+    a.addEventListener('scroll', sama(a, b), { passive: true })
+    b.addEventListener('scroll', sama(b, a), { passive: true })
+  }
 }
-async function renderKerja(key) {
-  const main = appMain('kerja')
-  if (S.kj?.kerja?.key !== key) { S.kj = null; S.kjGalat = null; main.innerHTML = halamanKerja(null) }
-  try { S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`); S.kjGalat = null } catch (e) { S.kj = null; S.kjGalat = e.message }
-  // Daftar status Plane untuk dialog Pindah status (dari halaman Tugas; dimuat sekali bila belum).
-  if (!S.tugas && S.cfg?.plane) api('/api/tugas').then((t) => { S.tugas = t }).catch(() => {})
+/** Screenshot halaman penuh dalam dialog (Esc menutup). */
+function layarPenuh(url) {
+  const d = document.createElement('dialog')
+  d.className = 'kj-dialog kj-layar-penuh'
+  d.innerHTML = `<div class="kj-layar-penuh-hd"><span class="mono dim">${esc(url.split('/').slice(-2).join('/'))}</span><a class="btn tb" href="${esc(url)}" target="_blank" rel="noopener">Buka di tab baru ↗</a><button type="button" class="btn tb" data-tutup>Tutup</button></div><div class="kj-layar-penuh-isi"><img src="${esc(url)}" alt=""></div>`
+  document.body.append(d)
+  d.querySelector('[data-tutup]').onclick = () => d.close()
+  d.addEventListener('close', () => d.remove())
+  d.showModal()
+}
+async function renderKerja(key, ulang = false) {
+  bingkaiLaporan()
+  if (S.kj?.kerja?.key !== key || ulang) {
+    S.kj = null; S.kjGalat = null; S.kjKode = null; S.kjKodeGalat = null; S.kjBuka = new Set(); S.kjCekPlane = null; S.kjKabar = null
+    gambarKerja(key)
+    try { S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`); S.kjGalat = null } catch (e) { S.kj = null; S.kjGalat = e.message }
+    // Perubahan kode dibaca dari repo v2 terpisah, supaya laporan tidak menunggu git.
+    if (S.kj?.kerja?.commit?.length || S.kj?.kerja?.branch)
+      api(`/api/kerja/${encodeURIComponent(key)}/kode`)
+        .then((k) => { S.kjKode = k; S.kjKodeGalat = null })
+        .catch((e) => { S.kjKodeGalat = e.message })
+        .finally(() => gambarKerja(key))
+    // Status Plane dari cache lama (Plane lambat): tandai belum segar lalu periksa ulang (§6.1).
+    if (S.kj && !S.kj.plane?.segar) cekPlane(key)
+  }
   gambarKerja(key)
 }
 
@@ -1400,13 +1627,13 @@ let lastPage = ''
 async function render() {
   const [r, a, b] = route()
   const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'kerja' ? 'kerja' : 'skenario'
-  if (page !== 'laporan') document.querySelector('.win')?.classList.remove('lapor')
-  if (page === 'jalan' || page === 'laporan') document.querySelector('.win')?.classList.remove('sb-mode')
+  if (page !== 'laporan' && page !== 'kerja') document.querySelector('.win')?.classList.remove('lapor')
+  if (page === 'jalan' || page === 'laporan' || page === 'kerja') document.querySelector('.win')?.classList.remove('sb-mode')
   if (page !== 'jalan') { closeLive(); S.frame = false; S.fokus = false; S.peta = false }
   if (page !== lastPage) {
     S.viewStep = null
     window.scrollTo(0, 0)
-    if (page === 'jalan' || page === 'laporan' || lastPage === 'jalan' || lastPage === 'laporan') $('#view').innerHTML = ''
+    if (['jalan', 'laporan', 'kerja'].includes(page) || ['jalan', 'laporan', 'kerja'].includes(lastPage)) $('#view').innerHTML = ''
   }
   lastPage = page
   tutupMenu()
@@ -1484,7 +1711,7 @@ async function init() {
 
 // ── Pintasan: Spasi, →, T, Ctrl/⌘↩, F, [, Esc. Tidak aktif saat mengetik; Hentikan tanpa pintasan ─
 document.addEventListener('keydown', (ev) => {
-  const aksi = aksiPintasan(dariEvent(ev), { halaman: route()[0], peta: S.peta, fokus: S.fokus, sidebar: !!$('#app-main') && !['jalan', 'laporan'].includes(route()[0]) })
+  const aksi = aksiPintasan(dariEvent(ev), { halaman: route()[0], peta: S.peta, fokus: S.fokus, sidebar: !!$('#app-main') && !['jalan', 'laporan', 'kerja'].includes(route()[0]) })
   if (!aksi) return
   ev.preventDefault()
   if (aksi === 'jeda-lanjut') togglePause()

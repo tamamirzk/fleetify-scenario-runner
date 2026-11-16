@@ -194,3 +194,67 @@
   --sr-team-text: #5b21b6;
   --sr-team-bg: #f3effe;
 }
+
+/* Scenario Runner — token tambahan untuk Laporan Kerja.
+   Melengkapi tokens.css (token asli + tambahan Dasbor). Nilai lama tidak diubah.
+   Sebagian besar token di sini menggantikan nilai mentah yang sudah ada di panel.css
+   (dicatat di komentar), sehingga arti warnanya terpusat. Mode gelap bawaan;
+   nilai mode terang di bawah adalah usulan awal. */
+
+:root {
+  /* Isian lembut untuk chip status (sebelumnya nilai mentah .kj-jenis, .rel-no.s-lulus) */
+  --sr-info-bg: rgba(10, 132, 255, 0.18);
+  --sr-success-bg: rgba(50, 215, 75, 0.16);
+  --sr-warning-bg: rgba(255, 159, 10, 0.16);
+  --sr-danger-bg: rgba(255, 69, 58, 0.16);
+
+  /* Penanda tahap kerja (langkah bersambung di Ringkasan) */
+  --sr-step-size: 26px;
+  --sr-step-line-done: rgba(50, 215, 75, 0.45); /* garis antar-langkah yang sudah lewat */
+  --sr-step-ring: 0 0 0 4px rgba(10, 132, 255, 0.25); /* cincin langkah sekarang */
+
+  /* Kepala Laporan yang menempel (sebelumnya nilai mentah .kj-laporan-hd) */
+  --sr-sticky-bg: rgba(20, 20, 22, 0.94);
+  --sr-sticky-h: 56px; /* desktop: satu baris */
+  --sr-sticky-h-ponsel: 100px; /* ponsel: tab + pemindah butir */
+  --sr-sticky-shadow: 0 12px 28px rgba(0, 0, 0, 0.38); /* hanya saat menempel */
+
+  /* Bukti verifikasi: gambar mini yang bisa diklik */
+  --sr-thumb-w: 88px;
+  --sr-thumb-h: 56px;
+  --sr-thumb-radius: 6px;
+
+  /* Bingkai screenshot dan peta mini */
+  --sr-shot-max-h: calc(100vh - 220px); /* tinggi bingkai di desktop */
+  --sr-minimap-w: 64px;
+  --sr-minimap-view: rgba(255, 255, 255, 0.85); /* garis kotak area yang terlihat */
+
+  /* Diff kode (sebelumnya nilai mentah .kj-diff .tambah/.hapus/.hunk) */
+  --sr-diff-add-bg: rgba(50, 215, 75, 0.12);
+  --sr-diff-del-bg: rgba(255, 69, 58, 0.12);
+  --sr-diff-hunk-bg: rgba(10, 132, 255, 0.08);
+
+  /* Dialog dan lembar bawah (sebelumnya nilai mentah .kj-dialog::backdrop) */
+  --sr-scrim: rgba(0, 0, 0, 0.55);
+
+  /* Kerangka memuat */
+  --sr-skeleton: rgba(255, 255, 255, 0.06);
+  --sr-skeleton-sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+}
+
+[data-theme="light"] {
+  --sr-info-bg: rgba(10, 132, 255, 0.12);
+  --sr-success-bg: rgba(30, 127, 52, 0.12);
+  --sr-warning-bg: rgba(154, 90, 0, 0.12);
+  --sr-danger-bg: rgba(196, 22, 28, 0.1);
+  --sr-step-line-done: rgba(30, 127, 52, 0.45);
+  --sr-sticky-bg: rgba(250, 250, 252, 0.94);
+  --sr-sticky-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+  --sr-minimap-view: rgba(0, 0, 0, 0.75);
+  --sr-diff-add-bg: rgba(30, 127, 52, 0.1);
+  --sr-diff-del-bg: rgba(196, 22, 28, 0.08);
+  --sr-diff-hunk-bg: rgba(10, 132, 255, 0.08);
+  --sr-scrim: rgba(0, 0, 0, 0.32);
+  --sr-skeleton: rgba(0, 0, 0, 0.06);
+  --sr-skeleton-sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+}

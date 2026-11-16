@@ -184,7 +184,7 @@ describe('laporan · Transaksi database', () => {
   it('diff kolom lama → baru, updated_at disembunyikan', () => {
     const h = diffHtml(ld.transaksi[0]?.perubahan ?? [])
     expect(h).toContain(
-      '<div class="df-kepala"><span class="mono">tool_loans</span> · id 4412abcd…</div>',
+      '<div class="df-kepala"><span class="mono">tool_loans</span><span class="st-chip warn">~ berubah</span><b class="mono">id 4412abcd…</b></div>',
     )
     expect(h).toContain(
       '<tr><th scope="row">returned_qty</th><td><span class="lama">0</span> <span aria-hidden="true">→</span><span class="sr"> menjadi </span> <span class="baru">1</span></td></tr>',

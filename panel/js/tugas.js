@@ -114,9 +114,10 @@ export function kolomStatus(status, tugas, { selesai = false } = {}) {
 
 const LABEL_TAHAP = {
   diambil: 'Diambil',
-  rencana: 'Rencana & sebelum',
-  dikerjakan: 'Dikerjakan',
-  dokumentasi: 'Sesudah & skenario',
+  dipelajari: 'Dipelajari',
+  dikerjakan: 'Dikerjakan (AI)',
+  diverifikasi: 'Diverifikasi',
+  didokumentasikan: 'Didokumentasikan',
   selesai: 'Selesai',
 }
 
@@ -124,7 +125,7 @@ const LABEL_TAHAP = {
 export function aksiKerja(t) {
   return t.kerja
     ? `<a class="tg-tahap tahap-${esc(t.kerja.tahap)}" href="#/kerja/${esc(t.key)}" title="Buka kerja ${esc(t.key)}">${esc(LABEL_TAHAP[t.kerja.tahap] ?? t.kerja.tahap)}</a>`
-    : `<button type="button" class="btn tb tg-ambil" data-tg-ambil="${esc(t.key)}" title="Mulai kerja: salin tiket dari Plane ke kerja/${esc(t.key)}/">Ambil</button>`
+    : `<button type="button" class="btn tb tg-ambil" data-tg-ambil="${esc(t.key)}" title="Mulai monitoring: salin tiket dari Plane ke kerja/${esc(t.key)}/">Ambil</button>`
 }
 
 /** Kartu papan: kunci + prioritas, judul, label, tenggat, skenario tertaut, aksi kerja. */
