@@ -2,7 +2,7 @@
   "slug": "contoh-skenario",
   "judul": "Judul singkat skenario",
   "tujuan": "Membuktikan … (satu kalimat: perilaku apa yang harus terlihat di layar).",
-  "modul": "material",
+  "modul": "pengadaan",
   "tiket": ["FMS-0"],
   "estimasi": "3 menit",
   "persona": [{ "siapa": "mbl.storekeeper", "peran": "membuka barang baru" }],

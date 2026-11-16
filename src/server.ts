@@ -28,8 +28,10 @@ import {
   type BerkasSkenario,
   bacaSatu,
   bacaSemua,
+  infoAlur,
   muatSkenario,
   stepInfo,
+  urutAlur,
 } from './core/scenarios.ts'
 import {
   bacaLayar,
@@ -257,7 +259,7 @@ function requireRun(): Run {
 }
 
 /** Ringkasan satu berkas untuk kartu dan pratinjau. */
-function kartu(b: BerkasSkenario) {
+function kartu(b: BerkasSkenario, semua: BerkasSkenario[] = bacaSemua()) {
   const s = b.skenario
   const last = lastResult(b.slug)
   return {
@@ -271,6 +273,8 @@ function kartu(b: BerkasSkenario) {
     tujuan: s?.tujuan ?? null,
     estimasi: s?.estimasi ?? null,
     modul: s?.modul ?? null,
+    // Kedudukan di grup: alur lurus atau belok (dari langkah n alur lurus); null = lepas.
+    alur: infoAlur(b, semua),
     langkah: s?.langkah.length ?? null,
     persona: s?.persona.length ?? null,
     // Tiket Plane (FMS-123): tautan = TICKET_URL + kunci, tanpa sinkron.
@@ -288,12 +292,13 @@ function kartu(b: BerkasSkenario) {
 
 function detail(b: BerkasSkenario) {
   const s = b.skenario
+  const k = kartu(b)
   return {
-    ...kartu(b),
+    ...k,
     raw: b.raw,
     detail: s && {
       ...s,
-      tiket: kartu(b).tiket,
+      tiket: k.tiket,
       persona: s.persona.map((p) => ({ ...p, nama: personaName(p.siapa) })),
       steps: s.langkah.map((l, i) => ({
         ...stepInfo(l, i),
@@ -392,7 +397,10 @@ const routes: Record<string, Handler> = {
     pemeriksaan_ui: new PemeriksaUi().dikonfigurasi,
     v2_dir: config.v2Dir,
   }),
-  'GET /api/scenarios': async () => bacaSemua().map(kartu),
+  'GET /api/scenarios': async () => {
+    const semua = bacaSemua()
+    return semua.map((b) => kartu(b, semua))
+  },
   /** Project › Modul: satu project Fleetify v2; modul = folder scenarios/<modul>/ dengan jumlah berkas. */
   'GET /api/project': async () => {
     const jumlah = new Map<string, number>()
@@ -419,9 +427,10 @@ const routes: Record<string, Handler> = {
   },
   'POST /api/queue': async (body) => {
     const task = String(body.task ?? '')
-    const slugs = bacaSemua()
-      .filter((b) => b.task === task && b.skenario)
-      .map((b) => b.slug)
+    // Urutan grup: alur lurus dulu, lalu belokan menurut titik beloknya.
+    const slugs = urutAlur(bacaSemua().filter((b) => b.task === task && b.skenario)).map(
+      (b) => b.slug,
+    )
     if (!slugs.length) throw new HttpError(400, `Tidak ada skenario valid di modul ${task}`)
     const [first, ...rest] = slugs
     await mulaiJalan(first as string, { speed: Number(body.speed ?? 1), autostart: 0 })

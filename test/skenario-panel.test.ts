@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   barisSkenario,
+  chipAlur,
   chipFilter,
   daftarSkenario,
   kelompokModul,
@@ -12,8 +13,10 @@ import {
   saringSkenario,
   sidebar,
   statusJalan,
+  urutAlur,
 } from '../panel/js/skenario.js'
 import { modulProject, PROJECTS, statusSkenario } from '../src/core/project.ts'
+import { type BerkasSkenario, periksaAlur } from '../src/core/scenarios.ts'
 import { SkenarioSchema } from '../src/core/skema.ts'
 
 describe('project dan modul', () => {
@@ -24,14 +27,14 @@ describe('project dan modul', () => {
     const m = modulProject(
       p,
       new Map([
-        ['material', 4],
-        ['wo', 10],
+        ['pengadaan', 4],
+        ['insidentil', 10],
         ['zz-baru', 1],
       ]),
     )
     expect(m.map((x) => [x.id, x.nama, x.jumlah])).toEqual([
-      ['wo', 'Work Order', 10],
-      ['material', 'Material & Gudang', 4],
+      ['insidentil', 'Perbaikan Insidentil', 10],
+      ['pengadaan', 'Pengadaan & Gudang', 4],
       ['zz-baru', 'Zz baru', 1],
     ])
   })
@@ -48,7 +51,7 @@ describe('skema: tiket, pemilik, status', () => {
     slug: 'contoh',
     judul: 'Contoh skenario',
     tujuan: 'Membuktikan contoh skenario berjalan di server.',
-    modul: 'material',
+    modul: 'pengadaan',
     tiket: [],
     estimasi: '5 menit',
     persona: [{ siapa: 'mbl.storekeeper', peran: 'Penjaga gudang' }],
@@ -197,5 +200,84 @@ describe('daftar skenario', () => {
       'href="#/modul/gudang" aria-current="true"><span>Gudang</span><span class="n">4</span>',
     )
     expect(h).toContain('ada jalan aktif')
+  })
+})
+
+describe('grup dan alur', () => {
+  const berkas = (slug: string, task: string, alur?: unknown, langkah = 10): BerkasSkenario =>
+    ({
+      slug,
+      task,
+      masalah: [],
+      skenario: {
+        alur,
+        langkah: Array.from({ length: langkah }, (_, i) => ({ judul: `L${i + 1}` })),
+      },
+    }) as unknown as BerkasSkenario
+  const pesan = (b: BerkasSkenario) => b.masalah.map((m) => m.message)
+
+  it('skema menerima alur lurus dan belok; belok wajib dari dan langkah', () => {
+    const sk = (alur: unknown) =>
+      SkenarioSchema.safeParse({
+        slug: 'x',
+        judul: 'Contoh alur',
+        tujuan: 'Membuktikan alur tervalidasi skema.',
+        modul: 'insidentil',
+        tiket: [],
+        estimasi: '1 menit',
+        persona: [{ siapa: 'mbl.planner', peran: 'Planner' }],
+        data: ['Data semai'],
+        setelan: [],
+        prasyarat: [],
+        catatan: [],
+        siapkan: [],
+        langkah: [
+          { id: 'a', judul: 'Putri membuka', harusTerlihat: 'Tampil', aksi: [{ buka: '/x' }] },
+        ],
+        alur,
+      }).success
+    expect(sk({ jenis: 'lurus' })).toBe(true)
+    expect(sk({ jenis: 'belok', dari: 'insidentil-lurus', langkah: 3 })).toBe(true)
+    expect(sk({ jenis: 'belok', dari: 'insidentil-lurus' })).toBe(false)
+    expect(sk({ jenis: 'belok', dari: 'x', langkah: 0 })).toBe(false)
+    expect(sk({ jenis: 'lurus', dari: 'x' })).toBe(false)
+  })
+
+  it('periksaAlur: satu lurus per grup; belok ke lurus di grup sama dan langkah yang ada', () => {
+    const lurus = berkas('lurus', 'insidentil', { jenis: 'lurus' }, 5)
+    const ok = berkas('ok', 'insidentil', { jenis: 'belok', dari: 'lurus', langkah: 5 })
+    const lewat = berkas('lewat', 'insidentil', { jenis: 'belok', dari: 'lurus', langkah: 6 })
+    const hilang = berkas('hilang', 'insidentil', { jenis: 'belok', dari: 'tidak-ada', langkah: 1 })
+    const silang = berkas('silang', 'ban', { jenis: 'belok', dari: 'lurus', langkah: 1 })
+    const keBelok = berkas('ke-belok', 'insidentil', { jenis: 'belok', dari: 'ok', langkah: 1 })
+    const lurus2a = berkas('l2a', 'ban', { jenis: 'lurus' })
+    const lurus2b = berkas('l2b', 'ban', { jenis: 'lurus' })
+    periksaAlur([lurus, ok, lewat, hilang, silang, keBelok, lurus2a, lurus2b])
+    expect(pesan(lurus)).toEqual([])
+    expect(pesan(ok)).toEqual([])
+    expect(pesan(lewat)[0]).toMatch(/langkah 6 melebihi 5/)
+    expect(pesan(hilang)[0]).toMatch(/tidak ada/)
+    expect(pesan(silang)[0]).toMatch(/grup insidentil, bukan ban/)
+    expect(pesan(keBelok)[0]).toMatch(/bukan alur lurus/)
+    expect(pesan(lurus2a)[0]).toMatch(/2 alur lurus/)
+  })
+
+  it('urutan grup: lurus, belok menurut langkah, lalu lepas; chip menyebut titik belok', () => {
+    const g = [
+      f('lepas'),
+      f('belok-9', { alur: { jenis: 'belok', dari: 'utama', langkah: 9, judul: 'Sesi kerja' } }),
+      f('utama', { alur: { jenis: 'lurus' } }),
+      f('belok-4', { alur: { jenis: 'belok', dari: 'utama', langkah: 4, judul: null } }),
+    ]
+    expect(urutAlur(g).map((x: { slug: string }) => x.slug)).toEqual([
+      'utama',
+      'belok-4',
+      'belok-9',
+      'lepas',
+    ])
+    expect(chipAlur(g[2])).toContain('Alur lurus')
+    expect(chipAlur(g[1])).toContain('Belok di langkah 9 · Sesi kerja')
+    expect(chipAlur(g[0])).toBe('')
+    expect(barisSkenario(g[1])).toContain('sk-belok')
   })
 })

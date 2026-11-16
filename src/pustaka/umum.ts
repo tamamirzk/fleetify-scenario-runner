@@ -83,7 +83,16 @@ export const tambahFoto = layar({
 
 export const pilihMekanik = layar({
   ringkasan: 'Pilih satu mekanik di multi-select "Mekanik" dalam dialog, dan pastikan tercatat.',
-  argumen: z.object({ dalam: SasaranSchema, nama: z.string().default('/Made Mekanik/') }).strict(),
+  argumen: z
+    .object({
+      dalam: SasaranSchema,
+      nama: z.string().default('/Made Mekanik/'),
+      label: z
+        .string()
+        .default('/^Mekanik/')
+        .describe('label combobox mekanik, mis. "/mekanik sesi/i" di dialog Sesi baru'),
+    })
+    .strict(),
   urai: (a) => `Pilih mekanik ${String(a.nama).replaceAll('/', '')}`,
   async jalankan(ctx, a) {
     await ctx.kit.chooseMechanic(
@@ -91,6 +100,7 @@ export const pilihMekanik = layar({
       ctx.k,
       cariLocator(ctx.page, a.dalam as Sasaran),
       pola(a.nama),
+      pola(a.label),
     )
   },
 })

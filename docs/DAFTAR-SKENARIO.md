@@ -1,6 +1,6 @@
 # Daftar skenario lanjutan
 
-Skenario yang belum ditulis, berurutan mengikuti alur kerja nyata dari laporan kerusakan sampai dokumen keluar. Ambil satu, tulis dengan `bun run new <task> <slug>`, dan ikuti [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md) serta [BRIEF.md](BRIEF.md). Bila sudah selesai, pindahkan ke tabel "Skenario yang sudah ada" di BRIEF.
+Skenario yang belum ditulis, dikelompokkan per grup (perjalanan di Manajemen Workflow v2). Tiap grup punya satu **alur lurus** (jalur bahagia) dan beberapa **alur belok** yang mengambil jalan lain di satu langkah alur lurus; aturannya di [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md#grup-dan-alur). Ambil satu, tulis dengan `bun run new <grup> <slug>`, dan ikuti [BRIEF.md](BRIEF.md). Bila sudah selesai, pindahkan ke tabel "Skenario yang sudah ada" di BRIEF.
 
 Pengingat singkat:
 
@@ -8,61 +8,71 @@ Pengingat singkat:
 - Approval dan pergantian akun terjadi di layar; persiapan data membosankan boleh lewat API dengan banner "(di belakang layar)".
 - Beri `capai` pada langkah yang keadaan awalnya bisa dibangun lewat API.
 - Setelan yang diubah dicatat di `setelan`, dikembalikan di langkah terakhir, dan diperiksa lagi di `bersihkan`.
-- Skenario 4 di bawah sudah ada sebagai `tiket-order`; nomor dipertahankan supaya rujukan tim tetap cocok.
+- Nomor dalam kurung (#5, #6, …) adalah nomor lama daftar ini; dipertahankan supaya rujukan tim tetap cocok.
+- Belokan yang ditandai *(belum dicek)* diambil dari docs v2; pastikan layarnya ada di server lokal sebelum menulis.
 
-## Blok pagi: dari laporan sampai Work Order
+## Perbaikan Insidentil (`insidentil`)
 
-### 4. Tiket sampai Order (FMS-87, 88, 39)
-Dedi menyetujui tiket baru. Putri membuat Order tidak terjadwal dan memilih **Lewati pemeriksaan** dengan alasan, lalu menampilkan kartu pemeriksaan yang terkunci. Putri lalu menekan **Kembali ke pemeriksaan**. Surya menugaskan pemeriksaan ke Made. Made mengisi hasil dan RPL, lalu mengajukan. Approver menekan **Revisi**: kartu "Pemeriksaan ditolak" tampil. Pemeriksaan ulang dilakukan, lalu **Setujui**.
+Alur lurus: **`insidentil-lurus`** (sudah ada). Langkahnya: 1 driver melapor dari ponsel · 2 tiket disetujui · 3 Order dibuat · 4 pemeriksaan ditugaskan · 5 pemeriksaan + RPL (ponsel) · 6 pemeriksaan disetujui · 7 penawaran diajukan · 8 penawaran disetujui · 9 Perintah Kerja terbit · 10 material diserahkan · 11 sesi dibuka · 12 item dikerjakan (ponsel) · 13 sesi diakhiri · 14 sesi diverifikasi · 15–16 verifikasi akhir dua tahap · 17 WO selesai · 18 Order dan tiket tertutup.
 
-### 5. Penawaran, WO terbit, material awal (FMS-60, 48)
-Dari Order hasil skenario `tiket-order` (dibangun ulang di `siapkan`), Putri menyusun penawaran (harga part bengkel internal tampil baca saja mengikuti HPP), lalu mengajukan. Approval berlangsung di layar. WO terbit, dan MR awal otomatis Disetujui. Wati menyerahkan material lewat dialog **Keluarkan dari Stok** (penerima, jumlah, catatan, foto). Tunjukkan biaya aktual per baris di WO.
+| Belok di | Alur belok | Status |
+|---|---|---|
+| 2 | Odometer diragukan → tiket tertahan → revisi odometer *(belum dicek)* | belum |
+| 3 | Lewati pemeriksaan → kembali ke pemeriksaan → pemeriksaan direvisi | ada: `tiket-order` |
+| 3 | Tanpa pemeriksaan: penawaran disusun kosong *(belum dicek)* | belum |
+| 8 | Penawaran ditolak atau diminta revisi oleh penyetuju anggaran (butuh gerbang anggaran yang benar-benar menahan, lihat TEMUAN) | belum |
+| 11 | Penyesuaian WO + retur material | ada: `penyesuaian-wo` |
+| 12 | Butuh part tambahan dari sesi aktif → RPL → penawaran penambahan → **Adendum 1** (#7). Tunjukkan item masuk ke WO yang sama, tautan bolak-balik WO, RPL, dan penawaran, dan Made tidak melihat nilai adendum | belum |
+| 12 | Retur **Barang rusak, tukar** dengan foto → MR pengganti → Wati menerima ke gudang scrap (#9) | belum |
+| 13 | Item belum selesai saat sesi diakhiri → berlanjut ke Sesi 2, foto terbawa; batas 3 foto aktif (#6) | belum |
+| 14 | Sesi ditolak → dokumentasi terbawa → sesi diulang | ada: `sesi-ditolak` |
+| 15 | Verifikasi akhir ditolak → sesi yang harus dikerjakan ulang dipilih | belum |
 
-### 6. Sesi kerja, foto, verifikasi akhir (FMS-30, 33, 34, 35, 36, 55)
-Fajar membuat sesi dan memilih Made. Made mengerjakan item **atas nama** pelaksana, dengan foto (tunjukkan batas 3 foto aktif). Sesi diakhiri dan disetujui. Item yang belum selesai berlanjut di sesi berikutnya, dan foto terbawa. Setelah semua item disetujui, verifikasi akhir muncul otomatis di Kotak Masuk. Approver menyetujui, dan WO menjadi **Sudah diperiksa**. Tunjukkan chip status WO yang berpindah: Menunggu material, Menunggu penugasan, Menunggu mekanik, Sedang perbaikan, Menunggu verifikasi sesi, lalu Menunggu verifikasi perbaikan.
+## Pengadaan & Gudang (`pengadaan`)
 
-### 7. Tambah part lewat RPL dan adendum (FMS-59, 60)
-Di WO berjalan, Made mengajukan RPL tambahan part dari sesi aktif. Putri menyusun penawaran penambahan dan approval berlangsung di layar. Tunjukkan item masuk ke WO yang sama, **Adendum 1** bernomor, dan tautan bolak-balik antara WO, RPL, dan penawaran. Tunjukkan juga bahwa Made tidak melihat nilai adendum.
+Alur lurus (belum): MR WO → serah kurang dengan alasan **Stok tidak cukup** → selisih Terbuka tampil sama di WO dan MR → **Buat PR dari selisih** → PO → GR → MR lanjutan Disetujui otomatis → selisih Terpenuhi (#8). Tunjukkan kolom **Kebutuhan tertunda** di daftar Barang.
 
-## Blok siang: material dan gudang
+| Belok di | Alur belok | Status |
+|---|---|---|
+| PO | GR tanpa PO dengan pemberitahuan kebutuhan tertunda (#8) | belum |
+| MR | MR mandiri: pinjaman alat, kembali sebagian, tidak kembali | ada: `pinjaman-alat` |
+| MR | Serah terima alat bertahap ke Made lalu Fajar lewat dialog di layar, satu sisa **Tandai sisa tidak akan diserahkan** (#10; perbaikan sudah ada di server lokal) | belum |
+| PR | PR dibatalkan saat menunggu approval: request hilang dari Kotak Masuk, Setujui dari tab lama ditolak dengan pesan jelas (#15) | belum |
 
-### 8. Kekurangan serah, MR lanjutan, PR dari selisih (FMS-50, 52, 53, 54)
-Wati menyerahkan 3 dari 4 dengan alasan **Stok tidak cukup**, sehingga selisih Terbuka. Tunjukkan selisih yang sama di WO dan MR, lalu **Buat PR dari selisih**. Bagus menerima barang tanpa PO (GR) dengan pemberitahuan kebutuhan tertunda, lalu MR lanjutan Disetujui otomatis dan selisih Terpenuhi. Tunjukkan kolom **Kebutuhan tertunda** di daftar Barang.
+## Perbaikan Terjadwal (`terjadwal`)
 
-### 9. Retur saat WO berjalan dan barang rusak (FMS-61, 62, 63)
-Fajar mengajukan retur **Barang rusak, tukar** dengan foto. MR pengganti terbit, lalu Wati menerima retur dengan kondisi **Rusak** ke gudang scrap. Tunjukkan dokumen scrap dan stok gudang scrap.
+Alur lurus (belum): Jadwal Mendatang dengan tangga status (Mendatang, Jatuh tempo, Terlambat) → Order PB dari baris jadwal → penawaran → WO → material → selesai → riwayat unit (#16).
 
-### 10. Serah terima alat bertahap (setelah branch `fix/mr-mandiri-serah-bertahap` di-merge ke development)
-Lewati skenario ini bila server v2 lokal belum memuat perbaikan itu. Isinya: MR mandiri dua alat, diserahkan ke Made hari ini dan ke Fajar di serah terima kedua lewat **dialog di layar** tanpa diminta alasan. Satu sisa ditandai **"Tandai sisa tidak akan diserahkan"** dengan alasan.
+| Belok di | Alur belok | Status |
+|---|---|---|
+| Order | Centang **Cover titik terlambat**: chip "Dicakup #n" di jadwal dan kartu Program PB di Order (#16) | belum |
+| Order | SPK Manual: Wati menyerahkan material, Putri melengkapi dokumentasi per baris dan nota, Order Selesai; status unit tidak berubah, badge **SPK Manual** di riwayat unit (#17) | belum |
+| Jadwal | Ubah tanggal estimasi dengan alasan, tugas keputusan → **breakdown** (#18; butuh skrip `run-maintenance-scan.ts` dan aksi bertanda `pengecualianDb`, kurang cocok untuk tontonan) | belum |
 
-## Blok sore: approval, akses, dokumen
+## Perbaikan Ban (`ban`)
 
-### 11. Lolos otomatis, event approval, preset (FMS-41, 76, 77)
-Bagus membuka **Manajemen Workflow → Event approval** dan menunjukkan status tiap event. Ia menjalankan **Terapkan preset standar**: tampilkan dialog dengan tebakan peran, lalu **batalkan tanpa menerapkan**, atau terapkan lalu kembalikan sesuai langkah Wajib. Tunjukkan pengaju yang memegang tahap lebih tinggi sehingga tahap di bawahnya Dilewati di panel approval.
+Alur lurus (belum): tiket ban → pemeriksaan (ukur tapak/tekanan per posisi) → keputusan Ganti → RPL → penawaran → WO → ganti ban → ban lama masuk **Tahan** → ke gudang.
 
-### 12. Approver berupa peran dan pengalihan (FMS-111, 41)
-Panel approval menampilkan peran plus lokasi. Tunjukkan request yang **Macet** karena tidak ada pemegang peran, lalu dialihkan lewat **Permintaan Tertunda** dengan alasan, dan riwayat pengalihan tampil. Kembalikan setelan bila ada yang diubah.
+| Belok di | Alur belok | Status |
+|---|---|---|
+| Pemeriksaan | Rotasi → Order Reposisi → approval → dikerjakan *(belum dicek)* | belum |
+| Pemeriksaan | Tidak perlu tindakan → tiket tertutup saat pemeriksaan disetujui *(belum dicek)* | belum |
+| Tahan | Order Ban Bekas → kirim vendor → QC gagal → perlu keputusan *(belum dicek)* | belum |
+| Tahan | Afkir batch → gerbang Afkir *(belum dicek)* | belum |
+| (samping) | Penggantian langsung tanpa WO, ban lama kembali ke stok *(belum dicek)* | belum |
 
-### 13. Kotak Masuk: Tugas dan ambil tugas (FMS-38, 40)
-Fajar dan Surya membuka tab **Tugas**. Fajar menekan **Ambil tugas**, dan Surya melihat kolom Dipegang. Fajar menekan **Lepas**, lalu Surya mengambilnya. Tunjukkan Wati (tanpa tab, langsung daftar tugas gudang) dan Made (tanpa Kotak Masuk).
+## Approval & Hak Akses (`approval`)
 
-### 14. Hak lihat harga dan peran pelapor (FMS-46, 47)
-Buka WO yang sama sebagai Putri (harga tampil), Fajar (tanpa harga), dan Made (tanpa harga, tampilan fokus). Mira (pelapor) membuat tiket, menunya hanya Dasbor dan Keluhan/Tiket, tanpa Rp. Tunjukkan editor peran berbahasa Indonesia, termasuk pencarian "mekanik".
+Tanpa alur lurus: mekanisme yang muncul di semua grup. Sudah ada: `sla-eskalasi`.
 
-### 15. Nomor dokumen dan dokumen batal menarik approval (FMS-90, 91)
-Bagus mengubah format nomor PO di Preferensi, Penomoran Dokumen, lalu membuat PO baru dengan nomor format baru. **Kembalikan format sesudahnya.** Ubah nomor PO secara manual dengan alasan, dan tunjukkan riwayat nomor. Batalkan PR yang menunggu approval: request hilang dari Kotak Masuk approver, dan Setujui dari tab yang belum dimuat ulang ditolak dengan pesan jelas.
-
-## Blok penutup: servis berkala (PB)
-
-### 16. Jadwal dan Order PB (FMS-10, 11, 12, 15, 16)
-Jadwal Mendatang: tangga status (Mendatang, Jatuh tempo, Terlambat). Buat Order PB dari baris jadwal dan centang **Cover titik terlambat**. Tunjukkan chip "Dicakup #n" di jadwal dan kartu Program PB di Order.
-
-### 17. SPK Manual (FMS-13, 18, 19)
-Buat SPK Manual dari jadwal. Wati menyerahkan material. Putri melengkapi dokumentasi per baris dan nota, lalu Ajukan, dan Order Selesai. Tunjukkan status unit yang tidak berubah dan badge **SPK Manual** di riwayat unit.
-
-### 18. Keputusan PB dan breakdown otomatis (FMS-95, 96, 97, 98)
-Ubah tanggal estimasi dengan alasan dan tunjukkan riwayatnya. Jalankan `bun run scripts/run-maintenance-scan.ts decision` dari folder Backend v2 (perlu aksi pustaka bertanda `pengecualianDb` dan `pengecualian`): tugas keputusan muncul di Kotak Masuk, lalu putuskan **breakdown**. Jalankan `cutoff` dan tunjukkan unit berpindah ke Breakdown. Made melaporkan temuan dari WO PB, dan tiket temuan terpisah dari Order. **Kembalikan setiap setelan bertanda Wajib.**
+- **Lolos otomatis, event approval, preset (#11).** Bagus membuka **Manajemen Workflow → Event approval** dan menunjukkan status tiap event. **Terapkan preset standar**: tampilkan dialog dengan tebakan peran, lalu batalkan tanpa menerapkan, atau terapkan lalu kembalikan. Tunjukkan pengaju yang memegang tahap lebih tinggi sehingga tahap di bawahnya Dilewati.
+- **Approver berupa peran dan pengalihan (#12).** Panel approval menampilkan peran plus lokasi. Request **Macet** karena tidak ada pemegang peran, dialihkan lewat **Permintaan Tertunda** dengan alasan; riwayat pengalihan tampil.
+- **Kotak Masuk: Tugas dan ambil tugas (#13).** Fajar menekan **Ambil tugas**, Surya melihat kolom Dipegang; Fajar **Lepas**, Surya mengambilnya. Wati tanpa tab, Made tanpa Kotak Masuk.
+- **Hak lihat harga dan peran pelapor (#14).** WO yang sama dibuka sebagai Putri (harga tampil), Fajar (tanpa harga), dan Made (tanpa harga, tampilan fokus). Mira membuat tiket, menunya hanya Dasbor dan Keluhan/Tiket. Editor peran berbahasa Indonesia, termasuk pencarian "mekanik".
+- **Nomor dokumen (#15).** Ubah format nomor PO di Preferensi, Penomoran Dokumen, buat PO dengan format baru, **kembalikan format sesudahnya**; ubah nomor PO manual dengan alasan dan tunjukkan riwayat nomor.
 
 ## Kalau waktu tersisa
+
 - Halaman Bottleneck (FMS-56): durasi status WO dari jalan hari ini.
-- Stock opname berlingkup dan lokasi simpan GR/MR (fitur Dabbir dari development).
+- Stock opname berlingkup dan lokasi simpan GR/MR.
+- Koreksi pembacaan meter (`feat/meter-reading-corrections`, sudah di `development`): antrean anomali, koreksi di dialog tiket, riwayat meter.

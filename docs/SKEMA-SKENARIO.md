@@ -7,7 +7,7 @@ Cara kerja dan alur: [MENULIS-SKENARIO.md](MENULIS-SKENARIO.md). Konteks dan lar
 ## Lokasi dan nama
 
 ```
-scenarios/<modul>/<slug>.json      mis. scenarios/material/pinjaman-alat.json
+scenarios/<modul>/<slug>.json      mis. scenarios/pengadaan/pinjaman-alat.json
 ```
 
 - `<modul>` = folder modul (Project › Modul › Skenario di panel) dan **harus sama dengan field `modul`** (aturan
@@ -16,6 +16,23 @@ scenarios/<modul>/<slug>.json      mis. scenarios/material/pinjaman-alat.json
 - `<slug>` kebab-case, sama dengan field `slug`, dan **unik di semua modul** (riwayat disimpan di `runs/<slug>/`).
 - Kerangka baru: `bun run new <modul> <slug> [FMS-123]` (dari `templates/skenario.json`).
 
+## Grup dan alur
+
+Grup mengikuti tiga perjalanan di Manajemen Workflow v2, ditambah segmen pengadaan yang dipakai bersama:
+
+| Grup (`modul`) | Nama di panel | Alur lurus |
+|---|---|---|
+| `insidentil` | Perbaikan Insidentil | Tiket → vonis → Order → pemeriksaan + RPL → penawaran → approval anggaran → WO → material → sesi kerja → verifikasi akhir → selesai |
+| `pengadaan` | Pengadaan & Gudang | MR → serah kurang → PR → PO → GR → MR lanjutan → serah lengkap |
+| `terjadwal` | Perbaikan Terjadwal | Jadwal → Order PB → WO → material → selesai → riwayat unit |
+| `ban` | Perbaikan Ban | Tiket ban → pemeriksaan → ganti ban lewat WO → ban lama ke Tahan → gudang |
+| `approval` | Approval & Hak Akses | Tanpa alur lurus: mekanisme lintas grup |
+| `lingkungan` | Lingkungan | Persiapan lingkungan |
+
+Tiap grup punya satu **alur lurus** (`"alur": { "jenis": "lurus" }`), yaitu jalur bahagia dari awal sampai akhir. Skenario lain di grup itu adalah **alur belok**: berjalan sama dengan alur lurus sampai satu langkah, lalu di langkah itu mengambil jalan lain. `langkah` adalah nomor langkah alur lurus tempat belokan terjadi, mis. `{ "jenis": "belok", "dari": "insidentil-lurus", "langkah": 14 }` untuk sesi kerja yang ditolak saat diverifikasi (langkah 14 alur lurus: Fajar memverifikasi hasil Sesi 1). Panel menulisnya sebagai "↳ Belok di langkah 14 · Fajar memverifikasi hasil Sesi 1". Panel menampilkan alur lurus di atas dan belokan di bawahnya, berurut menurut langkah beloknya; **Putar semua** mengikuti urutan yang sama. Skenario tanpa `alur` tampil di akhir grup.
+
+Aturan `alur` (diperiksa `check:scenarios`, tidak menghalangi pemutaran): satu alur lurus per grup; `dari` harus alur lurus di grup yang sama; `langkah` tidak melebihi jumlah langkah alur lurus.
+
 ## Contoh minimal
 
 ```json
@@ -23,7 +40,7 @@ scenarios/<modul>/<slug>.json      mis. scenarios/material/pinjaman-alat.json
   "slug": "buka-barang",
   "judul": "Wati membuka barang baru",
   "tujuan": "Membuktikan barang baru tampil dengan SKU-nya di detail barang.",
-  "modul": "material",
+  "modul": "pengadaan",
   "tiket": ["FMS-0"],
   "estimasi": "2 menit",
   "persona": [{ "siapa": "mbl.storekeeper", "peran": "membuka barang" }],
@@ -50,7 +67,7 @@ scenarios/<modul>/<slug>.json      mis. scenarios/material/pinjaman-alat.json
 }
 ```
 
-Contoh lengkap: `scenarios/material/pinjaman-alat.json`.
+Contoh lengkap: `scenarios/pengadaan/pinjaman-alat.json`.
 
 ## Field tingkat atas
 
@@ -61,10 +78,11 @@ Field yang tidak tercantum ditolak (salah ketik ketahuan).
 | `slug` | ya | Sama dengan nama berkas |
 | `judul` | ya | Judul singkat |
 | `tujuan` | ya | Satu kalimat "Membuktikan …" (min. 20 huruf) |
-| `modul` | ya | `material`, `approval`, `wo`, `pb`, `akses`, `lingkungan`; sama dengan nama folder |
+| `modul` | ya | Grup: `insidentil`, `pengadaan`, `terjadwal`, `ban`, `approval`, `lingkungan`; sama dengan nama folder (lihat [Grup dan alur](#grup-dan-alur)) |
 | `tiket` | ya | `["FMS-63"]`, boleh kosong. Tampil sebagai chip Plane bertautan `TICKET_URL` + kunci (tanpa sinkron) |
 | `pemilik` | | Nama pemilik skenario (filter Pemilik di panel) |
 | `status` | | `draf` atau `siap` (bawaan). Status `Ada kegagalan` dihitung dari jalan terakhir |
+| `alur` | | `{ "jenis": "lurus" }` atau `{ "jenis": "belok", "dari": "<slug alur lurus>", "langkah": 14 }`. Lihat [Grup dan alur](#grup-dan-alur) |
 | `estimasi` | ya | `"<n> menit"` |
 | `persona` | ya | `[{ "siapa": "mbl.storekeeper", "peran": "…" }]`: **semua** persona yang terlibat, termasuk yang hanya lewat API |
 | `data` | ya | Uraian data yang disiapkan (untuk ringkasan) |
@@ -78,7 +96,9 @@ Field yang tidak tercantum ditolak (salah ketik ketahuan).
 | `pemeriksaan` | | `{ "nonaktif": ["approval-yatim"], "alasan": "…" }`: mematikan invarian DB tertentu untuk skenario ini (id dari [PEMERIKSAAN.md](PEMERIKSAAN.md)); `alasan` wajib (min. 20 huruf) |
 | `pemeriksaanUi` | | `{ "nonaktif": ["radius-menyimpang"], "abaikanHalaman": ["/tires/used"], "alasan": "…" }`: mematikan aturan Pemeriksaan UI (statis `check:design` atau DOM) dan/atau melewati halaman (awalan pathname) untuk skenario ini ([PEMERIKSAAN.md](PEMERIKSAAN.md), bagian UI); `alasan` wajib (min. 20 huruf) bila ada yang diisi |
 
-Persona yang dikenal: `mbl.superintendent` (Bagus), `mbl.plant-superintendent` (Andi), `mbl.planner` (Putri), `mbl.foreman` (Fajar), `mbl.foreman.beta` (Bima), `mbl.supervisor` (Surya), `mbl.mechanic` (Made), `mbl.storekeeper` (Wati), `mbl.purchasing` (Purnomo), `mbl.dispatcher` (Dedi), `mbl.mcr` (Mira). Sumber: `src/core/personas.ts`.
+Persona yang dikenal: `mbl.superintendent` (Bagus), `mbl.plant-superintendent` (Andi), `mbl.planner` (Putri), `mbl.foreman` (Fajar), `mbl.foreman.beta` (Bima), `mbl.supervisor` (Surya), `mbl.mechanic` (Made), `mbl.storekeeper` (Wati), `mbl.purchasing` (Purnomo), `mbl.dispatcher` (Dedi), `mbl.mcr` (Mira), `mbl.driver` (Doni). Sumber: `src/core/personas.ts`.
+
+**Persona berponsel.** Doni (`mbl.driver`) dan Made (`mbl.mechanic`) bekerja dari ponsel: begitu jendela berganti ke persona ini, viewport berubah ke 390×844 (CSS px, tidak ikut skala Tampilan), lalu kembali ke ukuran laptop saat berganti ke persona lain. Selector untuk langkah mereka harus berlaku di tata letak ponsel. Daftarnya `PERSONA_PONSEL` di `src/core/personas.ts`.
 
 ## Langkah
 

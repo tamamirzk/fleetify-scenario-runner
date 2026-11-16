@@ -7,7 +7,7 @@ const dasar = {
   slug: 'contoh',
   judul: 'Contoh skenario',
   tujuan: 'Membuktikan sesuatu yang terlihat di layar.',
-  modul: 'material',
+  modul: 'pengadaan',
   tiket: ['FMS-1'],
   estimasi: '3 menit',
   persona: [{ siapa: 'mbl.storekeeper', peran: 'membuka halaman' }],

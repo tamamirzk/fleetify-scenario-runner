@@ -1,0 +1,1079 @@
+{
+  "slug": "insidentil-lurus",
+  "judul": "Perbaikan insidentil dari tiket sampai WO selesai",
+  "tujuan": "Membuktikan jalur bahagia perbaikan insidentil berjalan utuh di layar: tiket disetujui, Order dan pemeriksaan dengan RPL part, penawaran disetujui, Perintah Kerja terbit, material diserahkan, sesi kerja diverifikasi, verifikasi akhir dua tahap, WO selesai, sampai Order dan tiket tertutup.",
+  "modul": "insidentil",
+  "alur": {
+    "jenis": "lurus"
+  },
+  "tiket": [],
+  "estimasi": "25 menit",
+  "persona": [
+    {
+      "siapa": "mbl.driver",
+      "peran": "melaporkan kerusakan dari ponsel"
+    },
+    {
+      "siapa": "mbl.dispatcher",
+      "peran": "menyetujui tiket di Kotak Masuk"
+    },
+    {
+      "siapa": "mbl.planner",
+      "peran": "membuat Order, menyusun dan mengajukan penawaran"
+    },
+    {
+      "siapa": "mbl.supervisor",
+      "peran": "menugaskan pemeriksaan ke Made, verifikasi akhir tahap 2"
+    },
+    {
+      "siapa": "mbl.storekeeper",
+      "peran": "mengeluarkan material dari stok"
+    },
+    {
+      "siapa": "mbl.foreman",
+      "peran": "membuka dan mengakhiri sesi, memverifikasi sesi, verifikasi akhir tahap 1, menyelesaikan WO"
+    },
+    {
+      "siapa": "mbl.mechanic",
+      "peran": "memeriksa unit, menyusun RPL, mengerjakan item (dari ponsel)"
+    },
+    {
+      "siapa": "mbl.superintendent",
+      "peran": "menyetujui pemeriksaan, menerbitkan Perintah Kerja"
+    }
+  ],
+  "data": ["Satu barang baru \"Uji SR Kampas Rem <stempel>\" dengan saldo awal 10 di WH-ALPHA"],
+  "setelan": [],
+  "prasyarat": [
+    "Zona waktu perusahaan MBL sudah terkonfirmasi (jalankan skenario siapkan-zona sekali)",
+    "Pemetaan approval tiket (VEHICLE_COMPLAINT) aktif dengan Dedi sebagai approver"
+  ],
+  "catatan": [
+    "Alur lurus grup Perbaikan Insidentil: skenario lain di grup ini menyimpang dari salah satu langkahnya.",
+    "Doni (driver) dan Made (mekanik) bekerja dari ponsel: jendela berganti ke 390×844 saat menjadi mereka.",
+    "Tenant MBL tidak meminta vonis breakdown: tiket langsung siap dijadikan Order setelah disetujui.",
+    "Penawaran saat ini disetujui otomatis di MBL walau alur Approval Anggaran (Bagus) ada; dicatat di docs/TEMUAN.md.",
+    "Perintah Kerja dari penawaran langsung dirilis (MR awal Disetujui), jadi tidak ada langkah Rilis SPK.",
+    "Verifikasi akhir memakai alur dua tahap (Fajar lalu Surya) dari pengaturan bersama, bukan alur khusus insidentil."
+  ],
+  "siapkan": [
+    {
+      "siapkan": "barang",
+      "simpan": "kampas",
+      "gudang": "WH-ALPHA",
+      "kode": "SR-KPS",
+      "nama": "Uji SR Kampas Rem",
+      "jumlah": 10
+    }
+  ],
+  "langkah": [
+    {
+      "id": "lapor",
+      "judul": "Doni melaporkan rem berdecit dari ponsel",
+      "deskripsi": "Driver melihat masalah di lapangan dan melapor lewat ponsel: memilih unit, lokasi, odometer, menuliskan keluhan, dan melampirkan foto. Tiket inilah awal seluruh perjalanan perbaikan.",
+      "sebagai": "mbl.driver",
+      "harusTerlihat": "Tiket terkirim dan menunggu persetujuan",
+      "aksi": [
+        {
+          "buka": "/work-orders/complaints/new"
+        },
+        {
+          "banner": "Doni (driver) merasakan rem DT-014 berdecit saat turun di jalan tambang, lalu melapor dari ponselnya",
+          "tahan": 3500
+        },
+        {
+          "layar": "lapor-tiket",
+          "simpan": "tiket",
+          "unit": "DT-014",
+          "keluhan": "Uji skenario {stempel}: rem DT-014 berdecit",
+          "deskripsi": "Rem terdengar berdecit dan terasa dalam saat dipakai turun di jalan tambang."
+        },
+        {
+          "dokumen": {
+            "label": "Tiket",
+            "nomor": "{tiket.nomor}",
+            "url": "/work-orders/complaints/{tiket.id}"
+          }
+        },
+        {
+          "banner": "Tiket {tiket.nomor} terkirim dan menunggu persetujuan",
+          "tahan": 3000
+        }
+      ]
+    },
+    {
+      "id": "setujui-tiket",
+      "judul": "Dedi menyetujui tiket baru dari Kotak Masuk",
+      "deskripsi": "Tiket harus disetujui dulu sebelum boleh dijadikan pekerjaan; di MBL penyetujunya Dedi (Dispatcher / CCR).",
+      "sebagai": "mbl.dispatcher",
+      "harusTerlihat": "Tiket Disetujui (Terbuka)",
+      "aksi": [
+        {
+          "buka": "/approvals"
+        },
+        {
+          "banner": "Tiket {tiket.nomor} dari Doni masuk Kotak Masuk Dedi",
+          "tahan": 3000
+        },
+        {
+          "tunggu": {
+            "teks": "{tiket.nomor}"
+          },
+          "batas": 20000
+        },
+        {
+          "klik": {
+            "teks": "{tiket.nomor}"
+          }
+        },
+        {
+          "tungguUrl": "/complaints\\//",
+          "opsional": true
+        },
+        {
+          "tunggu": {
+            "kartuPersetujuan": true
+          },
+          "batas": 20000
+        },
+        {
+          "banner": "Dedi menyetujui tiket di panel Persetujuan",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Setujui",
+            "persis": true,
+            "dalam": {
+              "kartuPersetujuan": true
+            }
+          }
+        },
+        {
+          "tahan": 3500
+        }
+      ]
+    },
+    {
+      "id": "buat-order",
+      "judul": "Putri menjadikan tiket sebuah Order dengan pemeriksaan",
+      "deskripsi": "Order adalah induk pekerjaan: menampung keluhan, pemeriksaan, penawaran, dan Perintah Kerja. Putri memilih bengkel dan membiarkan pemeriksaan tetap diminta.",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Order terbit, langkah berikutnya menugaskan pemeriksaan",
+      "aksi": [
+        {
+          "buka": "/work-orders/complaints/{tiket.id}"
+        },
+        {
+          "banner": "Putri membuka tiket {tiket.nomor} dan menekan Buat Order",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Buat Order"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Tiket yang dijadikan order"
+          },
+          "batas": 10000
+        },
+        {
+          "tahan": 1500
+        },
+        {
+          "pilih": {
+            "combobox": "/^Bengkel/",
+            "dalam": {
+              "dialog": "Tiket yang dijadikan order"
+            }
+          },
+          "opsi": "Workshop Site Alpha"
+        },
+        {
+          "banner": "Penyebab bunyi rem perlu dipastikan mekanik, jadi pemeriksaan tetap diminta",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Simpan",
+            "dalam": {
+              "dialog": "Tiket yang dijadikan order"
+            }
+          }
+        },
+        {
+          "tungguUrl": "/\\/work-orders\\/orders\\/[0-9a-f-]{36}/",
+          "batas": 20000
+        },
+        {
+          "tahan": 3000
+        },
+        {
+          "simpan": "order_id",
+          "dariUrl": "/orders\\/([0-9a-f-]{36})/"
+        },
+        {
+          "api": "order",
+          "id": "{order_id}",
+          "simpan": "order"
+        },
+        {
+          "dokumen": {
+            "label": "Order",
+            "nomor": "{order.nomor}",
+            "url": "/work-orders/orders/{order.id}"
+          }
+        },
+        {
+          "banner": "{order.nomor} terbit. Langkah berikutnya: tugaskan pemeriksaan",
+          "tahan": 3000
+        }
+      ]
+    },
+    {
+      "id": "tugaskan",
+      "judul": "Surya menugaskan pemeriksaan ke Made",
+      "deskripsi": "Supervisor memilih mekanik yang memeriksa unit. Pemeriksaan (DGN) terbit sebagai dokumen sendiri di bawah Order.",
+      "sebagai": "mbl.supervisor",
+      "harusTerlihat": "Pemeriksaan (DGN) terbit untuk Made",
+      "aksi": [
+        {
+          "buka": "/work-orders/orders/{order.id}"
+        },
+        {
+          "banner": "Surya menugaskan pemeriksaan ke Made",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Tugaskan pemeriksaan"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Tugaskan pemeriksaan"
+          },
+          "batas": 10000
+        },
+        {
+          "tahan": 2000
+        },
+        {
+          "layar": "pilih-mekanik",
+          "dalam": {
+            "dialog": "Tugaskan pemeriksaan"
+          }
+        },
+        {
+          "klik": {
+            "tombol": "Tugaskan pemeriksaan",
+            "dalam": {
+              "dialog": "Tugaskan pemeriksaan"
+            },
+            "ke": "terakhir"
+          },
+          "tahan": 2500
+        },
+        {
+          "tunggu": {
+            "dialog": "Tugaskan pemeriksaan"
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3500
+        },
+        {
+          "api": "pemeriksaan-order",
+          "order": "{order.id}",
+          "simpan": "dgn"
+        },
+        {
+          "dokumen": {
+            "label": "Pemeriksaan",
+            "nomor": "{dgn.nomor}",
+            "url": "/work-orders/mechanic-inspections/{dgn.id}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "periksa",
+      "judul": "Made memeriksa unit dan menyusun RPL part",
+      "deskripsi": "Mekanik mencatat odometer dan temuan, lalu menyusun RPL (Daftar Kebutuhan Perbaikan): part dan jasa yang dibutuhkan. RPL inilah yang nanti mengisi penawaran.",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Pemeriksaan terkirim, menunggu keputusan",
+      "aksi": [
+        {
+          "buka": "/work-orders/mechanic-inspections"
+        },
+        {
+          "banner": "Made membuka {dgn.nomor}, mulai inspeksi, mengisi odometer dan temuan, lalu menambah RPL 2 {kampas.nama}",
+          "tahan": 2500
+        },
+        {
+          "layar": "isi-pemeriksaan",
+          "nomor": "{dgn.nomor}",
+          "odometer": "58100",
+          "temuan": "Kampas rem depan tipis 2 mm, perlu diganti",
+          "part": {
+            "barang": "{kampas}",
+            "jumlah": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "setujui-pemeriksaan",
+      "judul": "Bagus menyetujui pemeriksaan dan RPL-nya",
+      "deskripsi": "Pemeriksaan yang disetujui membuka gerbang RPL: penawaran baru boleh disusun setelah RPL disetujui.",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "\"Rekomendasi ini sudah disetujui\"",
+      "aksi": [
+        {
+          "buka": "/work-orders/mechanic-inspections/{dgn.id}"
+        },
+        {
+          "tunggu": {
+            "kartuPersetujuan": true
+          },
+          "batas": 20000
+        },
+        {
+          "banner": "Bagus meninjau temuan dan RPL, lalu menyetujui",
+          "tahan": 2500
+        },
+        {
+          "isi": {
+            "label": "/Catatan/",
+            "dalam": {
+              "kartuPersetujuan": true
+            }
+          },
+          "nilai": "Temuan jelas, ganti kampas rem"
+        },
+        {
+          "klik": {
+            "tombol": "Setujui",
+            "persis": true,
+            "dalam": {
+              "kartuPersetujuan": true
+            }
+          }
+        },
+        {
+          "pastikanTerlihat": "Rekomendasi ini sudah disetujui",
+          "batas": 20000
+        },
+        {
+          "tahan": 3000
+        }
+      ]
+    },
+    {
+      "id": "susun-penawaran",
+      "judul": "Putri menyusun penawaran dari RPL lalu mengajukannya",
+      "deskripsi": "Penawaran adalah rincian biaya pekerjaan. Baris RPL yang disetujui otomatis masuk draf; Putri memilih gudang sumber part, menyimpan draf, lalu mengajukan.",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Penawaran berisi baris kampas dari RPL, terkirim dan menunggu keputusan",
+      "aksi": [
+        {
+          "buka": "/work-orders/orders/{order.id}"
+        },
+        {
+          "banner": "Pemeriksaan disetujui. Putri menekan Buat penawaran",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Buat penawaran"
+          }
+        },
+        {
+          "tungguUrl": "/\\/work-orders\\/offers\\/[0-9a-f-]{36}/",
+          "batas": 20000
+        },
+        {
+          "simpan": "penawaran_id",
+          "dariUrl": "/offers\\/([0-9a-f-]{36})/"
+        },
+        {
+          "tunggu": {
+            "teks": "{kampas.nama}"
+          },
+          "batas": 20000
+        },
+        {
+          "banner": "Baris RPL (2 {kampas.nama}) otomatis masuk draf. Putri memilih gudang sumber part",
+          "tahan": 3000
+        },
+        {
+          "pilih": {
+            "combobox": "/^Gudang/"
+          },
+          "opsi": "Gudang Site Alpha"
+        },
+        {
+          "klik": {
+            "tombol": "Simpan draf"
+          }
+        },
+        {
+          "tahan": 3000
+        },
+        {
+          "banner": "Draf tersimpan. Putri mengajukan penawaran",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "/^(Ajukan penawaran|Submit)$/"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "/penawaran ini\\?/"
+          },
+          "batas": 10000
+        },
+        {
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "/^(Ajukan penawaran|Submit)$/",
+            "dalam": {
+              "dialog": "/penawaran ini\\?/"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "/penawaran ini\\?/"
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3500
+        },
+        {
+          "dokumen": {
+            "label": "Penawaran",
+            "nomor": "{penawaran_id}",
+            "url": "/work-orders/offers/{penawaran_id}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "penawaran-disetujui",
+      "judul": "Penawaran disetujui otomatis dan siap diterbitkan Perintah Kerja",
+      "deskripsi": "Sesudah diajukan, penawaran masuk ke approval anggaran. Saat ini di MBL penawaran lolos otomatis karena alur Approval Anggaran tidak terpasang di gerbang yang dibaca aplikasi (lihat temuan). Riwayat persetujuan menuliskan alasannya.",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Penawaran Disetujui; riwayat menulis \"Disetujui otomatis\"",
+      "aksi": [
+        {
+          "buka": "/work-orders/offers/{penawaran_id}"
+        },
+        {
+          "tunggu": {
+            "teks": "Riwayat persetujuan"
+          },
+          "batas": 20000
+        },
+        {
+          "gulir": {
+            "teks": "Riwayat persetujuan"
+          },
+          "opsional": true
+        },
+        {
+          "banner": "Penawaran langsung Disetujui. Riwayat persetujuan menjelaskan: tidak ada alur persetujuan yang berlaku",
+          "tahan": 5000
+        },
+        {
+          "pastikanTerlihat": "/Disetujui otomatis/",
+          "lunak": true
+        }
+      ]
+    },
+    {
+      "id": "terbitkan-wo",
+      "judul": "Bagus menerbitkan Perintah Kerja dari penawaran",
+      "deskripsi": "Perintah Kerja (WO/SPK) adalah dokumen pengerjaan di bengkel. Ia lahir dari penawaran yang disetujui dan membawa baris part-nya. Di MBL hanya Superintendent yang boleh menerbitkannya.",
+      "sebagai": "mbl.superintendent",
+      "harusTerlihat": "Perintah Kerja terbit dan langsung Menunggu material",
+      "aksi": [
+        {
+          "buka": "/work-orders/offers/{penawaran_id}"
+        },
+        {
+          "banner": "Bagus (Superintendent) membuka penawaran yang disetujui dan menekan Terbitkan Perintah Kerja",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Terbitkan Perintah Kerja"
+          }
+        },
+        {
+          "tunggu": {
+            "tombol": "/Buka perintah kerja/"
+          },
+          "batas": 20000
+        },
+        {
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "/Buka perintah kerja/"
+          }
+        },
+        {
+          "tungguUrl": "/\\/work-orders\\/wo\\/[0-9a-f-]{36}/",
+          "batas": 20000
+        },
+        {
+          "simpan": "wo_id",
+          "dariUrl": "/wo\\/([0-9a-f-]{36})/"
+        },
+        {
+          "tahan": 3000
+        },
+        {
+          "tunggu": {
+            "teks": "Menunggu material"
+          },
+          "batas": 20000
+        },
+        {
+          "simpan": "wo_nomor",
+          "dariTeks": "/WO-\\d{6}-\\d+/"
+        },
+        {
+          "dokumen": {
+            "label": "Perintah Kerja",
+            "nomor": "{wo_nomor}",
+            "url": "/work-orders/wo/{wo_id}"
+          }
+        },
+        {
+          "banner": "{wo_nomor} terbit dan langsung dirilis: permintaan material (MR) awal sudah Disetujui, status Menunggu material",
+          "tahan": 5000
+        }
+      ]
+    },
+    {
+      "id": "serah-material",
+      "judul": "Wati mengeluarkan kampas dari stok untuk Fajar",
+      "deskripsi": "Gudang menyerahkan part sesuai MR awal WO. Tanpa part yang sudah dikeluarkan, sesi kerja untuk item part belum bisa dimulai.",
+      "sebagai": "mbl.storekeeper",
+      "harusTerlihat": "MR berstatus Dikeluarkan",
+      "aksi": [
+        {
+          "api": "mr-disetujui-wo",
+          "wo": "{wo_id}",
+          "simpan": "mr"
+        },
+        {
+          "dokumen": {
+            "label": "Material Request",
+            "nomor": "{mr.nomor}",
+            "url": "/inventory/material-requests/{mr.id}"
+          }
+        },
+        {
+          "buka": "/inventory/material-requests/{mr.id}"
+        },
+        {
+          "banner": "Wati membuka {mr.nomor} dan mengeluarkan 2 {kampas.nama} untuk Fajar",
+          "tahan": 4000
+        },
+        {
+          "klik": {
+            "tombol": "Keluarkan dari Stok"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": true
+          }
+        },
+        {
+          "tahan": 1500
+        },
+        {
+          "cari": {
+            "combobox": "/Diterima oleh/",
+            "dalam": {
+              "dialog": true
+            }
+          },
+          "ketik": "Fajar",
+          "opsi": "Fajar"
+        },
+        {
+          "isi": {
+            "label": "/^Catatan pengambilan/",
+            "dalam": {
+              "dialog": true
+            }
+          },
+          "nilai": "Diserahkan lengkap ke Foreman Fajar"
+        },
+        {
+          "klik": {
+            "tombol": "Keluarkan dari Stok",
+            "dalam": {
+              "dialog": true
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": true
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "banner": "Material sudah diserahkan; MR berstatus Dikeluarkan",
+          "tahan": 4000
+        }
+      ]
+    },
+    {
+      "id": "sesi-baru",
+      "judul": "Fajar membuka Sesi 1 untuk Made",
+      "deskripsi": "Pengerjaan di bengkel berjalan per sesi (shift). Foreman membuka sesi dan memilih mekaniknya; mekanik lalu menekan Mulai sesi saat benar-benar mulai bekerja.",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Sesi 1 dibuka, menunggu mekanik memulai",
+      "aksi": [
+        {
+          "buka": "/work-orders/wo/{wo_id}"
+        },
+        {
+          "banner": "Part sudah di tangan. Fajar membuka sesi kerja baru untuk Made",
+          "tahan": 3000
+        },
+        {
+          "klik": {
+            "tombol": "Sesi baru"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Sesi baru"
+          },
+          "batas": 10000
+        },
+        {
+          "isi": {
+            "label": "/^Nama sesi/",
+            "dalam": {
+              "dialog": "Sesi baru"
+            }
+          },
+          "nilai": "Sesi 1"
+        },
+        {
+          "layar": "pilih-mekanik",
+          "dalam": {
+            "dialog": "Sesi baru"
+          },
+          "label": "/mekanik/i"
+        },
+        {
+          "klik": {
+            "tombol": "Mulai sesi",
+            "dalam": {
+              "dialog": "Sesi baru"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Sesi baru"
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3000
+        },
+        {
+          "banner": "Sesi 1 dibuka, menunggu Made memulai",
+          "tahan": 3500
+        }
+      ]
+    },
+    {
+      "id": "kerjakan",
+      "judul": "Made memulai sesi lalu mendokumentasikan penggantian kampas",
+      "deskripsi": "Mekanik menekan Mulai sesi (waktu tunggu mekanik berhenti dihitung), lalu mendokumentasikan item yang dikerjakan: catatan dan foto.",
+      "sebagai": "mbl.mechanic",
+      "harusTerlihat": "Dokumentasi item terkirim",
+      "aksi": [
+        {
+          "buka": "/work-orders/wo/{wo_id}"
+        },
+        {
+          "banner": "Made menekan Mulai sesi",
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Mulai sesi"
+          },
+          "opsional": true
+        },
+        {
+          "tunggu": {
+            "dialog": "Mulai sesi sekarang?"
+          },
+          "batas": 10000,
+          "opsional": true
+        },
+        {
+          "klik": {
+            "tombol": "Mulai sesi",
+            "dalam": {
+              "dialog": "Mulai sesi sekarang?"
+            }
+          },
+          "opsional": true
+        },
+        {
+          "tahan": 3000
+        },
+        {
+          "banner": "Made mengganti kampas, lalu mendokumentasikannya dengan catatan dan foto",
+          "tahan": 3000
+        },
+        {
+          "layar": "dokumentasi-kerja",
+          "wo": "{wo_id}",
+          "item": "{kampas.nama}",
+          "catatan": "Kampas rem depan diganti, rem diuji di tempat",
+          "foto": "made-1"
+        }
+      ]
+    },
+    {
+      "id": "akhiri-sesi",
+      "judul": "Fajar mengakhiri Sesi 1 dengan catatan serah terima",
+      "deskripsi": "Sesi diakhiri dengan catatan serah terima. Hasil kerjanya dikirim untuk diverifikasi.",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Sesi 1 selesai, hasilnya menunggu verifikasi",
+      "aksi": [
+        {
+          "buka": "/work-orders/wo/{wo_id}"
+        },
+        {
+          "banner": "Fajar mengakhiri Sesi 1",
+          "tahan": 2500
+        },
+        {
+          "layar": "akhiri-sesi",
+          "wo": "{wo_id}",
+          "catatan": "Kampas terpasang, rem normal"
+        },
+        {
+          "screenshot": "sesudah-akhiri"
+        }
+      ]
+    },
+    {
+      "id": "verifikasi-sesi",
+      "judul": "Fajar memverifikasi hasil Sesi 1",
+      "deskripsi": "Tiap sesi diverifikasi foreman: memeriksa dokumentasi dan foto, lalu menyetujui atau menolak sesi.",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Sesi 1 Disetujui",
+      "aksi": [
+        {
+          "buka": "/work-orders/wo/{wo_id}"
+        },
+        {
+          "banner": "Fajar memeriksa dokumentasi Sesi 1 lalu menyetujuinya",
+          "tahan": 2500
+        },
+        {
+          "layar": "putuskan-sesi",
+          "wo": "{wo_id}",
+          "keputusan": "setujui",
+          "catatan": "Kampas terpasang benar, foto jelas"
+        }
+      ]
+    },
+    {
+      "id": "verifikasi-akhir-1",
+      "judul": "Fajar menyetujui verifikasi akhir tahap 1 dari Kotak Masuk",
+      "deskripsi": "Setelah semua sesi disetujui, verifikasi akhir pengerjaan otomatis masuk Kotak Masuk. Di MBL alurnya dua tahap: Foreman lalu Supervisor.",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "Verifikasi akhir tahap 1 disetujui",
+      "aksi": [
+        {
+          "buka": "/approvals"
+        },
+        {
+          "banner": "Semua sesi disetujui: verifikasi akhir {wo_nomor} otomatis masuk Kotak Masuk. Tahap 1 dipegang Fajar (Foreman)",
+          "tahan": 3000
+        },
+        {
+          "isi": {
+            "placeholder": "Cari…"
+          },
+          "nilai": "{wo_nomor}"
+        },
+        {
+          "tunggu": {
+            "teks": "{wo_nomor}"
+          },
+          "batas": 20000
+        },
+        {
+          "klik": {
+            "teks": "{wo_nomor}"
+          }
+        },
+        {
+          "tungguUrl": "/\\/work-orders\\/wo\\//",
+          "batas": 20000
+        },
+        {
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Setujui verifikasi akhir"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui verifikasi akhir"
+          },
+          "batas": 10000
+        },
+        {
+          "isi": {
+            "label": "/^Catatan pemeriksaan/",
+            "dalam": {
+              "dialog": "Setujui verifikasi akhir"
+            }
+          },
+          "nilai": "Semua item dikerjakan sesuai RPL"
+        },
+        {
+          "klik": {
+            "tombol": "Setujui verifikasi akhir",
+            "persis": true,
+            "dalam": {
+              "dialog": "Setujui verifikasi akhir"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui pengerjaan?"
+          },
+          "batas": 10000
+        },
+        {
+          "tahan": 2000
+        },
+        {
+          "klik": {
+            "tombol": "Setujui",
+            "persis": true,
+            "dalam": {
+              "dialog": "Setujui pengerjaan?"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui pengerjaan?"
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3500
+        }
+      ]
+    },
+    {
+      "id": "verifikasi-akhir-2",
+      "judul": "Surya menyetujui verifikasi akhir tahap 2 dari Kotak Masuk",
+      "deskripsi": "Tahap kedua verifikasi akhir. Surya hanya menyetujui; dialog yang sama juga menawarkan Setujui & selesaikan WO sekaligus.",
+      "sebagai": "mbl.supervisor",
+      "harusTerlihat": "Verifikasi akhir tahap 2 disetujui",
+      "aksi": [
+        {
+          "buka": "/approvals"
+        },
+        {
+          "banner": "Tahap 1 disetujui Fajar. Verifikasi akhir pindah ke Kotak Masuk Surya (Supervisor)",
+          "tahan": 3000
+        },
+        {
+          "isi": {
+            "placeholder": "Cari…"
+          },
+          "nilai": "{wo_nomor}"
+        },
+        {
+          "tunggu": {
+            "teks": "{wo_nomor}"
+          },
+          "batas": 20000
+        },
+        {
+          "klik": {
+            "teks": "{wo_nomor}"
+          }
+        },
+        {
+          "tungguUrl": "/\\/work-orders\\/wo\\//",
+          "batas": 20000
+        },
+        {
+          "tahan": 2500
+        },
+        {
+          "klik": {
+            "tombol": "Setujui verifikasi akhir"
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui verifikasi akhir"
+          },
+          "batas": 10000
+        },
+        {
+          "isi": {
+            "label": "/^Catatan pemeriksaan/",
+            "dalam": {
+              "dialog": "Setujui verifikasi akhir"
+            }
+          },
+          "nilai": "Pengerjaan sesuai RPL, unit siap dipakai"
+        },
+        {
+          "klik": {
+            "tombol": "Setujui verifikasi akhir",
+            "persis": true,
+            "dalam": {
+              "dialog": "Setujui verifikasi akhir"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui pengerjaan?"
+          },
+          "batas": 10000
+        },
+        {
+          "tahan": 2000
+        },
+        {
+          "klik": {
+            "tombol": "Setujui",
+            "persis": true,
+            "dalam": {
+              "dialog": "Setujui pengerjaan?"
+            }
+          }
+        },
+        {
+          "tunggu": {
+            "dialog": "Setujui pengerjaan?"
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3500
+        }
+      ]
+    },
+    {
+      "id": "selesaikan",
+      "judul": "Fajar menyelesaikan WO",
+      "deskripsi": "WO baru boleh diselesaikan bila material sudah diserahkan, pengerjaan disetujui, dan tidak ada sesi terbuka.",
+      "sebagai": "mbl.foreman",
+      "harusTerlihat": "WO berstatus Selesai",
+      "aksi": [
+        {
+          "buka": "/work-orders/wo/{wo_id}"
+        },
+        {
+          "banner": "Syarat lengkap: material diserahkan, pengerjaan disetujui, tidak ada sesi terbuka. Fajar menekan Selesaikan",
+          "tahan": 3500
+        },
+        {
+          "klik": {
+            "tombol": "Selesaikan",
+            "persis": true
+          }
+        },
+        {
+          "tunggu": {
+            "tombol": "Selesaikan",
+            "persis": true
+          },
+          "hilang": true,
+          "batas": 20000
+        },
+        {
+          "tahan": 3500
+        },
+        {
+          "screenshot": "wo-selesai"
+        }
+      ]
+    },
+    {
+      "id": "order-selesai",
+      "judul": "Putri melihat Order tertutup otomatis",
+      "deskripsi": "Begitu satu-satunya WO selesai, Order ikut Ditutup dan tiket asalnya Selesai tanpa langkah tambahan. Ringkasan Order merangkum penawaran dan Perintah Kerja yang lahir darinya.",
+      "sebagai": "mbl.planner",
+      "harusTerlihat": "Order Ditutup; penawaran Disetujui dan Perintah Kerja Selesai di ringkasan",
+      "aksi": [
+        {
+          "buka": "/work-orders/orders/{order.id}"
+        },
+        {
+          "tunggu": {
+            "teks": "{wo_nomor}"
+          },
+          "batas": 20000
+        },
+        {
+          "banner": "{order.nomor} Ditutup otomatis: penawaran Disetujui, {wo_nomor} Selesai",
+          "tahan": 5000
+        },
+        {
+          "pastikanTerlihat": "Ditutup"
+        },
+        {
+          "buka": "/work-orders/complaints/{tiket.id}"
+        },
+        {
+          "banner": "Tiket {tiket.nomor} juga ikut Selesai. Perjalanan perbaikan insidentil tuntas",
+          "tahan": 5000
+        },
+        {
+          "tahan": 2000
+        }
+      ]
+    }
+  ]
+}

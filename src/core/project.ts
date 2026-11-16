@@ -1,4 +1,4 @@
-// Project › Modul. Satu project "Fleetify v2" sekarang;
+// Project › Modul (grup). Satu project "Fleetify v2" sekarang;
 // strukturnya siap untuk lebih dari satu. Modul = folder scenarios/<modul>/ (sama dengan field `modul`
 // skenario) — nama tampilan dan urutan di sini; folder yang belum terdaftar tetap muncul di belakang
 // dengan nama dari folder. Sumber tugas Plane/Jira belum ada (tiket hanya teks + tautan TICKET_URL).
@@ -20,11 +20,13 @@ export const PROJECTS: Project[] = [
     id: 'fleetify-v2',
     nama: 'Fleetify v2',
     modul: [
-      { id: 'wo', nama: 'Work Order', urutan: 1 },
-      { id: 'material', nama: 'Material & Gudang', urutan: 2 },
-      { id: 'approval', nama: 'Approval', urutan: 3 },
-      { id: 'pb', nama: 'Perawatan Berkala', urutan: 4 },
-      { id: 'akses', nama: 'Hak Akses', urutan: 5 },
+      // Grup = perjalanan di Manajemen Workflow v2: satu alur lurus + alur belok (skema `alur`).
+      { id: 'insidentil', nama: 'Perbaikan Insidentil', urutan: 1 },
+      { id: 'pengadaan', nama: 'Pengadaan & Gudang', urutan: 2 },
+      { id: 'terjadwal', nama: 'Perbaikan Terjadwal', urutan: 3 },
+      { id: 'ban', nama: 'Perbaikan Ban', urutan: 4 },
+      // Lintas grup: mekanisme approval dan hak akses, tanpa alur lurus.
+      { id: 'approval', nama: 'Approval & Hak Akses', urutan: 5 },
       { id: 'lingkungan', nama: 'Lingkungan', urutan: 6 },
     ],
   },

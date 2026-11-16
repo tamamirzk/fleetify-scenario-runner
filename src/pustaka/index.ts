@@ -41,6 +41,7 @@ export const PUSTAKA: Record<string, AksiPustaka> = {
   order: tiket.order,
   'pemeriksaan-order': tiket.pemeriksaanOrder,
   'isi-pemeriksaan': tiket.isiPemeriksaan,
+  'lapor-tiket': tiket.laporTiket,
   'zona-waktu': lingkungan.zonaWaktu,
   'konfirmasi-zona-waktu': lingkungan.konfirmasiZonaWaktu,
 }

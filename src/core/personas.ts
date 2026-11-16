@@ -11,9 +11,14 @@ export const PERSONAS = {
   'mbl.purchasing': 'Purnomo (Purchasing)',
   'mbl.dispatcher': 'Dedi (Dispatcher)',
   'mbl.mcr': 'Mira (Pelapor)',
+  'mbl.driver': 'Doni (Driver)',
 } as const
 
 export type PersonaId = keyof typeof PERSONAS
 export const PERSONA_IDS = Object.keys(PERSONAS) as [PersonaId, ...PersonaId[]]
+
+/** Persona yang bekerja dari ponsel: jendela berganti ke ukuran ponsel saat menjadi persona ini. */
+export const PERSONA_PONSEL: ReadonlySet<string> = new Set(['mbl.driver', 'mbl.mechanic'])
+export const pakaiPonsel = (who: string): boolean => PERSONA_PONSEL.has(who)
 
 export const personaName = (who: string): string => (PERSONAS as Record<string, string>)[who] ?? who

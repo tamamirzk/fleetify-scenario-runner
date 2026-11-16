@@ -84,7 +84,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -646,7 +646,13 @@ function renderJalanShot() {
   const ring = $('#rn-ring')
   const pill = $('#rn-pill')
   const area = $('#rn-area')
-  area.style.setProperty('--ar', String(rasioLaptop(r?.tampilan)))
+  // Rasio kotak = rasio bingkai yang sedang tampil (persona ponsel memberi bingkai tegak), supaya gambar
+  // tidak ber-letterbox dan cincin target tetap tepat; sebelum bingkai pertama: rasio laptop jalan ini.
+  area.style.setProperty('--ar', String(S.rasio ?? rasioLaptop(r?.tampilan)))
+  img.onload = () => {
+    const q = img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : null
+    if (q && Math.abs(q - (S.rasio ?? 0)) > 0.01) { S.rasio = q; renderJalanShot() }
+  }
   const aktif = !!r && ACTIVE.includes(r.status)
   const fallback = r?.last_shot ? `/runs/${r.run_id}/${r.last_shot}` : null
   if (!r) {
@@ -1293,7 +1299,7 @@ function onState(st) {
   S.antrean = st.antrean ?? []
   S.antreanTotal = st.antrean_total ?? 0
   if (S.cfg && st.headed !== undefined) S.cfg.headed = st.headed
-  if (prev?.run_id !== S.run?.run_id) { S.frame = false; S.viewStep = null; $('#live-img')?.removeAttribute('src') }
+  if (prev?.run_id !== S.run?.run_id) { S.frame = false; S.rasio = null; S.viewStep = null; $('#live-img')?.removeAttribute('src') }
   const [r, a] = route()
   // Jalan mulai (Putar, Ulang, Putar semua): pindah ke layar jalan.
   if (S.run?.status === 'berjalan' && !['berjalan', 'jeda'].includes(prev?.status) && r !== 'jalan') { location.hash = '#/jalan'; return }

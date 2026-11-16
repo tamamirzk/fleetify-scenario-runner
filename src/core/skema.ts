@@ -6,7 +6,14 @@ import { ATURAN_DOM } from '../pemeriksaan/ui-dom.ts'
 import { ATURAN_STATIS } from '../pemeriksaan/ui-statis.ts'
 import { PERSONA_IDS } from './personas.ts'
 
-export const MODUL = ['material', 'approval', 'wo', 'pb', 'akses', 'lingkungan'] as const
+export const MODUL = [
+  'insidentil',
+  'pengadaan',
+  'terjadwal',
+  'ban',
+  'approval',
+  'lingkungan',
+] as const
 
 const kalimat = z.string().trim().min(3)
 const kebab = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'huruf kecil, angka, dan tanda hubung')
@@ -295,6 +302,22 @@ export const SkenarioSchema = z
     pemilik: z.string().trim().min(2).optional(),
     /** Status tertulis: `draf` atau `siap` (bawaan). `ada_kegagalan` dihitung dari jalan terakhir. */
     status: z.enum(['draf', 'siap']).optional(),
+    /**
+     * Kedudukan di grup: `lurus` = jalur bahagia (satu per grup); `belok` = mengambil jalan lain
+     * di langkah ke-`langkah` alur lurus `dari` (grup yang sama). Tanpa `alur` = lepas.
+     */
+    alur: z
+      .discriminatedUnion('jenis', [
+        z.object({ jenis: z.literal('lurus') }).strict(),
+        z
+          .object({
+            jenis: z.literal('belok'),
+            dari: kebab,
+            langkah: z.number().int().min(1),
+          })
+          .strict(),
+      ])
+      .optional(),
     estimasi: z.string().regex(/^\d+ menit$/, 'format "<n> menit"'),
     persona: z.array(z.object({ siapa: persona, peran: kalimat }).strict()).min(1),
     /** Uraian data yang disiapkan, untuk ringkasan. */

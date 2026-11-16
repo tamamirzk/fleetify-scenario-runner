@@ -2,7 +2,7 @@
   "slug": "pinjaman-alat",
   "judul": "Pinjaman alat per peminjam",
   "tujuan": "Membuktikan alat yang dipinjamkan lewat MR mandiri tercatat per peminjam: bisa kembali sebagian (nomor seri), kembali dengan nomor seri, dan sisanya dicatat tidak kembali dengan alasan.",
-  "modul": "material",
+  "modul": "pengadaan",
   "tiket": ["FMS-63"],
   "estimasi": "4 menit",
   "persona": [

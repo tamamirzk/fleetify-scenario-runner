@@ -6,7 +6,7 @@ import { SLUG } from './core/scenarios.ts'
 import { MODUL } from './core/skema.ts'
 
 const [modul, slug, tiket] = Bun.argv.slice(2)
-const PAKAI = `Pakai: bun run new <modul> <slug> [tiket]   (mis. bun run new wo retur-rusak FMS-62)\nModul: ${MODUL.join(', ')}`
+const PAKAI = `Pakai: bun run new <modul> <slug> [tiket]   (mis. bun run new insidentil retur-rusak FMS-62)\nModul: ${MODUL.join(', ')}`
 if (!modul || !slug || !(MODUL as readonly string[]).includes(modul) || !SLUG.test(slug)) {
   console.error(PAKAI)
   process.exit(2)
@@ -27,7 +27,7 @@ writeFileSync(
   target,
   template
     .replaceAll('"contoh-skenario"', `"${slug}"`)
-    .replaceAll('"modul": "material"', `"modul": "${modul}"`)
+    .replaceAll('"modul": "pengadaan"', `"modul": "${modul}"`)
     .replaceAll('"FMS-0"', `"${tiket ?? 'FMS-0'}"`),
 )
 console.log(`Dibuat ${path.relative(ROOT, target)}. Lengkapi, lalu: bun run check:scenarios`)

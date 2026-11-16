@@ -31,6 +31,14 @@ export function bacaTampilan(ukuran?: unknown, skala?: unknown): Tampilan {
   return { ukuran: { w, h }, skala: s }
 }
 
+/** Ukuran layar ponsel (CSS px) untuk persona lapangan (driver, mekanik); tidak ikut skala. */
+export const UKURAN_PONSEL = { width: 390, height: 844 } as const
+
+/** Viewport untuk persona: ponsel tetap 390×844, selain itu tampilan laptop jalan ini. */
+export function viewportPersona(t: Tampilan, ponsel: boolean): { width: number; height: number } {
+  return ponsel ? { ...UKURAN_PONSEL } : viewportCss(t)
+}
+
 /** Viewport CSS = ukuran ÷ skala. */
 export function viewportCss(t: Tampilan): { width: number; height: number } {
   return { width: Math.round(t.ukuran.w / t.skala), height: Math.round(t.ukuran.h / t.skala) }

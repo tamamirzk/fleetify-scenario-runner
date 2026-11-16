@@ -3216,6 +3216,33 @@ a.ticket:hover {
   font-size: var(--sr-text-xs);
   color: rgba(255, 255, 255, 0.45);
 }
+/* Kedudukan di grup: alur lurus menonjol, belokan menjorok di bawahnya. */
+.sk-baris.sk-belok {
+  padding-left: 36px;
+}
+.sk-alur-baris {
+  margin-top: 3px;
+}
+.sk-alur {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  font-size: var(--sr-text-xs);
+  line-height: 1.6;
+}
+.sk-alur.lurus {
+  padding: 0 8px;
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-fill-2);
+  color: var(--sr-info-text);
+  font-weight: 600;
+}
+.sk-alur.belok {
+  color: var(--sr-text-2);
+}
 .sk-meta {
   margin-top: 2px;
   font-size: 13px;
@@ -3407,6 +3434,9 @@ a.ticket:hover {
   }
   .sk-baris {
     grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .sk-baris.sk-belok {
+    padding-left: 24px;
   }
   .sk-chips,
   .sk-status,

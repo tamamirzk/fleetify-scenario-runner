@@ -15,8 +15,8 @@ import {
 } from 'playwright'
 import { config } from './config.ts'
 import type { TargetAksi } from './controller.ts'
-import { type PersonaId, personaName } from './personas.ts'
-import { TAMPILAN_BAWAAN, type Tampilan, viewportCss } from './tampilan.ts'
+import { type PersonaId, pakaiPonsel, personaName } from './personas.ts'
+import { TAMPILAN_BAWAAN, type Tampilan, viewportPersona } from './tampilan.ts'
 import type { ApiResult, ApiTarget, Body } from './types.ts'
 
 export { personaName }
@@ -239,8 +239,9 @@ export async function asPersona(
   await ensureOwner()
   const ctx = await browser.newContext({
     storageState: OWNER_STATE,
-    // Tampilan aplikasi: viewport CSS = ukuran ÷ skala, deviceScaleFactor = skala (core/tampilan.ts).
-    viewport: viewportCss(tampilanAktif),
+    // Tampilan aplikasi: viewport CSS = ukuran ÷ skala, deviceScaleFactor = skala (core/tampilan.ts);
+    // persona lapangan (driver, mekanik) mulai di ukuran ponsel.
+    viewport: viewportPersona(tampilanAktif, pakaiPonsel(who)),
     deviceScaleFactor: tampilanAktif.skala,
   })
   await ctx.addInitScript(() => {
@@ -436,6 +437,10 @@ export async function become(
   if (text) await caption(page, text)
   await apiSend(page, 'POST', '/auth/impersonation/exit')
   await impersonate(page, who)
+  // Driver dan mekanik memakai ponsel: jendela yang sama berganti ukuran sebelum dimuat ulang.
+  const vp = viewportPersona(tampilanAktif, pakaiPonsel(who))
+  const kini = page.viewportSize()
+  if (kini?.width !== vp.width || kini?.height !== vp.height) await page.setViewportSize(vp)
   await page.reload()
   await page.bringToFront()
   if (text) await caption(page, text)

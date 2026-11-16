@@ -70,8 +70,9 @@ export async function chooseMechanic(
   k: Kit,
   dlg: Locator,
   name: string | RegExp = /Made Mekanik/,
+  label: string | RegExp = /^Mekanik/,
 ) {
-  const crew = dlg.getByRole('combobox', { name: /^Mekanik/ }).last()
+  const crew = dlg.getByRole('combobox', { name: label }).last()
   for (let attempt = 0; attempt < 3; attempt++) {
     await k.click(page, crew, 2200)
     const opt = page.getByRole('option', { name }).first()

@@ -45,7 +45,7 @@ const f = {
 }
 const d = {
   judul: 'Permintaan barang sampai diserahkan',
-  modul: 'material',
+  modul: 'pengadaan',
   estimasi: '9 menit',
   tujuan:
     'Membuktikan permintaan barang berjalan di server: MR lahir dari WO yang berlaku, mekanik meminta barang tambahan dari HP, dan gudang menyerahkan barang.',

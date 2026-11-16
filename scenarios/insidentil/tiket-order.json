@@ -2,7 +2,8 @@
   "slug": "tiket-order",
   "judul": "Tiket sampai Order dan pemeriksaan ulang",
   "tujuan": "Membuktikan Order bisa dibuat dengan melewati pemeriksaan (alasan wajib, kartu terkunci), dikembalikan ke pemeriksaan, dan pemeriksaan yang ditolak bisa diulang lewat pemeriksaan baru sampai disetujui.",
-  "modul": "wo",
+  "modul": "insidentil",
+  "alur": { "jenis": "belok", "dari": "insidentil-lurus", "langkah": 3 },
   "tiket": ["FMS-87", "FMS-88", "FMS-39"],
   "estimasi": "14 menit",
   "persona": [

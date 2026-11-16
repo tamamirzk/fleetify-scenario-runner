@@ -41,13 +41,16 @@ Penonton melihat aplikasi dipakai seperti oleh orang sungguhan: tiap klik, isian
 
 ## Skenario yang sudah ada
 
-| Skenario | Isi | capai |
-|---|---|---|
-| `siapkan-zona` | Persiapan lingkungan: zona waktu MBL terkonfirmasi (jalankan sekali per DB) | - |
-| `pinjaman-alat` | FMS-63: MR mandiri, pinjaman alat per peminjam, kembali sebagian, kembali dengan serial, catat tidak kembali | semua langkah |
-| `penyesuaian-wo` | FMS-71/61/62: penyesuaian WO, approval, retur sampai diterima | langkah 2–3 |
-| `sesi-ditolak` | FMS-31/32/34: sesi ditolak, dokumentasi terbawa, Riwayat item | langkah 2 |
-| `sla-eskalasi` | FMS-42/43: SLA dan eskalasi alur PO, setelan dikembalikan | langkah 2 dan 8 |
-| `tiket-order` | FMS-87/88/39: lewati pemeriksaan, kembali ke pemeriksaan, pemeriksaan ulang | tidak ada |
+Dikelompokkan per grup (lihat [SKEMA-SKENARIO.md](SKEMA-SKENARIO.md#grup-dan-alur)). Kolom Alur: **lurus** atau nomor langkah alur lurus tempat skenario berbelok.
+
+| Grup | Skenario | Alur | Isi | capai |
+|---|---|---|---|---|
+| insidentil | `insidentil-lurus` | lurus | Driver melapor dari ponsel → tiket disetujui → Order → pemeriksaan + RPL part → penawaran → Perintah Kerja → material → sesi → verifikasi akhir dua tahap → WO selesai, Order dan tiket tertutup | tidak ada |
+| insidentil | `tiket-order` | belok 3 | FMS-87/88/39: lewati pemeriksaan, kembali ke pemeriksaan, pemeriksaan ulang | tidak ada |
+| insidentil | `penyesuaian-wo` | belok 11 | FMS-71/61/62: penyesuaian WO, approval, retur sampai diterima | langkah 2–3 |
+| insidentil | `sesi-ditolak` | belok 14 | FMS-31/32/34: sesi ditolak, dokumentasi terbawa, Riwayat item | langkah 2 |
+| pengadaan | `pinjaman-alat` | – | FMS-63: MR mandiri, pinjaman alat per peminjam, kembali sebagian, kembali dengan serial, catat tidak kembali | semua langkah |
+| approval | `sla-eskalasi` | – | FMS-42/43: SLA dan eskalasi alur PO, setelan dikembalikan | langkah 2 dan 8 |
+| lingkungan | `siapkan-zona` | – | Persiapan lingkungan: zona waktu MBL terkonfirmasi (jalankan sekali per DB) | - |
 
 Rujukan aturan bisnis: `CLAUDE.md` dan `docs/claude/modules/*.md` di repo v2.

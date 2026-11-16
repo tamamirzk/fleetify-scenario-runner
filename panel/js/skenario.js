@@ -81,11 +81,33 @@ export function saringSkenario(files, { filter = {}, modul = null, q = '' } = {}
   })
 }
 
-/** Kelompokkan per modul sesuai urutan project. */
+/** Kunci urut dalam grup: alur lurus, belok menurut langkah beloknya, lalu skenario lepas. */
+const kunciAlur = (f) =>
+  f.alur?.jenis === 'lurus' ? [0, 0] : f.alur?.jenis === 'belok' ? [1, f.alur.langkah] : [2, 0]
+
+/** Urutkan skenario satu grup (sama dengan urutAlur di server, dipakai Putar semua). */
+export function urutAlur(files) {
+  return [...files].sort((x, y) => {
+    const [a1, a2] = kunciAlur(x)
+    const [b1, b2] = kunciAlur(y)
+    return a1 - b1 || a2 - b2 || String(x.slug).localeCompare(String(y.slug))
+  })
+}
+
+/** Penanda kedudukan di grup: "Alur lurus" atau "Belok di langkah n · judul langkah". */
+export function chipAlur(f) {
+  const a = f.alur
+  if (!a) return ''
+  if (a.jenis === 'lurus') return '<span class="sk-alur lurus">Alur lurus</span>'
+  const judul = a.judul ? ` · ${esc(a.judul)}` : ''
+  return `<span class="sk-alur belok" title="Menyimpang dari ${esc(a.dari)} sesudah langkah ${a.langkah}">↳ Belok di langkah ${a.langkah}${judul}</span>`
+}
+
+/** Kelompokkan per modul sesuai urutan project; di dalam grup urut menurut alur. */
 export function kelompokModul(files, modul) {
   const out = []
   for (const m of modul) {
-    const fs = files.filter((f) => f.task === m.id)
+    const fs = urutAlur(files.filter((f) => f.task === m.id))
     if (fs.length) out.push({ modul: m, files: fs })
   }
   return out
@@ -135,9 +157,9 @@ export function barisSkenario(f) {
   const st = statusFile(f)
   // Hanya tiket nyata yang jadi chip; tanpa tiket tidak ditulis apa pun.
   const tiket = f.tiket?.length ? chipTiketDaftar(f.tiket) : ''
-  return `<li class="sk-baris" data-slug="${esc(f.slug)}">
+  return `<li class="sk-baris${f.alur?.jenis === 'belok' ? ' sk-belok' : ''}" data-slug="${esc(f.slug)}">
     ${ikonHasil(f)}
-    <div class="sk-teks"><div class="sk-judul">${esc(f.title ?? f.slug)}</div><div class="sk-meta">${metaSkenario(f)} · <span class="sk-slug" title="Nama berkas skenario">${esc(f.slug)}</span></div></div>
+    <div class="sk-teks"><div class="sk-judul">${esc(f.title ?? f.slug)}</div>${chipAlur(f) ? `<div class="sk-alur-baris">${chipAlur(f)}</div>` : ''}<div class="sk-meta">${metaSkenario(f)} · <span class="sk-slug" title="Nama berkas skenario">${esc(f.slug)}</span></div></div>
     <div class="sk-chips">${tiket}</div>
     <span class="sk-status ${NADA_STATUS[st]}">${esc(LABEL_STATUS[st])}</span>
     <div class="sk-aksi">

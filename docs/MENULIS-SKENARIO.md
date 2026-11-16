@@ -11,13 +11,13 @@ Alur kerja menulis dan memperbaiki skenario. **Bentuk berkas, daftar aksi, sasar
 ## Alur
 
 ```bash
-bun run new wo retur-rusak FMS-62     # kerangka scenarios/wo/retur-rusak.json
+bun run new insidentil retur-rusak FMS-62     # kerangka scenarios/insidentil/retur-rusak.json
 bun run check:scenarios               # skema dan aturan
 bun run scenario retur-rusak          # putar headless (CLI)
 bun run panel                         # atau tonton dan kendalikan dari panel
 ```
 
-1. Tulis JSON. Mulai dari `templates/skenario.json` atau contoh lengkap `scenarios/material/pinjaman-alat.json`.
+1. Tulis JSON. Mulai dari `templates/skenario.json` atau contoh lengkap `scenarios/pengadaan/pinjaman-alat.json`.
 2. Baca komponen v2 yang disentuh dan ambil teks tombol/label dari `Frontend/src/shared/i18n/locales/id.json` repo v2.
 3. Bila butuh rangkaian yang tidak bisa ditulis dengan aksi sederhana (perulangan, kondisi, DOM yang sulit), tambah aksi pustaka, bukan selector CSS di JSON.
 4. `bun run check:scenarios` sampai hijau. Panel menandai berkas tidak valid dan menolak memutarnya.

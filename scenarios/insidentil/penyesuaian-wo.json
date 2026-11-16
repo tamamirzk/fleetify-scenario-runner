@@ -2,7 +2,8 @@
   "slug": "penyesuaian-wo",
   "judul": "Penyesuaian WO dan retur material",
   "tujuan": "Membuktikan penyesuaian WO berjalan (kurangi jumlah, ganti part) lewat approval, WO menampilkan bagian Penyesuaian dan peringatan \"Harus kembali ke gudang\", lalu peringatan hilang setelah retur diterima gudang.",
-  "modul": "wo",
+  "modul": "insidentil",
+  "alur": { "jenis": "belok", "dari": "insidentil-lurus", "langkah": 11 },
   "tiket": ["FMS-71", "FMS-61", "FMS-62"],
   "estimasi": "8 menit",
   "persona": [

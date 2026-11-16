@@ -2,7 +2,8 @@
   "slug": "sesi-ditolak",
   "judul": "Sesi kerja ditolak lalu diulang",
   "tujuan": "Membuktikan sesi yang ditolak membawa dokumentasi lama ke sesi berikutnya, mekanik bisa mengubahnya, dan Riwayat item mencatat versi dokumentasi dari kedua sesi.",
-  "modul": "wo",
+  "modul": "insidentil",
+  "alur": { "jenis": "belok", "dari": "insidentil-lurus", "langkah": 14 },
   "tiket": ["FMS-31", "FMS-32", "FMS-34"],
   "estimasi": "9 menit",
   "persona": [

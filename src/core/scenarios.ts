@@ -13,7 +13,7 @@ export const TASK = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 export interface BerkasSkenario {
   slug: string
   task: string
-  /** Relatif ke akar repo, mis. scenarios/material/pinjaman-alat.json */
+  /** Relatif ke akar repo, mis. scenarios/pengadaan/pinjaman-alat.json */
   path: string
   abs: string
   mtime: string
@@ -76,7 +76,57 @@ export function bacaSemua(): BerkasSkenario[] {
       })
       b.skenario = null
     }
+  periksaAlur(out)
   return out
+}
+
+/**
+ * Aturan `alur` lintas berkas: satu alur lurus per grup; belok merujuk alur lurus di grup yang
+ * sama dan langkah yang ada. Pelanggaran dicatat sebagai masalah standar (check:scenarios gagal),
+ * tapi skenario tetap bisa diputar.
+ */
+export function periksaAlur(semua: BerkasSkenario[]): void {
+  const lurus = new Map<string, BerkasSkenario[]>()
+  for (const b of semua)
+    if (b.skenario?.alur?.jenis === 'lurus') lurus.set(b.task, [...(lurus.get(b.task) ?? []), b])
+  for (const [task, bs] of lurus)
+    if (bs.length > 1)
+      for (const b of bs)
+        b.masalah.push({
+          aturan: 'alur',
+          path: 'alur',
+          message: `grup ${task} punya ${bs.length} alur lurus (${bs.map((x) => x.slug).join(', ')}); hanya boleh satu`,
+        })
+  for (const b of semua) {
+    const a = b.skenario?.alur
+    if (a?.jenis !== 'belok') continue
+    const induk = semua.find((x) => x.slug === a.dari)
+    const msg = !induk?.skenario
+      ? `alur.dari "${a.dari}" tidak ada atau tidak valid`
+      : induk.task !== b.task
+        ? `alur.dari "${a.dari}" ada di grup ${induk.task}, bukan ${b.task}`
+        : induk.skenario.alur?.jenis !== 'lurus'
+          ? `alur.dari "${a.dari}" bukan alur lurus`
+          : a.langkah > induk.skenario.langkah.length
+            ? `alur.langkah ${a.langkah} melebihi ${induk.skenario.langkah.length} langkah "${a.dari}"`
+            : null
+    if (msg) b.masalah.push({ aturan: 'alur', path: 'alur', message: msg })
+  }
+}
+
+/** Info alur untuk kartu panel: belok membawa judul langkah alur lurus tempat ia menyimpang. */
+export function infoAlur(
+  b: BerkasSkenario,
+  semua: BerkasSkenario[],
+):
+  | { jenis: 'lurus' }
+  | { jenis: 'belok'; dari: string; langkah: number; judul: string | null }
+  | null {
+  const a = b.skenario?.alur
+  if (!a) return null
+  if (a.jenis === 'lurus') return { jenis: 'lurus' }
+  const induk = semua.find((x) => x.slug === a.dari)?.skenario
+  return { ...a, judul: induk?.langkah[a.langkah - 1]?.judul ?? null }
 }
 
 export function bacaSatu(slug: string): BerkasSkenario {
@@ -123,3 +173,18 @@ export const stepInfo = (s: Langkah, i: number): StepInfo => ({
   reach: !!s.capai,
   belakang: !!s.diBelakangLayar,
 })
+
+/** Urutan dalam grup: alur lurus, lalu belok menurut langkah beloknya, lalu skenario lepas. */
+export function urutAlur<T extends { slug: string; skenario: Skenario | null }>(bs: T[]): T[] {
+  const kunci = (b: T): [number, number] => {
+    const a = b.skenario?.alur
+    if (a?.jenis === 'lurus') return [0, 0]
+    if (a?.jenis === 'belok') return [1, a.langkah]
+    return [2, 0]
+  }
+  return [...bs].sort((x, y) => {
+    const [a1, a2] = kunci(x)
+    const [b1, b2] = kunci(y)
+    return a1 - b1 || a2 - b2 || x.slug.localeCompare(y.slug)
+  })
+}

@@ -81,7 +81,7 @@ Satu tenant = satu pemutar sekaligus: runner memegang kunci `.cache/kunci-<tenan
 ## Menulis skenario
 
 ```bash
-bun run new wo retur-rusak FMS-62   # kerangka scenarios/wo/retur-rusak.json
+bun run new insidentil retur-rusak FMS-62   # kerangka scenarios/insidentil/retur-rusak.json
 bun run check:scenarios          # skema dan aturan
 bun run docs:pustaka             # perbarui daftar aksi pustaka (SKEMA-SKENARIO.md) dan invarian (PEMERIKSAAN.md)
 bun run check && bun run typecheck && bun run test
