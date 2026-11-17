@@ -14,6 +14,8 @@
 //   bun run kerja minta-ubah FMS-87 A|B "teks"  ·  bun run kerja ubah-selesai FMS-87 <no>
 //   bun run kerja staging FMS-87 tambah "teks" | centang <no> | batal <no>
 //   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
+//   bun run kerja slot FMS-87 <1|2|3>  ·  antre FMS-87  ·  lepas FMS-87   (slot paralel)
+//   bun run kerja workspace                  slot, layanan bersama, Antre, komputer
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
 //   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123 --worktree dir]
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
@@ -48,20 +50,27 @@ import {
 } from './core/kerja.ts'
 import {
   ambilKerja,
+  antrekanKerja,
   catatKerja,
   cekKerja,
   gerbangKerja,
   komentarKePlane,
+  lepasSlotKerja,
+  pemakaiSlot,
   periksaCatatanKerja,
   potretKerja,
   setTahap,
   setTarget,
+  slotKerja,
   statusKePlane,
+  tempatkanDiSlot,
   tundaKerja,
   ubahDataCatatan,
 } from './core/kerja-aksi.ts'
 import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
+import { bacaKomputer } from './core/komputer.ts'
 import { closeSharedBrowser } from './core/lib.ts'
+import { denganSlot, keadaanSlot, type NomorSlot, semuaSlot } from './core/slot.ts'
 
 const [perintah, key, ...sisa] = Bun.argv.slice(2)
 const ya = sisa.includes('--ya')
@@ -105,7 +114,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -269,9 +278,46 @@ try {
       )
       break
     }
+    case 'slot': {
+      const n = Number(posisi[0])
+      if (!key || ![1, 2, 3].includes(n)) throw new Error('Pakai: bun run kerja slot KEY <1|2|3>')
+      const { langkah } = tempatkanDiSlot(key, n as NomorSlot)
+      console.log(`✓ ${key} di slot ${n}`)
+      for (const l of langkah) console.log(`  · ${l}`)
+      break
+    }
+    case 'antre': {
+      if (!key) throw new Error('Pakai: bun run kerja antre KEY')
+      antrekanKerja(key)
+      console.log(`⏸ ${key} masuk antrean slot`)
+      break
+    }
+    case 'lepas': {
+      if (!key) throw new Error('Pakai: bun run kerja lepas KEY')
+      lepasSlotKerja(key)
+      console.log(`✓ slot ${key} dilepas`)
+      break
+    }
+    case 'workspace': {
+      const pemakai = pemakaiSlot()
+      for (const d of semuaSlot()) {
+        const k = keadaanSlot(d)
+        const p = pemakai.get(d.n) ?? []
+        console.log(
+          `slot ${d.n}: ${p.length ? p.map((x) => x.key).join(', ') : 'kosong'} · ${k.branch ?? `detached ${k.head ?? '-'}`}${k.bersih ? '' : ' (kotor)'} · API :${d.portApi} ${k.api ? '●' : '○'} · web :${d.portWeb} ${k.web ? '●' : '○'} · DB ${k.dbUkuran ?? '-'}`,
+        )
+      }
+      const km = bacaKomputer(semuaSlot().map((d) => [`Slot ${d.n}`, d.worktree]))
+      console.log(
+        `komputer: beban ${km.cpu.beban.toFixed(1)}/${km.cpu.core} · memori bebas ${km.memori.bebasPersen ?? '?'}% · disk sisa ${Math.round(km.disk.sisaGiB)} GiB`,
+      )
+      for (const w of km.peringatan) console.log(`  ! ${w.teks} → ${w.saran}`)
+      break
+    }
     case 'kesehatan': {
-      const commitKerja = key ? (bacaKerja(key).commit.at(-1) ?? null) : null
-      const h = await periksaKesehatan({ commitKerja })
+      const k = key ? bacaKerja(key) : null
+      const commitKerja = k ? (k.commit.at(-1) ?? null) : null
+      const h = await denganSlot(k ? slotKerja(k) : null, () => periksaKesehatan({ commitKerja }))
       console.log(ringkasKesehatan(h))
       if (h.cek.some((c) => c.hasil === 'gagal')) process.exitCode = 1
       break

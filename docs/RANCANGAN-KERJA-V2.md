@@ -171,6 +171,7 @@ Port di atas bebas per 17 Nov 2026.
 | K13 | 17 Nov | Monitoring komputer; batas server dinamis (menolak slot baru saat memori tertekan, selebihnya hanya saran) — menggantikan "maks 2 server" di K6 |
 | K14 | 17 Nov | Tiket diambil dari Tugas saya dengan memilih slot (kosong / gabung klaster / Antrekan) |
 | K15 | 17 Nov | Tahap 3: batas per fase memakai `--max-budget-usd` (tidak ada `--max-turns`); sesi Claude berjalan di akar scenario-runner dengan worktree v2 sebagai `--add-dir`; larangan push terbukti berlaku di mode izin `acceptEdits` dan `auto`, termasuk saat `git *` diizinkan |
+| K16 | 17 Nov | Tahap 5: Postgres 16 dan Redis native di port **5433** dan **6380** (Docker tetap 5432/6379 untuk Authentik dan v2-test); Redis native memakai `requirepass` yang sudah ada. Isolasi sesi antar-slot lewat **nama cookie per slot** (`SESSION_COOKIE_NAME`/`REFRESH_COOKIE_NAME` + `_slotN`), bukan nama host. API slot dipanggil langsung (proxy `/api` di `vite.config.ts` v2 selalu ke :3000). Slot terisi selalu bisa dipilih sebagai *gabung klaster*. VM Colima belum diperkecil: masih menampung DB v2-test sampai v2-test dipensiunkan |
 
 ## 12. Tidak termasuk
 

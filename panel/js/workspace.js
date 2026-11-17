@@ -1,0 +1,115 @@
+// Halaman Workspace (docs/RANCANGAN-KERJA-V2.md R-7.6, R-7.9): strip komputer, kartu per slot,
+// layanan bersama, dan Antre. Fungsi murni penghasil HTML; data dari GET /api/workspace.
+import { esc } from './komponen.js'
+
+const JAM = (iso) =>
+  iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''
+
+/** Batang persen dengan teks (status tidak hanya warna). */
+function batang(label, persen, teks, nada) {
+  const p = Math.max(0, Math.min(100, Math.round(persen)))
+  return `<div class="ws-meter"><span class="ws-meter-k">${esc(label)}</span><span class="ws-batang ${nada}" role="img" aria-label="${esc(`${label} ${teks}`)}"><i class="ws-isi" style="width:${p}%"></i></span><span class="ws-meter-v">${esc(teks)}</span></div>`
+}
+
+/** Strip komputer: CPU, memori, disk + peringatan dengan saran (R-7.9). */
+export function stripKomputer(k) {
+  if (!k) return ''
+  const beban = (k.cpu.beban / k.cpu.core) * 100
+  const memPakai = k.memori.bebasPersen == null ? 0 : 100 - k.memori.bebasPersen
+  const diskPakai = 100 - (k.disk.sisaGiB / k.disk.totalGiB) * 100
+  const nada = (v, kuning, merah) => (v >= merah ? 'bad' : v >= kuning ? 'warn' : 'ok')
+  const kelompok = k.kelompok
+    .filter((x) => x.mb >= 20)
+    .slice(0, 6)
+    .map(
+      (x) =>
+        `<li><span>${esc(x.nama)}</span><span class="mono">${x.mb >= 1024 ? `${(x.mb / 1024).toFixed(1)} GiB` : `${x.mb} MB`}</span></li>`,
+    )
+    .join('')
+  const peringatan = k.peringatan
+    .map(
+      (w) =>
+        `<li><span class="warn-t">!</span> ${esc(w.teks)} <span class="dim">→ ${esc(w.saran)}</span></li>`,
+    )
+    .join('')
+  return `<section class="db-panel ws-komputer" aria-label="Komputer"><div class="ws-meter-baris">
+      ${batang('CPU', beban, `beban ${k.cpu.beban.toFixed(1)} / ${k.cpu.core} core`, nada(beban, 100, 150))}
+      ${batang('Memori', memPakai, k.memori.bebasPersen == null ? '?' : `${k.memori.bebasPersen}% bebas dari ${k.memori.totalGiB} GiB`, nada(memPakai, 75, 85))}
+      ${batang('Disk', diskPakai, `sisa ${Math.round(k.disk.sisaGiB)} GiB`, k.disk.sisaGiB < 10 ? 'bad' : k.disk.sisaGiB < 20 ? 'warn' : 'ok')}
+    </div>
+    ${peringatan ? `<ul class="ws-peringatan">${peringatan}</ul>` : ''}
+    <details class="ws-rinci"><summary class="dim ws-rinci-ringkas">Pemakaian memori per kelompok</summary><ul class="ws-kelompok">${kelompok}</ul></details></section>`
+}
+
+const SESI = {
+  bekerja: ['info', '● Claude bekerja'],
+  menunggu: ['warn', '◆ Menunggu kamu'],
+  berhenti: ['', '○ Sesi berhenti'],
+}
+
+/** Kartu satu slot: pemakai, sesi, git, server, DB, aksi. */
+export function kartuSlot(s) {
+  const isi = s.pemakai.length
+    ? s.pemakai
+        .map(
+          (p) =>
+            `<a class="mono" href="#/kerja/${esc(p.key)}">${esc(p.key)}</a> <span class="dim">${esc(p.judul)}</span>`,
+        )
+        .join('<br>')
+    : '<span class="dim">kosong</span>'
+  const sesi = s.sesi
+    ? `<span class="chip ${SESI[s.sesi.status]?.[0] ?? ''}">${SESI[s.sesi.status]?.[1] ?? s.sesi.status}</span><span class="dim">${esc(s.sesi.fase)} · ${esc(JAM(s.sesi.at))}</span>`
+    : ''
+  const server = (nama, port, hidup) =>
+    `<span>${esc(nama)} <span class="mono">:${port}</span> ${hidup ? '<span class="ok-t">● hidup</span>' : '<span class="dim">○ mati</span>'}</span>`
+  const hidup = s.api || s.web
+  return `<article class="db-panel ws-slot" aria-labelledby="ws-slot-${s.n}"><h2 id="ws-slot-${s.n}" class="ws-slot-h">Slot ${s.n}${s.diam ? ' <span class="chip">diam</span>' : ''}</h2>
+    ${s.ada ? '' : `<p class="bad-t">× worktree ${esc(s.worktree)} belum ada</p>`}
+    <div class="ws-pemakai">${isi}</div>${sesi ? `<div class="ws-sesi">${sesi}</div>` : ''}
+    <dl class="ws-dl"><dt>Git</dt><dd><span class="mono">${esc(s.branch ?? `detached ${s.head ?? '-'}`)}</span>${s.bersih ? '' : ' <span class="warn-t">! ada perubahan</span>'}</dd>
+      <dt>Server</dt><dd class="ws-server">${server('API', s.portApi, s.api)}${server('Web', s.portWeb, s.web)}</dd>
+      <dt>DB</dt><dd><span class="mono">${esc(s.db)}</span> <span class="dim">${esc(s.dbUkuran ?? '-')}</span></dd></dl>
+    <div class="ws-aksi">${hidup ? `<button type="button" class="btn tb" data-ws-slot="${s.n}" data-ws-aksi="matikan">Matikan</button><a class="btn tb" href="http://localhost:${s.portWeb}" target="_blank" rel="noopener">Buka web ↗</a>` : `<button type="button" class="btn tb" data-ws-slot="${s.n}" data-ws-aksi="nyalakan">Nyalakan</button>`}
+      <button type="button" class="btn tb" data-ws-slot="${s.n}" data-ws-aksi="migrasi">Migrasi</button>
+      <button type="button" class="btn tb" data-ws-slot="${s.n}" data-ws-aksi="reset"${hidup ? ' disabled title="Matikan server dulu"' : ''}>Reset DB</button></div></article>`
+}
+
+export function halamanWorkspace(w, { galat = null, sibuk = null } = {}) {
+  const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · kerja paralel</div><h1>Workspace</h1></div><button type="button" class="btn db-pil" id="ws-segarkan">Segarkan</button></div>`
+  if (galat)
+    return `${kepala}<div class="errbox" role="alert"><b>Workspace gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
+  if (!w) return `${kepala}<div class="empty">Memuat workspace…</div>`
+  const layanan = w.layanan
+    .map(
+      (l) =>
+        `<li>${l.ok ? '<span class="ok-t">●</span>' : '<span class="bad-t">×</span>'} ${esc(l.nama)}${l.ok ? '' : ` <span class="dim">→ ${esc(l.saran)}</span>`}</li>`,
+    )
+    .join('')
+  const antre = w.antre.length
+    ? `<ol class="ws-antre">${w.antre.map((a) => `<li><a class="mono" href="#/kerja/${esc(a.key)}">${esc(a.key)}</a> <span class="dim">${esc(a.judul)}</span> <button type="button" class="btn tb" data-ws-tempatkan="${esc(a.key)}">Tempatkan…</button></li>`).join('')}</ol>`
+    : '<p class="dim">Antrean kosong.</p>'
+  return `<div class="db ws">${kepala}${sibuk ? `<div class="kj-sibuk glass" role="status"><span class="putar" aria-hidden="true"></span>${esc(sibuk)}…</div>` : ''}${stripKomputer(w.komputer)}
+    <div class="ws-slot-baris">${w.slot.map(kartuSlot).join('')}</div>
+    <div class="ws-bawah"><section class="db-panel" aria-labelledby="ws-lay-h"><h2 id="ws-lay-h" class="db-lajur-h">Layanan bersama</h2><ul class="ws-layanan">${layanan}</ul></section>
+      <section class="db-panel" aria-labelledby="ws-antre-h"><h2 id="ws-antre-h" class="db-lajur-h">Antre <span class="dim">${w.antre.length}</span></h2>${antre}</section></div></div>`
+}
+
+/** Isi dialog pilihan slot saat Ambil / Tempatkan (R-7.1a). */
+export function isiPilihSlot(key, pilihan) {
+  const opsi = pilihan
+    .map((p) => {
+      const mati = p.keadaan === 'tidak-siap'
+      const judul =
+        p.keadaan === 'kosong'
+          ? `Slot ${p.n} · kosong`
+          : p.keadaan === 'klaster'
+            ? `Slot ${p.n} · gabung klaster ${p.pemakai.map((x) => x.key).join(', ')}`
+            : `Slot ${p.n} · belum siap`
+      return `<label class="kj-pilihan"><input type="radio" name="ws-slot" value="${p.n}"${mati ? ' disabled' : ''}><span><b>${esc(judul)}</b><span class="kj-ket">${esc(p.keterangan)}</span></span></label>`
+    })
+    .join('')
+  return `<div class="kj-dialog-kepala"><h2>Ambil ${esc(key)} ke…</h2></div>
+    <fieldset><legend class="db-eyebrow">Slot</legend>${opsi}<label class="kj-pilihan"><input type="radio" name="ws-slot" value="antre"><span><b>⏸ Antrekan</b><span class="kj-ket">Tunggu slot kosong; tiket tetap diambil dari Plane</span></span></label></fieldset>
+    <p class="dim kj-catatan-kecil">Slot kosong: branch <span class="mono">feat/${esc(key.toLowerCase())}</span> dari development, server slot dimatikan, DB di-reset dari template lalu dimigrasi (±1 menit).</p>
+    <div class="kj-dialog-aksi"><button class="btn tb" value="batal">Batal</button><button class="btn tb utama-tb" value="ok" id="ws-pilih-ok" disabled>Ambil</button></div>`
+}

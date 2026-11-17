@@ -30,6 +30,7 @@ import { balik, bukaAktif, grupAktif, lipatSemua, muatSidebar, simpanSidebar, te
 import { chipFilter, daftarSkenario, kelompokModul, LABEL_FILTER, labelNilai, metaSkenario, nilaiFilter, papanSkenario, saringSkenario, sidebar, sidebarBawah } from '/js/skenario.js'
 import { perluGeser } from '/js/tata-letak.js'
 import { halamanTugas } from '/js/tugas.js'
+import { halamanWorkspace, isiPilihSlot } from '/js/workspace.js'
 
 // ── Utilitas ───────────────────────────────────────────────────────────────
 const $ = (s, r = document) => r.querySelector(s)
@@ -230,6 +231,65 @@ function modal(judul, isi) {
 }
 
 // ── Layar Manajemen skenario: Project › Modul › Skenario ──────────────────────
+// ── Workspace: slot paralel, layanan bersama, Antre, komputer (R-7.6, R-7.9) ──
+/** Dialog pilihan slot; resolve 'antre', nomor slot (string), atau null bila batal. */
+async function pilihSlot(key) {
+  let w
+  try { w = await api('/api/workspace') } catch (e) { toast(e.message, true); return null }
+  return bukaDialogKerja(isiPilihSlot(key, w.pilihan), (d, hasil) => {
+    const ok = d.querySelector('#ws-pilih-ok')
+    for (const r of d.querySelectorAll('input[name=ws-slot]'))
+      r.onchange = () => { hasil.nilai = r.value; ok.disabled = false; ok.textContent = r.value === 'antre' ? 'Antrekan' : `Ambil ke slot ${r.value}` }
+  }, 560)
+}
+/** Tempatkan kerja yang sudah diambil: ke slot (bisa ±1 menit: reset + migrasi DB) atau Antre. */
+async function tempatkanTiket(key, pilihan) {
+  if (pilihan === 'antre') { await api(`/api/kerja/${key}/antre`, {}); toast(`${key} masuk antrean`); return }
+  toast(`Menyiapkan slot ${pilihan} untuk ${key}: branch, reset dan migrasi DB…`)
+  const r = await api(`/api/kerja/${key}/slot`, { n: Number(pilihan) })
+  toast(`${key} di slot ${pilihan}: ${(r.langkah ?? []).slice(0, 2).join(' · ')}`)
+}
+async function renderWorkspace() {
+  const main = appMain('workspace')
+  if (!S.ws) main.innerHTML = halamanWorkspace(null)
+  try { S.ws = await api('/api/workspace'); S.wsGalat = null } catch (e) { S.wsGalat = e.message }
+  if (route()[0] !== 'workspace') return
+  gambarWorkspace()
+}
+function gambarWorkspace(sibuk = null) {
+  const main = appMain('workspace')
+  main.innerHTML = halamanWorkspace(S.ws, { galat: S.wsGalat, sibuk })
+  $('#ws-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderWorkspace() })
+  for (const b of main.querySelectorAll('[data-ws-aksi]'))
+    b.addEventListener('click', async () => {
+      const n = b.dataset.wsSlot, a = b.dataset.wsAksi
+      if (a === 'reset' && !(await confirmReset(n))) return
+      gambarWorkspace(`${a === 'nyalakan' ? 'Menyalakan' : a === 'matikan' ? 'Mematikan' : a === 'migrasi' ? 'Migrasi' : 'Reset DB'} slot ${n}`)
+      try {
+        const r = await api(`/api/slot/${n}/${a}`, {})
+        S.ws = r.workspace ?? S.ws
+        if (r.langkah) toast(`Slot ${n}: ${r.langkah.join(' · ')}`)
+      } catch (e) { toast(e.message, true) }
+      renderWorkspace()
+    })
+  for (const b of main.querySelectorAll('[data-ws-tempatkan]'))
+    b.addEventListener('click', async () => {
+      const key = b.dataset.wsTempatkan
+      const p = await pilihSlot(key)
+      if (!p || p === 'antre') return
+      gambarWorkspace(`Menyiapkan slot ${p} untuk ${key}`)
+      try { await tempatkanTiket(key, p) } catch (e) { toast(e.message, true) }
+      renderWorkspace()
+    })
+}
+/** Reset DB slot menghapus data uji di slot itu: konfirmasi lewat dialog panel. */
+async function confirmReset(n) {
+  const html = `<div class="kj-dialog-kepala"><span class="kj-dialog-ikon" aria-hidden="true">!</span><h2>Reset DB slot ${n}?</h2></div>
+    <p>Database <span class="mono">fleetify_slot${n}</span> dibuat ulang dari <span class="mono">fleetify_template</span>. Data uji yang dibuat di slot ini <b>hilang</b>.</p>
+    <div class="kj-dialog-aksi"><button class="btn tb" value="batal" autofocus>Batal</button><button class="btn tb bahaya-isi" value="ok">Reset DB slot ${n}</button></div>`
+  return (await bukaDialogKerja(html)) !== null
+}
+
 // ── Dasbor operasional ─────────────────────────────────────────────────────
 async function renderDasbor() {
   const main = appMain('dasbor')
@@ -660,7 +720,14 @@ function gambarTugas() {
     b.onclick = async () => {
       b.disabled = true
       b.textContent = 'Mengambil…'
-      try { S.kj = await api(`/api/kerja/${b.dataset.tgAmbil}/ambil`, {}); location.hash = `#/kerja/${b.dataset.tgAmbil}` } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ambil' }
+      // Ambil = pilih slot dulu (R-7.1a): slot kosong, gabung klaster, atau Antrekan.
+      const pilihan = await pilihSlot(b.dataset.tgAmbil)
+      if (!pilihan) { b.disabled = false; b.textContent = 'Ambil'; return }
+      try {
+        S.kj = await api(`/api/kerja/${b.dataset.tgAmbil}/ambil`, {})
+        await tempatkanTiket(b.dataset.tgAmbil, pilihan)
+        location.hash = `#/kerja/${b.dataset.tgAmbil}`
+      } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ambil' }
     }
 }
 /** Halaman Tugas saya: GET /api/tugas; Segarkan melewati cache 60 detik di server. */
@@ -1720,7 +1787,7 @@ async function renderRunDetail(id) {
 let lastPage = ''
 async function render() {
   const [r, a, b] = route()
-  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'kerja' ? 'kerja' : 'skenario'
+  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'workspace' ? 'workspace' : r === 'kerja' ? 'kerja' : 'skenario'
   if (page !== 'laporan' && page !== 'kerja') document.querySelector('.win')?.classList.remove('lapor')
   if (page === 'jalan' || page === 'laporan' || page === 'kerja') document.querySelector('.win')?.classList.remove('sb-mode')
   if (page !== 'jalan') { closeLive(); S.frame = false; S.fokus = false; S.peta = false }
@@ -1737,6 +1804,7 @@ async function render() {
   else if (page === 'ringkasan') await renderRingkasan(a)
   else if (page === 'tugas') await renderTugas()
   else if (page === 'dasbor') await renderDasbor()
+  else if (page === 'workspace') await renderWorkspace()
   else if (page === 'kerja') await renderKerja(a)
   else await renderSkenario()
 }

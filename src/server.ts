@@ -3,6 +3,7 @@
 // (FLEETIFY_WEB_URL), persona tenant TENANT_SLUG lewat impersonasi admin platform.
 //   bun run panel              → http://localhost:4800 (jendela skenario headed)
 //   HEADLESS=1 bun run panel   → tanpa jendela browser (tampilan langsung tetap jalan)
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
@@ -29,22 +30,30 @@ import {
 } from './core/kerja.ts'
 import {
   ambilKerja,
+  antrekanKerja,
   gerbangKerja,
   jalankanFase,
   kabarSesi,
   keadaanSerah,
   komentarKePlane,
+  lepasSlotKerja,
+  pemakaiSlot,
   periksaCatatanKerja,
+  pilihanSlotKerja,
   potretKerja,
   pushKerja,
   sesiTerkini,
   setTahap,
   simpanLinkMr,
+  slotKerja,
   statusKePlane,
+  tempatkanDiSlot,
   tundaKerja,
   ubahDataCatatan,
 } from './core/kerja-aksi.ts'
+import { periksaKesehatan } from './core/kesehatan.ts'
 import { kodeKerja } from './core/kode.ts'
+import { bacaKomputer } from './core/komputer.ts'
 import { jalanTerkunci, lepasKunci, pemegangLain } from './core/kunci.ts'
 import { susunDataLaporan } from './core/laporan-data.ts'
 import { closeSharedBrowser } from './core/lib.ts'
@@ -79,6 +88,19 @@ import {
   hentikanSesi,
   type ModeSesi,
 } from './core/sesi.ts'
+import {
+  defSlot,
+  denganSlot,
+  keadaanSlot,
+  matikanSlot,
+  migrasiSlot,
+  NOMOR_SLOT,
+  type NomorSlot,
+  nyalakanSlot,
+  PG_SLOT,
+  resetDbSlot,
+  semuaSlot,
+} from './core/slot.ts'
 import {
   bacaLayar,
   bacaMutu,
@@ -516,11 +538,102 @@ async function detailKerja(key: string) {
   }
 }
 
+const REDIS_CONF = '/opt/homebrew/etc/redis.conf'
+
 /** Kerja yang gerbang CI-nya sedang berjalan di latar (proses panel ini). */
 const gerbangBerjalan = new Set<string>()
 
 /** Satu potret per waktu dalam proses panel (di samping kunci tenant). */
 let potretBerjalan: string | null = null
+
+/** Layanan bersama di luar slot: Postgres/Redis native, Authentik dan Colima (Docker). */
+async function layananBersama() {
+  const sh = (c: string) => spawnSync('bash', ['-c', c], { encoding: 'utf8' })
+  const pg = sh(`${PG_SLOT.bin}/psql -p ${PG_SLOT.port} -d postgres -Atc 'select 1'`).status === 0
+  const pw =
+    /^requirepass\s+(\S+)/m.exec(
+      existsSync(REDIS_CONF) ? readFileSync(REDIS_CONF, 'utf8') : '',
+    )?.[1] ?? ''
+  const redis =
+    sh(`redis-cli -p 6380 ping`).stdout?.trim() === 'PONG' ||
+    spawnSync('redis-cli', ['-p', '6380', 'ping'], {
+      encoding: 'utf8',
+      env: { ...process.env, REDISCLI_AUTH: pw },
+    }).stdout?.trim() === 'PONG'
+  const ak = await fetch('http://localhost:9000/-/health/live/', {
+    signal: AbortSignal.timeout(2500),
+  })
+    .then((r) => r.status < 500)
+    .catch(() => false)
+  const colima =
+    sh('colima status 2>&1').stdout?.includes('is running') ||
+    sh('colima status 2>&1').stderr?.includes('is running')
+  return [
+    {
+      id: 'postgres',
+      nama: `Postgres native :${PG_SLOT.port}`,
+      ok: pg,
+      saran: 'brew services start postgresql@16',
+    },
+    { id: 'redis', nama: 'Redis native :6380', ok: redis, saran: 'brew services start redis' },
+    { id: 'authentik', nama: 'Authentik (login) :9000', ok: ak, saran: 'colima start' },
+    { id: 'colima', nama: 'Colima (Docker)', ok: !!colima, saran: 'colima start' },
+  ]
+}
+
+/** Halaman Workspace (R-7.6, R-7.9): slot, layanan bersama, Antre, dan komputer. */
+async function susunWorkspace() {
+  const pemakai = pemakaiSlot()
+  const semua = daftarKerja()
+  const slot = semuaSlot().map((d) => {
+    const k = keadaanSlot(d)
+    const p = pemakai.get(d.n) ?? []
+    const sesi = p.map((x) => semua.find((y) => y.key === x.key)?.sesi).find((x) => x)
+    return {
+      ...k,
+      pemakai: p,
+      sesi: sesi ?? null,
+      diam: (k.api || k.web) && sesi?.status !== 'bekerja',
+    }
+  })
+  const komputer = bacaKomputer(
+    slot.map((x) => [`Slot ${x.n}`, x.worktree]),
+    slot.filter((x) => x.diam).map((x) => `slot ${x.n}`),
+  )
+  const antre = semua
+    .filter((k) => k.antre && !k.slot && k.tahap !== 'selesai')
+    .sort((a, b) => (a.antre?.at ?? '').localeCompare(b.antre?.at ?? ''))
+    .map((k) => ({ key: k.key, judul: k.judul, at: k.antre?.at }))
+  return { slot, layanan: await layananBersama(), antre, komputer, pilihan: pilihanSlotKerja() }
+}
+
+/** Aksi per slot: nyalakan, matikan, migrasi, reset-db. */
+async function ruteSlot(req: IncomingMessage, n: number, aksi: string) {
+  if (req.method !== 'POST') throw new HttpError(405, 'Metode tidak didukung')
+  if (!(NOMOR_SLOT as readonly number[]).includes(n))
+    throw new HttpError(404, `Slot ${n} tidak ada`)
+  const d = defSlot(n as NomorSlot)
+  try {
+    if (aksi === 'nyalakan') {
+      // Batas dinamis (R-7.2): tolak slot baru saat memori tertekan, beri saran slot yang diam.
+      const w = await susunWorkspace()
+      if (!w.komputer.bolehNyalakanSlot)
+        throw new HttpError(
+          409,
+          `Memori tertekan (${w.komputer.memori.bebasPersen}% bebas): ${w.komputer.peringatan[0]?.saran ?? 'matikan server slot yang diam'}`,
+        )
+      nyalakanSlot(d)
+    } else if (aksi === 'matikan') matikanSlot(d)
+    else if (aksi === 'migrasi')
+      return { langkah: migrasiSlot(d), workspace: await susunWorkspace() }
+    else if (aksi === 'reset') resetDbSlot(d)
+    else throw new HttpError(404, `Aksi slot tidak dikenal: ${aksi}`)
+  } catch (e) {
+    if (e instanceof HttpError) throw e
+    throw new HttpError(409, (e as Error).message)
+  }
+  return { workspace: await susunWorkspace() }
+}
 
 async function rutekerja(req: IncomingMessage, key: string, aksi: string | null) {
   const body = req.method === 'POST' ? await readBody(req) : {}
@@ -529,6 +642,12 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     return detailKerja(key)
   }
   if (req.method === 'GET' && aksi === 'serah') return keadaanSerah(key, gerbangBerjalan.has(key))
+  if (req.method === 'GET' && aksi === 'kesehatan') {
+    const k = bacaKerja(key)
+    return denganSlot(slotKerja(k), () =>
+      periksaKesehatan({ commitKerja: k.commit.at(-1) ?? null }),
+    )
+  }
   if (req.method === 'GET' && aksi === 'sesi') {
     const t = await sesiTerkini(key)
     return { ...t, cuplikan: t.tmux.ada ? await cuplikanSesi(key) : [] }
@@ -585,6 +704,27 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
       throw new HttpError(400, (e as Error).message)
     }
     return keadaanSerah(key)
+  }
+  if (aksi === 'slot') {
+    // Tempatkan di slot (kosong → branch baru + reset DB; terisi → gabung klaster) (R-7.1a).
+    try {
+      const { langkah } = tempatkanDiSlot(key, Number(body.n) as NomorSlot)
+      return { ...(await detailKerja(key)), langkah }
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+  }
+  if (aksi === 'antre') {
+    try {
+      antrekanKerja(key)
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'lepas') {
+    lepasSlotKerja(key)
+    return detailKerja(key)
   }
   if (aksi === 'tunda') {
     tundaKerja(key, body.tunda !== false, String(body.alasan ?? ''))
@@ -727,6 +867,7 @@ const routes: Record<string, Handler> = {
     }
   },
   'GET /api/kerja': async () => ({ kerja: daftarKerja() }),
+  'GET /api/workspace': async () => susunWorkspace(),
   /** Dasbor operasional: tugas Plane (cache), kerja, jalan, skenario, temuan, aktivitas. */
   'GET /api/dasbor': async () => {
     let tugas: TugasRingkas[] | null = null
@@ -997,6 +1138,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       TYPES[path.extname(file)] ?? 'application/octet-stream',
     )
   }
+  const ms = url.pathname.match(/^\/api\/slot\/(\d)\/([a-z]+)$/)
+  if (ms?.[1] && ms[2]) return send(res, 200, await ruteSlot(req, Number(ms[1]), ms[2]))
   const mk = url.pathname.match(/^\/api\/kerja\/([A-Z]+-\d+)(?:\/([a-z]+))?$/)
   if (mk?.[1]) return send(res, 200, await rutekerja(req, mk[1], mk[2] ?? null))
   let m = url.pathname.match(/^\/api\/scenarios\/([a-z0-9-]+)$/)

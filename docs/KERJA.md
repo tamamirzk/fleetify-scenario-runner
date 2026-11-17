@@ -105,6 +105,23 @@ bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk me
 
 Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan daftar alasannya. Mundur selalu boleh.
 
+## Slot dan Workspace
+
+Tiga slot v2 untuk kerja paralel (`docs/RANCANGAN-KERJA-V2.md` §7):
+
+| Slot | Worktree | API | Web | DB (Postgres native :5433) | Redis native :6380 |
+|---|---|---|---|---|---|
+| 1 | `~/work/fleetify/v2-slot1` | 3010 | 5181 | `fleetify_slot1` | DB 1 |
+| 2 | `~/work/fleetify/v2-slot2` | 3020 | 5182 | `fleetify_slot2` | DB 2 |
+| 3 | `~/work/fleetify/v2-slot3` | 3030 | 5183 | `fleetify_slot3` | DB 3 |
+
+- **Ambil di Tugas saya** membuka pilihan slot: *kosong* (branch `feat/<key>` dari development, server slot dimatikan, DB di-reset dari `fleetify_template` lalu dimigrasi, ±15 detik), *gabung klaster* (branch dan DB yang sama), atau *Antrekan*. CLI: `kerja slot KEY <n>`, `kerja antre KEY`, `kerja lepas KEY`.
+- **Workspace** (`#/workspace`, CLI `kerja workspace`): strip komputer (CPU, memori, disk, pemakaian memori per kelompok, peringatan + saran), kartu per slot (tiket, sesi Claude, git, server, DB; Nyalakan/Matikan, Migrasi, Reset DB), layanan bersama, dan Antre dengan tombol Tempatkan.
+- Server slot berjalan di tmux `slot-<n>` (jendela `api` dan `web`). Menyalakan slot ditolak saat memori tertekan (bebas < 15%), dengan saran slot diam yang bisa dimatikan.
+- Potret dan `kerja kesehatan KEY` otomatis memakai lingkungan slot tiket (web, API, DB). Sesi admin tersimpan per port (`.cache/owner-state-<port>.json`); cookie sesi tiap slot bernama sendiri sehingga login antar-slot tidak saling menimpa.
+- Slot dilepas otomatis setelah push dari panel. Tiket tanpa slot memakai lingkungan bawaan (`V2_BACKEND_DIR`, web :5173).
+- `fleetify_template` = data uji MBL + skema development; perbarui dengan migrasi slot bila tertinggal.
+
 ## Sesi Claude dari panel
 
 Halaman Kerja punya kartu **Sesi AI**; Dashboard punya lajur **Butuh kamu** dan **AI sedang jalan**.

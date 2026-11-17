@@ -21,7 +21,14 @@ import type { ApiResult, ApiTarget, Body } from './types.ts'
 
 export { personaName }
 
-const OWNER_STATE = path.join(config.cacheDir, 'owner-state.json')
+/** Sesi admin per web (slot memakai nama cookie dan port sendiri); bawaan tetap owner-state.json. */
+const ownerState = () => {
+  const port = new URL(config.webUrl).port
+  return path.join(
+    config.cacheDir,
+    !port || port === '5173' ? 'owner-state.json' : `owner-state-${port}.json`,
+  )
+}
 const HEADED_SLOWMO = 250
 
 // ── Controller (diganti oleh Run; bawaan: tanpa jeda, tahanan apa adanya) ──
@@ -123,8 +130,8 @@ function ownerCredentials() {
 }
 
 async function ownerStateValid() {
-  if (!existsSync(OWNER_STATE)) return false
-  const rc = await request.newContext({ storageState: OWNER_STATE })
+  if (!existsSync(ownerState())) return false
+  const rc = await request.newContext({ storageState: ownerState() })
   try {
     return (await apiGet(rc, '/auth/me')).status === 200
   } finally {
@@ -150,8 +157,8 @@ async function loginOwner(page: Page) {
   await page.goto(config.webUrl)
   const me = await apiGet(page, '/auth/me')
   if (me.status !== 200) throw new Error(`Login admin gagal: /auth/me ${me.status}`)
-  mkdirSync(path.dirname(OWNER_STATE), { recursive: true })
-  await page.context().storageState({ path: OWNER_STATE })
+  mkdirSync(path.dirname(ownerState()), { recursive: true })
+  await page.context().storageState({ path: ownerState() })
 }
 
 /** Pastikan sesi admin tersimpan di .cache/. Bila kedaluwarsa, login di browser headless sementara. */
@@ -198,7 +205,7 @@ function findMember(t: Tenant, who: PersonaId) {
 /** Id pengguna persona (mis. untuk mechanic_ids atau penerima serah terima). Butuh sesi admin. */
 export async function personaUserId(who: PersonaId): Promise<string> {
   await ensureOwner()
-  const rc = await request.newContext({ storageState: OWNER_STATE })
+  const rc = await request.newContext({ storageState: ownerState() })
   try {
     return findMember(await tenant(rc), who).userId
   } finally {
@@ -225,7 +232,7 @@ async function impersonate(target: ApiTarget, who: PersonaId) {
 /** Sesi API persona lain tanpa jendela. Tutup dengan `.dispose()`. */
 export async function apiAs(who: PersonaId): Promise<APIRequestContext> {
   await ensureOwner()
-  const rc = await request.newContext({ storageState: OWNER_STATE })
+  const rc = await request.newContext({ storageState: ownerState() })
   await impersonate(rc, who)
   return rc
 }
@@ -238,7 +245,7 @@ export async function asPersona(
 ): Promise<{ ctx: BrowserContext; page: Page; email: string; companyId: string }> {
   await ensureOwner()
   const ctx = await browser.newContext({
-    storageState: OWNER_STATE,
+    storageState: ownerState(),
     // Tampilan aplikasi: viewport CSS = ukuran ÷ skala, deviceScaleFactor = skala (core/tampilan.ts);
     // persona lapangan (driver, mekanik) mulai di ukuran ponsel.
     viewport: viewportPersona(tampilanAktif, pakaiPonsel(who)),

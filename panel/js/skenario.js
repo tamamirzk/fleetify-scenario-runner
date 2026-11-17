@@ -260,6 +260,7 @@ export function sidebar({
   return `${kepala}<nav class="sb-nav" aria-label="Navigasi">
       ${nav('dasbor', '#/dasbor', 'Dashboard', ik('M4 13h6v7H4zM14 4h6v16h-6zM4 4h6v5H4z'))}
       ${nav('tugas', '#/tugas', 'Tugas saya', ik('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0'))}
+      ${nav('workspace', '#/workspace', 'Workspace', ik('M3 5h18v10H3zM8 19h8M12 15v4'))}
       ${nav('skenario', '#/', 'Skenario', ik('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'))}
       ${nav('jalan', '#/jalan', 'Sedang berjalan', ik('M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z'), jalanAktif ? '<span class="sb-dot" aria-label="ada jalan aktif"></span>' : '')}
       ${nav('riwayat', '#/riwayat', 'Riwayat & laporan', ik('M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM12 7v5l3 2'))}

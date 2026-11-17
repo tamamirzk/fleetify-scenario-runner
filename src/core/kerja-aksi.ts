@@ -44,6 +44,18 @@ import {
   type Sesi,
   statusDariHook,
 } from './sesi.ts'
+import {
+  branchBaru,
+  type DefSlot,
+  defSlot,
+  denganSlot,
+  NOMOR_SLOT,
+  type NomorSlot,
+  type PemakaiSlot,
+  pilihanSlot,
+  semuaSlot,
+  siapkanSlotBaru,
+} from './slot.ts'
 
 export async function ambilKerja(key: string): Promise<Kerja> {
   const t = await ambilTiket(key)
@@ -113,6 +125,15 @@ export async function potretKerja(
   log?: (l: string) => void,
 ): Promise<Kerja> {
   // Tanpa web, API, atau DB, potret hanya merekam halaman galat dan menimpa bukti (R-7.7).
+  const k0 = bacaKerja(key)
+  return denganSlot(slotKerja(k0), () => potretDiLingkungan(key, fase, log))
+}
+
+async function potretDiLingkungan(
+  key: string,
+  fase: Fase,
+  log?: (l: string) => void,
+): Promise<Kerja> {
   const sehat = await periksaKesehatan({ hanya: PENTING_POTRET })
   const mati = sehat.cek.filter((c) => c.hasil === 'gagal')
   if (mati.length)
@@ -379,10 +400,11 @@ export function pushKerja(key: string): Kerja {
     remote: s.git.remote,
     jumlah: s.git.akanDipush.length,
   }
+  // Slot dilepas setelah push (R-7.3): Pasca-deploy tidak memakai worktree.
   for (const x of klasterKerja(bacaKerja(key)))
     simpanKerja(
       pindahTahap(
-        { ...bacaKerja(x.key), push: catat },
+        { ...bacaKerja(x.key), push: catat, slot: null },
         bacaKerja(x.key).tahap,
         `Di-push ke ${branch} (${catat.jumlah} commit, ${s.git.head.slice(0, 8)}) dari panel`,
       ),
@@ -396,6 +418,80 @@ export function simpanLinkMr(key: string, url: string): Kerja {
   if (u && !/^https:\/\/\S+$/.test(u)) throw new Error('Link MR harus diawali https://')
   const k = bacaKerja(key)
   const k2 = { ...k, mr: u || undefined }
+  simpanKerja(k2)
+  return k2
+}
+
+/** Definisi slot sebuah kerja, atau null bila tidak memegang slot. */
+export function slotKerja(k: Kerja): DefSlot | null {
+  return k.slot && (NOMOR_SLOT as readonly number[]).includes(k.slot)
+    ? defSlot(k.slot as NomorSlot)
+    : null
+}
+
+/** Pemakai tiap slot: kerja aktif (belum selesai) yang memegang slot itu. */
+export function pemakaiSlot(): Map<number, PemakaiSlot[]> {
+  const m = new Map<number, PemakaiSlot[]>()
+  for (const k of daftarKerja())
+    if (k.slot && k.tahap !== 'selesai')
+      m.set(k.slot, [...(m.get(k.slot) ?? []), { key: k.key, judul: k.judul, branch: k.branch }])
+  return m
+}
+
+export function pilihanSlotKerja() {
+  const siap = new Map(semuaSlot().map((s) => [s.n, existsSync(path.join(s.worktree, '.git'))]))
+  return pilihanSlot(pemakaiSlot(), siap)
+}
+
+/**
+ * Tempatkan tiket di slot (R-7.1a). Slot kosong: branch kerja baru dari development, server slot
+ * dimatikan, DB di-reset dari template lalu dimigrasi. Slot terisi: gabung klaster (branch dan
+ * DB yang sama, tanpa reset). Mengembalikan ringkasan langkah.
+ */
+export function tempatkanDiSlot(key: string, n: NomorSlot): { kerja: Kerja; langkah: string[] } {
+  const k = bacaKerja(key)
+  if (k.slot) throw new Error(`${key} sudah di slot ${k.slot}`)
+  const pil = pilihanSlotKerja().find((p) => p.n === n)
+  if (!pil || pil.keadaan === 'tidak-siap') throw new Error(`Slot ${n} belum siap`)
+  const s = defSlot(n)
+  let langkah: string[]
+  let ubah: Partial<Kerja>
+  if (pil.keadaan === 'kosong') {
+    const branch = k.branch ?? branchBaru(key)
+    langkah = [`branch ${branch}`, 'DB slot di-reset dari template', ...siapkanSlotBaru(s, branch)]
+    ubah = { slot: n, worktree: s.worktree, branch, klaster: undefined }
+  } else {
+    const induk = pil.pemakai[0] as PemakaiSlot
+    langkah = [`gabung klaster ${induk.key} (branch ${induk.branch ?? '-'})`]
+    ubah = { slot: n, worktree: s.worktree, branch: induk.branch, klaster: induk.key }
+  }
+  const { antre: _a, ...tanpaAntre } = bacaKerja(key)
+  const k2 = pindahTahap(
+    { ...tanpaAntre, ...ubah } as Kerja,
+    k.tahap,
+    `Ditempatkan di slot ${n}: ${langkah[0]}`,
+  )
+  simpanKerja(k2)
+  return { kerja: k2, langkah }
+}
+
+/** Masukkan tiket ke Antre (menunggu slot kosong). */
+export function antrekanKerja(key: string): Kerja {
+  const k = bacaKerja(key)
+  if (k.slot) throw new Error(`${key} sedang memegang slot ${k.slot}`)
+  const k2 = pindahTahap(
+    { ...k, antre: { at: new Date().toISOString() } },
+    k.tahap,
+    'Masuk antrean slot',
+  )
+  simpanKerja(k2)
+  return k2
+}
+
+/** Lepas slot tanpa push (mis. tiket ditunda); worktree dan branch tetap. */
+export function lepasSlotKerja(key: string): Kerja {
+  const k = bacaKerja(key)
+  const k2 = pindahTahap({ ...k, slot: null }, k.tahap, `Slot ${k.slot ?? '-'} dilepas`)
   simpanKerja(k2)
   return k2
 }

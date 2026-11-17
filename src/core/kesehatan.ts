@@ -145,8 +145,10 @@ function redisPing(url: string, ms = 2000): Promise<boolean> {
     }
     s.setTimeout(ms, () => selesai(false))
     s.on('error', () => selesai(false))
-    s.on('connect', () => s.write('PING\r\n'))
-    s.on('data', (d) => selesai(d.toString().startsWith('+PONG')))
+    // Redis dengan requirepass (Redis native slot): AUTH dulu, lalu PING.
+    const pw = decodeURIComponent(u.password)
+    s.on('connect', () => s.write(pw ? `AUTH ${pw}\r\nPING\r\n` : 'PING\r\n'))
+    s.on('data', (d) => selesai(/\+PONG/.test(d.toString())))
   })
 }
 
@@ -204,6 +206,14 @@ export async function periksaKesehatan(
       ? readDotEnv(path.join(backendDir, '.env'))
       : {}
   const portApi = Number(env.PORT || 3000)
+  // Di lingkungan slot, server dinyalakan dari halaman Workspace.
+  const noSlot = backendDir?.match(/v2-slot(\d)/)?.[1]
+  const saranApi = noSlot
+    ? `Workspace › Nyalakan slot ${noSlot}`
+    : 'bun run --hot src/index.ts di Backend worktree'
+  const saranWeb = noSlot
+    ? `Workspace › Nyalakan slot ${noSlot}`
+    : 'bun run dev di Frontend worktree'
 
   const tugas: Promise<void>[] = []
   if (mau('postgres'))
@@ -277,7 +287,7 @@ export async function periksaKesehatan(
                 nama: `API :${portApi}`,
                 hasil: 'gagal',
                 info: s == null ? 'tidak menjawab' : `HTTP ${s}`,
-                saran: 'bun run --hot src/index.ts di Backend worktree',
+                saran: saranApi,
               },
         )
       })(),
@@ -294,7 +304,7 @@ export async function periksaKesehatan(
                 nama: 'Web',
                 hasil: 'gagal',
                 info: s == null ? 'tidak menjawab' : `HTTP ${s}`,
-                saran: 'bun run dev di Frontend worktree',
+                saran: saranWeb,
               },
         )
       })(),

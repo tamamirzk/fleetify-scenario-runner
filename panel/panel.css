@@ -7937,3 +7937,138 @@ details.kj-tiket > summary h2 {
   border-color: var(--sr-team);
   color: #fff;
 }
+
+/* Workspace: komputer, slot, layanan bersama, Antre (R-7.6, R-7.9) */
+.ws-komputer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ws-meter-baris {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.ws-meter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: var(--sr-text-sm);
+}
+.ws-meter-k {
+  font-weight: 600;
+}
+.ws-meter-v {
+  grid-column: 1 / -1;
+  color: var(--sr-text-2);
+  font-size: var(--sr-text-xs);
+}
+.ws-batang {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--sr-fill-2);
+}
+.ws-batang .ws-isi {
+  display: block;
+  height: 100%;
+  background: var(--sr-success);
+}
+.ws-batang.warn .ws-isi {
+  background: var(--sr-warning-text);
+}
+.ws-batang.bad .ws-isi {
+  background: var(--sr-danger-text);
+}
+.ws-peringatan,
+.ws-kelompok,
+.ws-layanan,
+.ws-antre {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sr-text-sm);
+}
+.ws-kelompok li {
+  display: flex;
+  justify-content: space-between;
+  max-width: 420px;
+}
+.ws-rinci .ws-rinci-ringkas {
+  cursor: pointer;
+  font-size: var(--sr-text-xs);
+}
+.ws-slot-baris {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.ws-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ws-slot-h {
+  margin: 0;
+  font-size: var(--sr-text-md);
+}
+.ws-pemakai {
+  min-height: 40px;
+  font-size: var(--sr-text-sm);
+  line-height: 1.5;
+}
+.ws-sesi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--sr-text-xs);
+}
+.ws-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: var(--sr-text-sm);
+}
+.ws-dl dt {
+  color: var(--sr-text-2);
+}
+.ws-dl dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ws-server {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ws-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+.ws-bawah {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.ws-antre li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .ws-meter-baris,
+  .ws-slot-baris,
+  .ws-bawah {
+    grid-template-columns: 1fr;
+  }
+}

@@ -54,6 +54,7 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
 
 ## 3. Dikerjakan (AI) — hanya bila fiturnya belum ada
 
+- **Kerja di worktree slot tiket** (`kerja.json` → `worktree`, `slot`); tiket yang belum punya slot ditempatkan Tams lewat Ambil/Workspace. Server slot dinyalakan dari Workspace; jangan memakai port 3000/5173 untuk tiket ber-slot.
 - **Tanya pengguna dulu** sebelum menulis kode:
   - worktree dan branch v2 yang dipakai (usul: satu branch per tiket dari branch aktif);
   - apakah server lokal yang dipotret boleh dipindah ke branch itu;
