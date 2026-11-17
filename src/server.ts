@@ -29,13 +29,17 @@ import {
 } from './core/kerja.ts'
 import {
   ambilKerja,
+  gerbangKerja,
   jalankanFase,
   kabarSesi,
+  keadaanSerah,
   komentarKePlane,
   periksaCatatanKerja,
   potretKerja,
+  pushKerja,
   sesiTerkini,
   setTahap,
+  simpanLinkMr,
   statusKePlane,
   tundaKerja,
   ubahDataCatatan,
@@ -512,6 +516,9 @@ async function detailKerja(key: string) {
   }
 }
 
+/** Kerja yang gerbang CI-nya sedang berjalan di latar (proses panel ini). */
+const gerbangBerjalan = new Set<string>()
+
 /** Satu potret per waktu dalam proses panel (di samping kunci tenant). */
 let potretBerjalan: string | null = null
 
@@ -521,6 +528,7 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
     return detailKerja(key)
   }
+  if (req.method === 'GET' && aksi === 'serah') return keadaanSerah(key, gerbangBerjalan.has(key))
   if (req.method === 'GET' && aksi === 'sesi') {
     const t = await sesiTerkini(key)
     return { ...t, cuplikan: t.tmux.ada ? await cuplikanSesi(key) : [] }
@@ -549,6 +557,34 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
       throw new HttpError(409, (e as Error).message)
     }
     return detailKerja(key)
+  }
+  if (aksi === 'gerbang') {
+    // Gerbang CI penuh berjalan di latar (R-4.1); hasilnya tersimpan di kerja.json.
+    if (gerbangBerjalan.has(key)) throw new HttpError(409, 'Gerbang CI sedang berjalan')
+    gerbangBerjalan.add(key)
+    gerbangKerja(key, 'ci')
+      .catch((e) => console.error(`gerbang ${key}:`, (e as Error).message))
+      .finally(() => gerbangBerjalan.delete(key))
+    return keadaanSerah(key, true)
+  }
+  if (aksi === 'push') {
+    // Push hanya dari klik Tams di panel (R-2.3); syarat diperiksa ulang di sini (R-4.2).
+    if (body.konfirmasi !== true) throw new HttpError(400, 'Push butuh konfirmasi')
+    if (gerbangBerjalan.has(key)) throw new HttpError(409, 'Gerbang CI sedang berjalan')
+    try {
+      pushKerja(key)
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    return keadaanSerah(key)
+  }
+  if (aksi === 'mr') {
+    try {
+      simpanLinkMr(key, String(body.url ?? ''))
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
+    return keadaanSerah(key)
   }
   if (aksi === 'tunda') {
     tundaKerja(key, body.tunda !== false, String(body.alasan ?? ''))

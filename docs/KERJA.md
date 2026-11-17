@@ -116,6 +116,16 @@ Halaman Kerja punya kartu **Sesi AI**; Dashboard punya lajur **Butuh kamu** dan 
 - **Hook** (`UserPromptSubmit`, `Notification`, `Stop`, `SessionEnd`) mengabari panel lewat `POST /api/kerja/<KEY>/kabar`: status sesi menjadi *bekerja*, *menunggu kamu*, atau *berhenti*.
 - **Butuh kamu** memberi satu tombol per tiket: Jawab (pertanyaan terbuka), Buka terminal (Claude menunggu), Jalankan Pahami (Brief belum ada), Setujui & Kerjakan (◆A), atau Review (◆B).
 
+## Serahkan: gerbang CI, push, MR
+
+Kartu **Serahkan** di halaman Kerja (muncul bila kerja punya branch atau commit):
+
+- **Jalankan gerbang CI** menjalankan `kerja gerbang KEY ci` di latar; hasilnya tersimpan di `kerja.json` dan kartu diperbarui sendiri.
+- **Push** hanya aktif bila: worktree di branch kerja (bukan `main`/`master`/`development`/`staging`, bukan detached), bersih, ada commit baru, dan gerbang CI terakhir **✓ atau !** pada HEAD yang sama. Alasan yang belum terpenuhi tertulis di kartu. Syarat yang sama diperiksa ulang di server.
+- Klik Push membuka dialog berisi branch, remote, dan daftar commit; setelah dikonfirmasi panel menjalankan `git push` biasa (tanpa force; `-u` bila belum ada upstream) dan mencatatnya di semua tiket se-klaster (branch sama).
+- **Kamu yang membuat MR di GitLab.** **Salin deskripsi MR** menyusun teks dari catatan: masalah & penyebab, yang dikerjakan, keputusan, verifikasi, commit, daftar cek setelah deploy, dan hasil gerbang CI; tiket se-klaster digabung. Tempel link MR-nya ke kartu supaya tersimpan.
+- AI tidak bisa push: `git push`, `kerja plane`, dan pemanggilan API panel (`curl …:5800`) diblok di level alat untuk semua fase. Tidak ada perintah CLI untuk push.
+
 ## Gerbang dan kesehatan
 
 Keluaran ketiga perintah ini sengaja ringkas: satu baris vonis (`✓`, `!` peringatan, `×` gagal), lalu hanya yang bermasalah beserta saran. Detail lengkap ditulis ke berkas (`kerja/<KEY>/gerbang/*.log`).

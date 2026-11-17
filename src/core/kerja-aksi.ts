@@ -14,6 +14,7 @@ import {
   adaKerja,
   bacaBerkasKerja,
   bacaKerja,
+  daftarKerja,
   dataCatatan,
   dirKerja,
   type Fase,
@@ -32,6 +33,7 @@ import {
 import { PENTING_POTRET, periksaKesehatan } from './kesehatan.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
 import { potret } from './potret.ts'
+import { deskripsiMr, keadaanGit, pushBranch, syaratPush } from './serah.ts'
 import {
   argsClaude,
   type FaseSesi,
@@ -315,4 +317,85 @@ export function tundaKerja(key: string, tunda: boolean, alasan = ''): Kerja {
   )
   simpanKerja(k3)
   return k3
+}
+
+/** Tiket se-klaster: kerja lain dengan branch sama (deskripsi MR dan catatan push digabung). */
+export function klasterKerja(k: Kerja): Kerja[] {
+  if (!k.branch) return [k]
+  const nomor = (key: string) => Number(key.split('-')[1] ?? 0)
+  return daftarKerja()
+    .filter((x) => x.branch === k.branch)
+    .sort((a, b) => nomor(a.key) - nomor(b.key))
+}
+
+/** Keadaan serah sebuah kerja: git worktree, syarat push, dan deskripsi MR (R-4.2, R-8.4). */
+export function keadaanSerah(key: string, gerbangBerjalan = false) {
+  const k = bacaKerja(key)
+  const dir = worktreeKerja(k)
+  const git = keadaanGit(dir)
+  const syarat = syaratPush({ git, gerbangCi: k.gerbang?.ci ?? null, gerbangBerjalan })
+  const tiket = klasterKerja(k).map((x) => ({
+    key: x.key,
+    judul: x.judul,
+    url: x.url,
+    md: bacaBerkasKerja(x.key, 'catatan.md'),
+    data: dataCatatan(x),
+    verifikasi: x.verifikasi,
+  }))
+  const mr = deskripsiMr({
+    tiket,
+    branch: git.branch ?? '(detached)',
+    commit: git.akanDipush,
+    gerbangCi: k.gerbang?.ci ?? null,
+  })
+  return {
+    worktree: dir,
+    git,
+    syarat,
+    gerbangCi: k.gerbang?.ci ?? null,
+    gerbangBerjalan,
+    mr,
+    push: k.push ?? null,
+    linkMr: k.mr ?? null,
+    klaster: tiket.map((t) => t.key),
+  }
+}
+
+/**
+ * Push dari panel (R-2.3, R-4.2): syarat diperiksa ulang di server, push biasa ke origin, lalu
+ * dicatat di semua tiket se-klaster. Hanya dipanggil dari endpoint panel setelah klik Tams.
+ */
+export function pushKerja(key: string): Kerja {
+  const s = keadaanSerah(key)
+  if (!s.syarat.boleh) throw new Error(`Push ditolak: ${s.syarat.alasan.join('; ')}`)
+  const branch = s.git.branch as string
+  const r = pushBranch(s.worktree, branch, !!s.git.upstream)
+  if (!r.ok) throw new Error(`git push gagal: ${r.keluaran.split('\n').slice(-3).join(' ')}`)
+  const at = new Date().toISOString()
+  const catat = {
+    at,
+    branch,
+    head: s.git.head,
+    remote: s.git.remote,
+    jumlah: s.git.akanDipush.length,
+  }
+  for (const x of klasterKerja(bacaKerja(key)))
+    simpanKerja(
+      pindahTahap(
+        { ...bacaKerja(x.key), push: catat },
+        bacaKerja(x.key).tahap,
+        `Di-push ke ${branch} (${catat.jumlah} commit, ${s.git.head.slice(0, 8)}) dari panel`,
+      ),
+    )
+  return bacaKerja(key)
+}
+
+/** Simpan link MR yang ditempel Tams (hanya https). */
+export function simpanLinkMr(key: string, url: string): Kerja {
+  const u = url.trim()
+  if (u && !/^https:\/\/\S+$/.test(u)) throw new Error('Link MR harus diawali https://')
+  const k = bacaKerja(key)
+  const k2 = { ...k, mr: u || undefined }
+  simpanKerja(k2)
+  return k2
 }

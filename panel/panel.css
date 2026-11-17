@@ -7903,3 +7903,37 @@ details.kj-tiket > summary h2 {
   margin: 10px 0 0;
   font-size: var(--sr-text-xs);
 }
+
+/* Serahkan: gerbang CI, push, deskripsi MR (R-4.1, R-4.2, R-8.4) */
+.kj-serah {
+  padding: 14px 20px;
+}
+.kj-serah-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sr-text-sm);
+}
+.kj-serah-git {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: var(--sr-text-sm);
+}
+.kj-serah-mr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.kj-serah .btn.kj-tim {
+  background: var(--sr-team);
+  border-color: var(--sr-team);
+  color: #fff;
+}

@@ -66,6 +66,9 @@ export const LARANG_UMUM = [
   'Bash(bun src/kerja.ts plane *)',
   'Bash(* prisma migrate deploy*)',
   'Bash(prisma migrate deploy*)',
+  // API panel (push, Plane) hanya lewat klik Tams; hook memakai curl di luar sistem izin alat.
+  'Bash(curl *:5800*)',
+  'Bash(wget *:5800*)',
 ]
 
 /** Izin alat per fase. Pahami hanya baca (kecuali berkas kerja/); Kerjakan menulis di worktree. */

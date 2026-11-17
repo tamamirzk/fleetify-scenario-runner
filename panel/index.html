@@ -276,7 +276,7 @@ function gambarKerja(key) {
   const view = $('#view')
   // Buka-tutup diff per berkas bertahan saat digambar ulang.
   const terbuka = new Set([...view.querySelectorAll('details.kj-berkas[open]')].map((x) => x.dataset.k))
-  const { bar, view: isi } = laporanKerja(S.kj, { tab, pilih: Number(sel) || 1, mode: S.kjMode, galat: S.kjGalat, sibuk: S.kjSibuk, kode: S.kjKode, kodeGalat: S.kjKodeGalat, kembali: svg('back', 16), buka: S.kjBuka, sinkron: S.kjSinkron, kunci: key, cekPlane: S.kjCekPlane, kabar: S.kjKabar, sesi: S.kjSesi, modeSesi: S.kjModeSesi ?? 'terminal' })
+  const { bar, view: isi } = laporanKerja(S.kj, { tab, pilih: Number(sel) || 1, mode: S.kjMode, galat: S.kjGalat, sibuk: S.kjSibuk, kode: S.kjKode, kodeGalat: S.kjKodeGalat, kembali: svg('back', 16), buka: S.kjBuka, sinkron: S.kjSinkron, kunci: key, cekPlane: S.kjCekPlane, kabar: S.kjKabar, sesi: S.kjSesi, modeSesi: S.kjModeSesi ?? 'terminal', serah: S.kjSerah })
   $('#bar').innerHTML = bar
   view.innerHTML = isi
   for (const x of view.querySelectorAll('details.kj-berkas')) if (terbuka.has(x.dataset.k)) x.open = true
@@ -347,6 +347,28 @@ function gambarKerja(key) {
     e.preventDefault()
     const teks = e.currentTarget.elements.teks.value.trim()
     if (teks) aksi('Mengirim arahan', () => api(`/api/kerja/${key}/fase`, { fase: 'lanjut', mode: S.kjModeSesi ?? 'terminal', teks })).then(() => pantauSesi(key, true))
+  })
+  // Serahkan (R-4.1, R-4.2, R-2.3, R-8.4)
+  $('#view [data-kj-gerbang-ci]')?.addEventListener('click', async () => {
+    try { S.kjSerah = await api(`/api/kerja/${key}/gerbang`, {}); gambarKerja(key); pantauSerah(key) } catch (e) { toast(e.message, true) }
+  })
+  $('#view [data-kj-push]')?.addEventListener('click', async () => {
+    const s = S.kjSerah
+    const html = `<div class="kj-dialog-kepala"><h2>Push ke ${esc(s.git.branch)}?</h2><span class="chip tim">${IKON_TIM}Terlihat tim</span></div>
+      <p class="dim kj-catatan-kecil">Push biasa (tanpa force) ke <span class="mono">${esc(s.git.remote ?? '')}</span>. MR-nya kamu buat sendiri di GitLab.</p>
+      <div class="kj-pratinjau"><b>${s.git.akanDipush.length} commit</b><ul>${s.git.akanDipush.map((c) => `<li><span class="mono">${esc(c.sha.slice(0, 8))}</span> ${esc(c.judul)}</li>`).join('')}</ul></div>
+      <div class="kj-dialog-aksi"><button class="btn tb" value="batal" autofocus>Batal</button><button class="btn tb tim-isi" value="ok">Push ke ${esc(s.git.branch)}</button></div>`
+    if ((await bukaDialogKerja(html, () => {}, 560)) === null) return kabarKerja(key, 'Tidak ada yang di-push.')
+    try {
+      S.kjSerah = await api(`/api/kerja/${key}/push`, { konfirmasi: true })
+      S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`)
+      kabarKerja(key, `<span class="ok-t">✓</span> Di-push ke ${esc(S.kjSerah.push?.branch ?? '')}. Buat MR-nya di GitLab, lalu tempel link-nya di kartu Serahkan.`, 8000)
+    } catch (e) { toast(e.message, true); gambarKerja(key) }
+  })
+  $('#view [data-kj-salin-mr]')?.addEventListener('click', () => salin(S.kjSerah?.mr?.isi ?? '', 'Deskripsi MR disalin'))
+  $('#view [data-kj-mr]')?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    try { S.kjSerah = await api(`/api/kerja/${key}/mr`, { url: e.currentTarget.elements.url.value }); gambarKerja(key); toast('Link MR disimpan') } catch (err) { toast(err.message, true) }
   })
   $('#view [data-kj-tunda]')?.addEventListener('click', (e) => {
     const tunda = e.currentTarget.dataset.kjTunda === '1'
@@ -510,6 +532,22 @@ function dialogStatus(key) {
     periksa()
   }, 520)
 }
+/** Muat keadaan Serahkan; selama gerbang CI berjalan, tarik ulang tiap 5 detik. */
+function pantauSerah(key) {
+  clearTimeout(S.kjSerahT)
+  const tarik = async () => {
+    if (route()[0] !== 'kerja' || route()[1] !== key) return
+    try {
+      const s = await api(`/api/kerja/${encodeURIComponent(key)}/serah`)
+      const selesai = S.kjSerah?.gerbangBerjalan && !s.gerbangBerjalan
+      S.kjSerah = s
+      if (!document.activeElement?.closest?.('form')) gambarKerja(key)
+      if (selesai) toast(`Gerbang CI ${key}: ${s.gerbangCi?.hasil ?? 'selesai'}`)
+      if (s.gerbangBerjalan) S.kjSerahT = setTimeout(tarik, 5000)
+    } catch {}
+  }
+  S.kjSerahT = setTimeout(tarik, S.kjSerah?.gerbangBerjalan ? 5000 : 0)
+}
 /**
  * Pantau sesi Claude tiket yang sedang dibuka: GET /sesi tiap 4 detik selama halaman Kerja tiket
  * itu terbuka dan ada sesi tmux; gambar ulang hanya bila status/cuplikan berubah.
@@ -588,6 +626,8 @@ async function renderKerja(key, ulang = false) {
         .then((k) => { S.kjKode = k; S.kjKodeGalat = null })
         .catch((e) => { S.kjKodeGalat = e.message })
         .finally(() => gambarKerja(key))
+    S.kjSerah = null
+    if (S.kj?.kerja?.commit?.length || S.kj?.kerja?.branch) pantauSerah(key)
     // Status Plane dari cache lama (Plane lambat): tandai belum segar lalu periksa ulang (§6.1).
     if (S.kj && !S.kj.plane?.segar) cekPlane(key)
   }

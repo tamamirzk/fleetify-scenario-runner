@@ -1017,6 +1017,45 @@ export function kartuSesi(d, langsung = null, modeSesi = 'terminal') {
     ${cuplikan}</section>`
 }
 
+/**
+ * Kartu Serahkan (R-4.1, R-4.2, R-2.3, R-8.4): gerbang CI (jalan di latar), branch dan commit
+ * yang akan terkirim, tombol Push (nonaktif beserta alasannya bila syarat belum terpenuhi),
+ * Salin deskripsi MR, dan link MR. `s` = hasil GET /api/kerja/<KEY>/serah.
+ */
+export function kartuSerah(s) {
+  if (!s) return ''
+  const g = s.gerbangCi
+  const ci = s.gerbangBerjalan
+    ? '<span class="chip info"><span class="putar kecil" aria-hidden="true"></span>Gerbang CI berjalan…</span>'
+    : !g
+      ? '<span class="dim">○ Gerbang CI belum dijalankan</span>'
+      : `<span class="chip ${g.hasil === 'lulus' ? 'ok' : g.hasil === 'peringatan' ? 'warn' : 'bad'}">${g.hasil === 'lulus' ? '✓' : g.hasil === 'peringatan' ? '!' : '×'} Gerbang CI ${esc(g.hasil)}</span><span class="dim">${g.langkah.filter((l) => l.hasil === 'lulus').length}/${g.langkah.length} · ${esc(JAM(g.at))} · <span class="mono">${esc(g.head.slice(0, 8))}</span></span>`
+  const masalahCi =
+    g && !s.gerbangBerjalan
+      ? g.langkah
+          .filter((l) => l.hasil !== 'lulus')
+          .map(
+            (l) =>
+              `<li>${l.hasil === 'peringatan' ? '<span class="warn-t">!</span>' : '<span class="bad-t">×</span>'} ${esc(l.judul)}${l.ringkas ? `<span class="dim">: ${esc(l.ringkas)}</span>` : ''}</li>`,
+          )
+          .join('')
+      : ''
+  const git = s.git
+  const push = s.syarat.boleh
+    ? `<button type="button" class="btn tb kj-tim" data-kj-push>Push ke ${esc(git.branch ?? '')}…</button>`
+    : `<button type="button" class="btn tb" disabled title="${esc(s.syarat.alasan.join('; '))}">Push</button>`
+  const sudah = s.push
+    ? `<span class="ok-t">✓ Di-push ${esc(JAM(s.push.at))}</span><span class="dim"> · ${esc(s.push.branch)} · <span class="mono">${esc(s.push.head.slice(0, 8))}</span></span>`
+    : ''
+  return `<section class="kartu glass kj-serah" aria-label="Serahkan"><div class="kj-sesi-hd"><span class="db-eyebrow">Serahkan</span><span class="kj-sesi-status">${ci}</span>
+      <span class="kj-sesi-aksi"><button type="button" class="btn tb" data-kj-gerbang-ci${s.gerbangBerjalan ? ' disabled' : ''}>${g ? 'Jalankan ulang gerbang CI' : 'Jalankan gerbang CI'}</button>${push}</span></div>
+    ${masalahCi ? `<ul class="kj-serah-daftar">${masalahCi}</ul>` : ''}
+    <div class="kj-serah-git"><span class="mono">${esc(git.branch ?? '(detached)')}</span><span class="dim">${git.akanDipush.length} commit akan dikirim · ${esc(git.remote ?? 'tanpa remote')}${s.klaster.length > 1 ? ` · klaster ${esc(s.klaster.join(', '))}` : ''}</span>${sudah}</div>
+    ${s.syarat.boleh ? '' : `<p class="dim kj-catatan-kecil">Push belum bisa: ${esc(s.syarat.alasan.join('; '))}.</p>`}
+    <div class="kj-serah-mr"><button type="button" class="btn tb" data-kj-salin-mr>Salin deskripsi MR</button>
+      <form class="kj-tanya-isi" data-kj-mr><input type="url" name="url" value="${esc(s.linkMr ?? '')}" placeholder="Tempel link MR dari GitLab…" aria-label="Link MR"><button type="submit" class="btn tb">Simpan</button></form>${s.linkMr ? `<a class="btn tb" href="${esc(s.linkMr)}" target="_blank" rel="noopener">Buka MR ↗</a>` : ''}</div></section>`
+}
+
 export function ringkasanKerja(
   d,
   kode = null,
@@ -1024,8 +1063,9 @@ export function ringkasanKerja(
   cekPlane = null,
   sesi = null,
   modeSesi = 'terminal',
+  serah = null,
 ) {
-  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${kartuKeputusan(d.kerja)}
+  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${kartuSerah(serah)}${kartuKeputusan(d.kerja)}
     <div class="kj-ringkas-kolom"><div class="kj-ringkas-kiri">${kartuTugas(d, buka)}${kartuDilakukan(d, kode, buka)}</div>
     <div class="kj-ringkas-kanan">${kartuBukti(d, kode, buka)}${riwayatTerbaru(d.kerja)}</div></div></section>`
 }
@@ -1069,6 +1109,6 @@ export function laporanKerja(d, o = {}) {
             })
   return {
     bar: barKerja(d, { kembali: o.kembali, cekPlane: o.cekPlane }),
-    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane, o.sesi ?? null, o.modeSesi ?? 'terminal')}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
+    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane, o.sesi ?? null, o.modeSesi ?? 'terminal', o.serah ?? null)}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
   }
 }

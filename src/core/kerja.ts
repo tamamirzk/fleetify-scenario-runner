@@ -141,6 +141,10 @@ export interface Kerja {
   sesi?: Sesi
   /** Tiket disisihkan Tams: tidak muncul di "Butuh kamu" sampai diaktifkan lagi. */
   ditunda?: { at: string; alasan?: string }
+  /** Push terakhir dari panel (R-2.3): Tams yang membuat MR di GitLab. */
+  push?: { at: string; branch: string; head: string; remote: string | null; jumlah: number }
+  /** Link MR yang ditempel Tams. */
+  mr?: string
 }
 
 export const dirKerja = (key: string) => {

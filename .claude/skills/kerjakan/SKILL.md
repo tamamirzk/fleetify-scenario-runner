@@ -61,7 +61,7 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
 
   Jangan memindah server `v2-test` atau menjalankan migrasi tanpa izin.
 - Ikuti aturan `v2/CLAUDE.md`. Implementasikan, lalu jalankan `bun run kerja gerbang <KEY> fokus` (bukan merakit perintah tes sendiri). Laporkan baris vonisnya saja; buka log hanya bila ada yang gagal.
-- **Sebelum push** (hanya bila diminta): `bun run kerja gerbang <KEY> ci` wajib `✓` atau `!` (peringatan = kegagalan yang juga ada di development). Jangan push saat `×`.
+- **Push bukan tugas AI.** Di fase Serahkan: merge `origin/development`, commit, lalu `bun run kerja gerbang <KEY> ci` sampai `✓` atau `!` (peringatan = kegagalan yang juga ada di development). Push dilakukan Tams lewat tombol **Push** di kartu Serahkan, dan Tams yang membuat MR di GitLab (deskripsinya dari tombol **Salin deskripsi MR**). Jangan menjalankan `git push` atau memanggil API panel.
 - Commit hanya bila pengguna mengizinkan. Push tidak pernah dilakukan tanpa diminta.
 - Catat dan laporkan:
 
