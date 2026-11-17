@@ -18,7 +18,7 @@
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script type="module">
-import { halamanDasbor } from '/js/dasbor.js'
+import { halamanDasbor, halamanStatistik } from '/js/dasbor.js'
 import { laporanKerja } from '/js/kerja.js'
 import { aksiKini, chipJalan, chipTiketDaftar, cincinTarget, durasiPanjang, esc, jamDetik, kartuLangkah, kerangkaRunner, langkahKini, lunakGagal, petaLangkah, relLangkah } from '/js/komponen.js'
 import { cekTerpilih, chipTabel, kartuCek, kartuLangkahHasil, kartuRingkasan, kartuRingkasanDb, kartuTransaksi, kerangkaLaporanDb, kerangkaLaporanUi, kotakMerah, LEBAR_PANEL_DB, langkahAwal, REL_HASIL, relHasil, saringTransaksi, subJudul, tabelTransaksi } from '/js/laporan.js'
@@ -298,9 +298,29 @@ async function renderDasbor() {
   if (route()[0] !== 'dasbor') return
   gambarDasbor()
 }
+async function renderStatistik() {
+  const main = appMain('statistik')
+  if (!S.dasbor) main.innerHTML = halamanStatistik(null)
+  try { S.dasbor = await api('/api/dasbor'); S.dasborGalat = null } catch (e) { S.dasborGalat = e.message }
+  if (route()[0] !== 'statistik') return
+  gambarStatistik()
+}
+function gambarStatistik() {
+  const main = appMain('statistik')
+  main.innerHTML = halamanStatistik(S.dasbor, { galat: S.dasborGalat, minggu: S.dbMinggu })
+  $('#db-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderStatistik() })
+  for (const b of main.querySelectorAll('[data-db-salin]')) b.addEventListener('click', () => salin(b.dataset.dbSalin, `Disalin: ${b.dataset.dbSalin}`))
+  for (const b of main.querySelectorAll('[data-db-minggu]')) b.addEventListener('click', () => {
+    const label = b.getAttribute('aria-label')
+    S.dbMinggu = Number(b.dataset.dbMinggu) || 0
+    gambarStatistik()
+    const sama = $(`[data-db-minggu][aria-label="${label}"]`)
+    ;(sama && !sama.disabled ? sama : $('[data-db-minggu]:not(:disabled)'))?.focus()
+  })
+}
 function gambarDasbor() {
   const main = appMain('dasbor')
-  main.innerHTML = halamanDasbor(S.dasbor, { galat: S.dasborGalat, minggu: S.dbMinggu })
+  main.innerHTML = halamanDasbor(S.dasbor, { galat: S.dasborGalat })
   $('#db-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderDasbor() })
   // Lajur Butuh kamu: jalankan fase (mode Terminal) atau buka terminal sesi tiket.
   for (const b of main.querySelectorAll('[data-db-fase]'))
@@ -429,6 +449,14 @@ function gambarKerja(key) {
   $('#view [data-kj-mr]')?.addEventListener('submit', async (e) => {
     e.preventDefault()
     try { S.kjSerah = await api(`/api/kerja/${key}/mr`, { url: e.currentTarget.elements.url.value }); gambarKerja(key); toast('Link MR disimpan') } catch (err) { toast(err.message, true) }
+  })
+  // Review ◆B (R-9.2): Setuju & Serahkan, atau Minta ubah (keduanya menjalankan fase berikut).
+  $('#view [data-kj-review="setuju"]')?.addEventListener('click', () =>
+    aksi('Mencatat persetujuan dan menjalankan Serahkan', () => api(`/api/kerja/${key}/review`, { setuju: true })).then(() => pantauSesi(key, true)))
+  $('#view [data-kj-review-ubah]')?.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const teks = e.currentTarget.elements.teks.value.trim()
+    if (teks) aksi('Mencatat permintaan ubah dan menjalankan Kerjakan', () => api(`/api/kerja/${key}/review`, { setuju: false, teks })).then(() => pantauSesi(key, true))
   })
   $('#view [data-kj-tunda]')?.addEventListener('click', (e) => {
     const tunda = e.currentTarget.dataset.kjTunda === '1'
@@ -1787,7 +1815,7 @@ async function renderRunDetail(id) {
 let lastPage = ''
 async function render() {
   const [r, a, b] = route()
-  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'workspace' ? 'workspace' : r === 'kerja' ? 'kerja' : 'skenario'
+  const page = r === 'jalan' ? 'jalan' : r === 'laporan' ? 'laporan' : r === 'riwayat' ? 'riwayat' : r === 'ringkasan' ? 'ringkasan' : r === 'tugas' ? 'tugas' : r === 'dasbor' ? 'dasbor' : r === 'workspace' ? 'workspace' : r === 'statistik' ? 'statistik' : r === 'kerja' ? 'kerja' : 'skenario'
   if (page !== 'laporan' && page !== 'kerja') document.querySelector('.win')?.classList.remove('lapor')
   if (page === 'jalan' || page === 'laporan' || page === 'kerja') document.querySelector('.win')?.classList.remove('sb-mode')
   if (page !== 'jalan') { closeLive(); S.frame = false; S.fokus = false; S.peta = false }
@@ -1805,6 +1833,7 @@ async function render() {
   else if (page === 'tugas') await renderTugas()
   else if (page === 'dasbor') await renderDasbor()
   else if (page === 'workspace') await renderWorkspace()
+  else if (page === 'statistik') await renderStatistik()
   else if (page === 'kerja') await renderKerja(a)
   else await renderSkenario()
 }

@@ -160,6 +160,7 @@ export type JenisBagian =
   | 'rencana'
   | 'keputusan'
   | 'dikerjakan'
+  | 'perhatian'
   | 'verifikasi'
   | 'kendala'
   | 'deploy'
@@ -173,6 +174,7 @@ export function jenisBagian(judul: string): JenisBagian {
   if (/^rencana/.test(j)) return 'rencana'
   if (/^keputusan/.test(j)) return 'keputusan'
   if (/^yang (dikerjakan|kita lakukan|dilakukan)/.test(j)) return 'dikerjakan'
+  if (/^(perlu diperhatikan|yang perlu kamu perhatikan|risiko)/.test(j)) return 'perhatian'
   if (/^verifikasi/.test(j)) return 'verifikasi'
   if (/^kendala/.test(j)) return 'kendala'
   if (/^setelah (merge|deploy)|^pasca/.test(j)) return 'deploy'
@@ -221,6 +223,11 @@ export function templatCatatan(key: string): string {
 ## Yang dikerjakan
 
 <!-- Diisi di akhir Kerjakan: apa yang diubah, commit, dan penyimpangan dari rencana. -->
+
+## Perlu diperhatikan
+
+<!-- Diisi di akhir Kerjakan untuk review Tams (◆B): penyimpangan dari tiket, temuan di luar
+     cakupan, dan risiko. Keputusan yang diambil sendiri dicatat lewat "kerja putuskan". -->
 
 ## Kendala
 
@@ -354,6 +361,7 @@ export function renderCatatan(o: {
   tulis('Keputusan', [prosa('keputusan'), tabelKeputusan].filter(Boolean).join('\n\n'))
 
   tulis('Yang dikerjakan', prosa('dikerjakan'))
+  tulis('Perlu diperhatikan', prosa('perhatian'))
 
   const tabelV = o.verifikasi.length
     ? `| Kriteria | Hasil |\n|---|---|\n${o.verifikasi
@@ -377,3 +385,11 @@ export function renderCatatan(o: {
   for (const b of ambil('lain')) tulis(b.judul, tanpaKomentar(b.isi))
   return `${keluar.join('\n\n')}\n`
 }
+
+/** Isi bagian "Perlu diperhatikan" (tanpa komentar panduan) untuk paket review. */
+export const bagianPerhatian = (md: string | null) =>
+  pecahCatatan(md)
+    .bagian.filter((b) => b.jenis === 'perhatian')
+    .map((b) => tanpaKomentar(b.isi))
+    .filter(Boolean)
+    .join('\n\n')

@@ -71,7 +71,7 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
   bun run kerja tahap <KEY> dikerjakan "Ringkas apa yang diubah"
   ```
 
-Di akhir Kerjakan, isi bagian **Yang dikerjakan** (dan **Kendala** bila ada) di `catatan.md`. Keputusan baru yang diambil sendiri selama mengerjakan dicatat dengan `kerja putuskan`. Permintaan ubah dari Tams dicatat `kerja minta-ubah <KEY> A|B "…"` dan ditutup `kerja ubah-selesai <KEY> <no>` setelah dikerjakan.
+Di akhir Kerjakan, isi bagian **Yang dikerjakan**, **Perlu diperhatikan** (penyimpangan dari tiket, temuan di luar cakupan, risiko: ini yang dibaca Tams di paket review ◆B), dan **Kendala** bila ada di `catatan.md`. Keputusan baru yang diambil sendiri selama mengerjakan dicatat dengan `kerja putuskan`. Permintaan ubah dari Tams dicatat `kerja minta-ubah <KEY> A|B "…"` dan ditutup `kerja ubah-selesai <KEY> <no>` setelah dikerjakan.
 
 ## 4. Diverifikasi
 

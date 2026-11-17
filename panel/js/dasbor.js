@@ -464,38 +464,122 @@ export function daftarAktivitas(aktivitas) {
   return `<section class="db-panel db-bawah" aria-labelledby="db-akt-h">${kepalaKartu('db-akt-h', ikon('jam'), 'Aktivitas terbaru')}${isi ? `<ul class="db-baris aktivitas">${isi}</ul>` : '<p class="dim">Belum ada aktivitas.</p>'}</section>`
 }
 
+/** Satu tombol aksi utama untuk butir Butuh kamu (R-5.2). */
+function tombolButuh(b) {
+  return b.aksi.jenis === 'fase'
+    ? `<button type="button" class="btn db-pil" data-db-fase="${esc(b.aksi.fase)}" data-key="${esc(b.key)}">${esc(b.aksi.label)}</button>`
+    : b.aksi.jenis === 'terminal'
+      ? `<button type="button" class="btn db-pil" data-db-terminal="${esc(b.key)}">${esc(b.aksi.label)}</button>`
+      : `<a class="btn db-pil" href="#/kerja/${esc(b.key)}">${esc(b.aksi.label)}</a>`
+}
+
+const butir = (key, teks, judul, tombol = '') =>
+  `<li><a class="mono" href="#/kerja/${esc(key)}">${esc(key)}</a><span class="db-butuh-teks">${teks}<span class="dim"> · ${esc(judul)}</span></span>${tombol}</li>`
+
 /**
- * Lajur "Butuh kamu" dan "AI sedang jalan" (R-5.2, R-6.4): tiap butir punya satu tombol aksi
- * utama; tombol yang butuh AI menjalankan fase berikut. Rancangan penuh tiga lajur ada di tahap 6.
+ * Tiga lajur tindakan (R-9.1): Butuh kamu (aksi utama per butir), AI sedang jalan, Menunggu pihak
+ * lain; di bawahnya Antre dan Ditunda. Lajur kiri satu-satunya yang wajib dilihat tiap hari.
  */
-export function lajurButuh(butuh, bekerja, ditunda = []) {
-  const tombol = (b) =>
-    b.aksi.jenis === 'fase'
-      ? `<button type="button" class="btn db-pil" data-db-fase="${esc(b.aksi.fase)}" data-key="${esc(b.key)}">${esc(b.aksi.label)}</button>`
-      : b.aksi.jenis === 'terminal'
-        ? `<button type="button" class="btn db-pil" data-db-terminal="${esc(b.key)}">${esc(b.aksi.label)}</button>`
-        : `<a class="btn db-pil" href="#/kerja/${esc(b.key)}">${esc(b.aksi.label)}</a>`
-  const kiri = butuh.length
-    ? `<ul class="db-butuh">${butuh.map((b) => `<li><a class="mono" href="#/kerja/${esc(b.key)}">${esc(b.key)}</a><span class="db-butuh-teks">${b.titik ? `<b>◆${esc(b.titik)}</b> ` : ''}${esc(b.alasan)}<span class="dim"> · ${esc(b.judul)}</span></span>${tombol(b)}</li>`).join('')}</ul>`
-    : '<p class="dim">Tidak ada yang menunggumu.</p>'
-  const tunda = ditunda.length
-    ? `<p class="dim db-tunda">⏸ ${ditunda.length} ditunda: ${ditunda.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')}</p>`
+export function lajurTindakan(d) {
+  const butuh = d.butuhKamu ?? []
+  const ai = d.aiBekerja ?? []
+  const lain = d.pihakLain ?? []
+  const kolom = (id, judul, n, isi, kosong) =>
+    `<section class="db-panel db-lajur-kolom" aria-labelledby="${id}"><h2 id="${id}" class="db-lajur-h">${judul} <span class="dim">${n}</span></h2>${n ? `<ul class="db-butuh">${isi}</ul>` : `<p class="dim">${kosong}</p>`}</section>`
+  const kiri = butuh
+    .map((b) =>
+      butir(
+        b.key,
+        `${b.titik ? `<b>◆${esc(b.titik)}</b> ` : ''}${esc(b.alasan)}`,
+        b.judul,
+        tombolButuh(b),
+      ),
+    )
+    .join('')
+  const tengah = ai
+    .map((x) =>
+      butir(
+        x.key,
+        `● ${esc(x.fase ?? '')} · ${esc(x.mode ?? '')}${x.slot ? ` · slot ${x.slot}` : ''}`,
+        x.judul,
+      ),
+    )
+    .join('')
+  const kanan = lain.map((x) => butir(x.key, esc(x.alasan), x.judul)).join('')
+  const antre = d.antre?.length
+    ? `<span>⏸ Antre ${d.antre.length}: ${d.antre.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')} <a href="#/workspace">Tempatkan di Workspace ›</a></span>`
     : ''
-  const kanan = bekerja.length
-    ? `<ul class="db-butuh">${bekerja.map((x) => `<li><a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a><span class="db-butuh-teks">● ${esc(x.fase ?? '')} · ${esc(x.mode ?? '')}<span class="dim"> · ${esc(x.judul)}</span></span></li>`).join('')}</ul>`
-    : '<p class="dim">Tidak ada sesi Claude yang sedang bekerja.</p>'
-  return `<div class="db-lajur"><section class="db-panel" aria-labelledby="db-butuh-h"><h2 id="db-butuh-h" class="db-lajur-h">Butuh kamu <span class="dim">${butuh.length}</span></h2>${kiri}${tunda}</section><section class="db-panel" aria-labelledby="db-ai-h"><h2 id="db-ai-h" class="db-lajur-h">AI sedang jalan <span class="dim">${bekerja.length}</span></h2>${kanan}</section></div>`
+  const tunda = d.ditunda?.length
+    ? `<span>Ditunda ${d.ditunda.length}: ${d.ditunda.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')}</span>`
+    : ''
+  return `<div class="db-lajur3">${kolom('db-butuh-h', 'Butuh kamu', butuh.length, kiri, 'Tidak ada yang menunggumu.')}${kolom('db-ai-h', 'AI sedang jalan', ai.length, tengah, 'Tidak ada sesi Claude yang bekerja.')}${kolom('db-lain-h', 'Menunggu pihak lain', lain.length, kanan, 'Tidak ada yang menunggu pihak lain.')}</div>${antre || tunda ? `<p class="dim db-tunda">${[antre, tunda].filter(Boolean).join(' · ')}</p>` : ''}`
+}
+
+/** Strip mini: 3 slot (● bekerja · ◆ menunggu · ○ kosong) + kesehatan komputer; ke Workspace. */
+export function stripMini(m) {
+  if (!m) return ''
+  const tanda = (s) =>
+    !s.pemakai.length
+      ? ['○', 'kosong']
+      : s.sesi === 'bekerja'
+        ? ['●', 'AI bekerja']
+        : s.sesi === 'menunggu'
+          ? ['◆', 'menunggu kamu']
+          : ['◐', 'terpakai']
+  const slot = m.slot
+    .map((s) => {
+      const [t, arti] = tanda(s)
+      return `<span class="db-mini-slot" title="Slot ${s.n}: ${esc(arti)}"><b>${t}</b> Slot ${s.n} <span class="dim">${s.pemakai.length ? esc(s.pemakai.join(', ')) : 'kosong'}${s.api || s.web ? ' · server hidup' : ''}</span></span>`
+    })
+    .join('')
+  const k = m.komputer
+  const kom = `<span class="db-mini-kom">${k.peringatan ? `<span class="warn-t">! ${k.peringatan} peringatan</span>` : '<span class="ok-t">✓ komputer</span>'} <span class="dim">beban ${Number(k.beban).toFixed(1)}/${k.core} · memori bebas ${k.memoriBebas ?? '?'}% · disk ${Math.round(k.diskSisa)} GiB</span></span>`
+  return `<a class="db-panel db-strip" href="#/workspace" aria-label="Workspace: slot dan komputer">${slot}${kom}</a>`
+}
+
+/** Angka yang memicu tindakan saja (R-9.1). */
+export function angkaTindakan(d) {
+  const a = d.angka ?? {}
+  const t = d.tugas
+  const tile = (label, nilai, ket, nada = '', href = null) => {
+    const isi = `<span class="db-angka-k">${esc(label)}</span><span class="db-angka-v ${nada}">${nilai}</span><span class="dim db-angka-ket">${ket}</span>`
+    return href
+      ? `<a class="db-panel db-angka" href="${href}">${isi}</a>`
+      : `<div class="db-panel db-angka">${isi}</div>`
+  }
+  const belumAmbil = t ? Math.max(0, t.terbuka - (d.kerja?.aktif?.length ?? 0)) : null
+  return `<div class="db-angka-baris">
+    ${tile('Butuh kamu', a.butuh ?? 0, 'tiket menunggu keputusanmu', a.butuh ? 'warn-t' : '')}
+    ${tile('Slot terpakai', `${a.slotTerpakai ?? 0}/3`, 'maks. 3 tiket aktif', '', '#/workspace')}
+    ${tile('CI merah', a.ciMerah ?? 0, 'gerbang CI gagal', a.ciMerah ? 'bad-t' : '')}
+    ${tile('Cek staging terbuka', a.stagingTerbuka ?? 0, 'setelah merge dan deploy', a.stagingTerbuka ? 'warn-t' : '')}
+    ${tile('Tugas Plane', t ? belumAmbil : '–', t ? `${t.terbuka} terbuka · belum diambil` : `Isi <code>PLANE_API_KEY</code> di <code>.env</code>`, '', '#/tugas')}
+  </div>`
 }
 
 /**
- * Isi halaman Dasbor.
+ * Isi halaman Dasbor: tindakan saja (R-9.1); tren ada di halamanStatistik.
  * @param {any} d hasil /api/dasbor
- * @param {{ galat?: string | null, minggu?: number }} [o] minggu = mundur dari minggu berjalan
+ * @param {{ galat?: string | null }} [o]
  */
-export function halamanDasbor(d, { galat = null, minggu = 0 } = {}) {
-  const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · operasional</div><h1>Dashboard</h1></div><button type="button" class="btn db-pil" id="db-segarkan">Segarkan</button></div>`
+export function halamanDasbor(d, { galat = null } = {}) {
+  const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · apa yang harus aku lakukan</div><h1>Dashboard</h1></div><a class="btn db-pil" href="#/statistik">Statistik ›</a><button type="button" class="btn db-pil" id="db-segarkan">Segarkan</button></div>`
   if (galat)
     return `${kepala}<div class="errbox" role="alert"><b>Dashboard gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
   if (!d) return `${kepala}<div class="empty">Memuat dashboard…</div>`
-  return `<div class="db">${kepala}${lajurButuh(d.butuhKamu ?? [], d.aiBekerja ?? [], d.ditunda ?? [])}${panelAktif(d.kerja.aktif)}${kotakAngka(d)}<div class="db-baris-grafik">${heatmap(d.jalan.harian, d.jalan.ringkas)}${produktivitas(d.jalan.harian, minggu)}</div><div class="db-baris-bawah">${radar(d.skenario.perGrup, d.skenario.total)}${daftarTemuan(d.temuan.terbaru)}${daftarAktivitas(d.aktivitas)}</div></div>`
+  return `<div class="db">${kepala}${stripMini(d.mini)}${lajurTindakan(d)}${angkaTindakan(d)}${daftarTemuan(d.temuan.terbaru)}</div>`
+}
+
+/**
+ * Halaman Statistik (R-9.4): tren dan detail yang dipindah dari Dashboard.
+ * @param {any} d hasil /api/dasbor
+ * @param {{ galat?: string | null, minggu?: number }} [o]
+ */
+export function halamanStatistik(d, { galat = null, minggu = 0 } = {}) {
+  const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · tren</div><h1>Statistik</h1></div><a class="btn db-pil" href="#/dasbor">‹ Dashboard</a><button type="button" class="btn db-pil" id="db-segarkan">Segarkan</button></div>`
+  if (galat)
+    return `${kepala}<div class="errbox" role="alert"><b>Statistik gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
+  if (!d) return `${kepala}<div class="empty">Memuat statistik…</div>`
+  return `<div class="db">${kepala}${kotakAngka(d)}${panelAktif(d.kerja.aktif)}<div class="db-baris-grafik">${heatmap(d.jalan.harian, d.jalan.ringkas)}${produktivitas(d.jalan.harian, minggu)}</div><div class="db-baris-bawah">${radar(d.skenario.perGrup, d.skenario.total)}${daftarAktivitas(d.aktivitas)}</div>
+    <section class="db-panel" aria-labelledby="db-metrik-h"><h2 id="db-metrik-h" class="db-lajur-h">Metrik per tiket</h2><p class="dim">Lama per fase, kerja ulang, dan perkiraan token dicatat mulai tahap 7 rancangan.</p></section></div>`
 }

@@ -5,6 +5,7 @@ import {
   deretMini,
   gauge,
   halamanDasbor,
+  halamanStatistik,
   hasilKerja,
   heatmap,
   mingguProduktif,
@@ -424,13 +425,27 @@ describe('dasbor', () => {
     expect(radar([g('a', 4)], 4)).toContain('db-bar-trek')
   })
 
-  it('HTML dasbor utuh; galat dan memuat; Plane tak tersambung', () => {
+  it('Dashboard berisi tindakan; tren pindah ke Statistik (R-9.1, R-9.4)', () => {
     const h = halamanDasbor(d)
-    expect(h).toContain('Tugas terbuka')
-    expect(h).toContain('Sedang dikerjakan')
-    expect(h).toContain('Aktivitas jalan skenario')
-    expect(h).toContain('Produktivitas uji')
-    expect(h).toContain('Temuan terbaru')
+    for (const x of [
+      'Butuh kamu',
+      'AI sedang jalan',
+      'Menunggu pihak lain',
+      'Slot terpakai',
+      'Temuan terbaru',
+    ])
+      expect(h).toContain(x)
+    for (const x of ['Aktivitas jalan skenario', 'Produktivitas uji', 'Sedang dikerjakan'])
+      expect(h).not.toContain(x)
+    const st = halamanStatistik(d)
+    for (const x of [
+      'Tugas terbuka',
+      'Sedang dikerjakan',
+      'Aktivitas jalan skenario',
+      'Produktivitas uji',
+      'Metrik per tiket',
+    ])
+      expect(st).toContain(x)
     expect(h).not.toContain('contoh data')
     expect(halamanDasbor({ ...d, tugas: null })).toContain('PLANE_API_KEY')
     expect(halamanDasbor(null)).toContain('Memuat')

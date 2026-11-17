@@ -821,6 +821,103 @@ export function bilahTahap(d, kode = null, cekPlane = null) {
     <span class="kj-bilah-ringkas"><span class="kj-bilah-plane">${statusPlane(d, cekPlane, { chip: true })}</span><span><span class="dim">Kriteria</span> <span class="${c.gagal ? 'bad-t' : c.total && c.lulus === c.total ? 'ok-t' : ''}">${c.gagal ? '×' : c.total && c.lulus === c.total ? '✓' : ''} ${c.lulus}/${c.total}</span></span><span><span class="dim">Kode</span> ${kodeTeks}</span></span></div>`
 }
 
+/** Butir kriteria: tanda + kriteria + bukti + gambar mini (dipakai kartu Bukti dan paket review). */
+export function daftarKriteria(k) {
+  return (k.verifikasi ?? [])
+    .map((x) => {
+      const [t, kelas] = TANDA_CEK[x.hasil] ?? TANDA_CEK.belum
+      const { teks, berkas } = pisahBukti(x.bukti)
+      const mini = berkas
+        .map(
+          (f) =>
+            `<a class="kj-mini" href="/kerja/${esc(k.key)}/${esc(f)}" target="_blank" rel="noopener" title="${esc(f)}" aria-label="Buka bukti ${esc(f)}"><img src="/kerja/${esc(k.key)}/${esc(f)}" alt="" loading="lazy"><span class="perbesar" aria-hidden="true">⤢</span></a>`,
+        )
+        .join('')
+      return `<li><span class="${kelas}" aria-label="${esc(x.hasil)}">${t}</span><div><div class="t">${esc(x.kriteria)}</div>${teks ? `<div class="b">${esc(teks)}</div>` : ''}${mini ? `<div class="kj-mini-baris">${mini}</div>` : ''}</div></li>`
+    })
+    .join('')
+}
+
+/** Ringkasan perubahan kode per lapisan (paket review): migrasi/skema, backend, frontend, teks, lainnya. */
+/** @param {any} kode */
+export function lapisanKode(kode) {
+  const g = new Map()
+  for (const c of kode?.commits ?? [])
+    for (const b of c.berkas ?? []) {
+      const p = b.path
+      const l = /^Backend\/prisma\//.test(p)
+        ? 'DB: migrasi & skema'
+        : /\/i18n\//.test(p)
+          ? 'Teks (i18n)'
+          : /__tests__|\.test\./.test(p)
+            ? 'Tes'
+            : p.startsWith('Backend/')
+              ? 'Backend'
+              : p.startsWith('Frontend/')
+                ? 'Frontend'
+                : 'Lainnya'
+      const x = g.get(l) ?? { lapisan: l, berkas: new Set(), tambah: 0, hapus: 0 }
+      x.berkas.add(p)
+      x.tambah += b.tambah ?? 0
+      x.hapus += b.hapus ?? 0
+      g.set(l, x)
+    }
+  const urut = ['DB: migrasi & skema', 'Backend', 'Frontend', 'Teks (i18n)', 'Tes', 'Lainnya']
+  return [...g.values()]
+    .sort((a, b) => urut.indexOf(a.lapisan) - urut.indexOf(b.lapisan))
+    .map((x) => ({ ...x, berkas: x.berkas.size }))
+}
+
+/**
+ * Paket review ◆B (R-9.2): satu layar — kriteria + bukti berdampingan dengan "Yang perlu kamu
+ * perhatikan" (keputusan AI sendiri, catatan Perlu diperhatikan, peringatan gerbang, kriteria
+ * belum lulus), perubahan kode per lapisan, status gerbang, dan keputusan Setuju / Minta ubah.
+ * @param {any} d hasil /api/kerja/<KEY>
+ * @param {any} [kode] hasil /api/kerja/<KEY>/kode
+ */
+export function paketReview(d, kode = null) {
+  const k = d.kerja
+  const kAi = (k.keputusan ?? []).filter((x) => x.oleh === 'ai')
+  const belum = (k.verifikasi ?? []).filter((x) => x.hasil !== 'lulus')
+  const peringatan = [k.gerbang?.fokus, k.gerbang?.ci]
+    .filter(Boolean)
+    .flatMap((g) =>
+      g.langkah
+        .filter((l) => l.hasil !== 'lulus')
+        .map((l) => `Gerbang ${g.tingkat}: ${l.judul}${l.ringkas ? ` — ${l.ringkas}` : ''}`),
+    )
+  const perhatian = [
+    ...kAi.map(
+      (x) =>
+        `<li><span class="warn-t">◆</span> <b>Diputuskan AI:</b> ${esc(x.apa)}${x.alasan ? ` <span class="dim">— ${esc(x.alasan)}</span>` : ''}</li>`,
+    ),
+    ...belum.map(
+      (x) =>
+        `<li><span class="${x.hasil === 'gagal' ? 'bad-t">×' : 'dim">○'}</span> Kriteria ${esc(x.hasil)}: ${esc(x.kriteria)}</li>`,
+    ),
+    ...peringatan.map((p) => `<li><span class="warn-t">!</span> ${esc(p)}</li>`),
+  ].join('')
+  const catatanPerhatian = d.perhatian
+    ? `<div class="kj-md kj-review-catatan">${mdRingan(d.perhatian)}</div>`
+    : ''
+  const lap = lapisanKode(kode)
+  const tabelKode = lap.length
+    ? `<ul class="kj-review-kode">${lap.map((x) => `<li><span>${esc(x.lapisan)}</span><span class="dim">${x.berkas} berkas</span><span><span class="ok-t">+${x.tambah}</span> <span class="bad-t">−${x.hapus}</span></span></li>`).join('')}</ul>`
+    : `<p class="dim">${kode ? 'Tanpa perubahan kode.' : 'Memuat perubahan kode…'}</p>`
+  const gerbang = (nama, g) =>
+    g
+      ? `<span class="chip ${g.hasil === 'lulus' ? 'ok' : g.hasil === 'peringatan' ? 'warn' : 'bad'}">${g.hasil === 'lulus' ? '✓' : g.hasil === 'peringatan' ? '!' : '×'} ${nama}</span>`
+      : `<span class="chip">○ ${nama} belum</span>`
+  const akhir = d.periksa?.akhir
+  return `<section class="kartu glass kj-review" aria-label="Paket review"><div class="kj-sesi-hd"><span class="db-eyebrow">Review ◆B</span>
+      <span class="kj-sesi-status">${gerbang('gerbang fokus', k.gerbang?.fokus)}${gerbang('gerbang CI', k.gerbang?.ci)}${akhir ? `<span class="chip ${akhir.ok ? 'ok' : 'bad'}">${akhir.ok ? '✓' : '×'} catatan akhir</span>` : ''}</span></div>
+    <div class="kj-review-isi"><div><h3 class="kj-review-h">Kriteria dan bukti</h3>${(k.verifikasi ?? []).length ? `<ul class="kj-cek">${daftarKriteria(k)}</ul>` : '<p class="dim">Belum ada kriteria.</p>'}</div>
+      <div><h3 class="kj-review-h">Yang perlu kamu perhatikan</h3>${perhatian ? `<ul class="kj-review-daftar">${perhatian}</ul>` : '<p class="dim">Tidak ada keputusan AI, kriteria terbuka, atau peringatan gerbang.</p>'}${catatanPerhatian}
+        <h3 class="kj-review-h">Perubahan kode per lapisan</h3>${tabelKode}</div></div>
+    <div class="kj-review-aksi"><button type="button" class="btn tb utama-tb" data-kj-review="setuju"${akhir && !akhir.ok ? ' disabled title="Catatan akhir belum lengkap"' : ''}>Setuju &amp; Serahkan</button>
+      <form class="kj-tanya-isi" data-kj-review-ubah><input type="text" name="teks" placeholder="Yang perlu diubah…" aria-label="Yang perlu diubah"><button type="submit" class="btn tb">Minta ubah</button></form></div></section>`
+}
+
 /** Kartu Tugas di Plane: deskripsi tiket apa adanya, dipotong 170 px dengan buka/tutup. */
 function kartuTugas(d, buka) {
   const k = d.kerja
@@ -891,19 +988,7 @@ function kartuBukti(d, kode, buka) {
       : kode?.diRemote === false
         ? '<span class="warn-t">! belum di-push</span>'
         : 'commit'
-  const kriteria = (k.verifikasi ?? [])
-    .map((x) => {
-      const [t, kelas] = TANDA_CEK[x.hasil] ?? TANDA_CEK.belum
-      const { teks, berkas } = pisahBukti(x.bukti)
-      const mini = berkas
-        .map(
-          (f) =>
-            `<a class="kj-mini" href="/kerja/${esc(k.key)}/${esc(f)}" target="_blank" rel="noopener" title="${esc(f)}" aria-label="Buka bukti ${esc(f)}"><img src="/kerja/${esc(k.key)}/${esc(f)}" alt="" loading="lazy"><span class="perbesar" aria-hidden="true">⤢</span></a>`,
-        )
-        .join('')
-      return `<li><span class="${kelas}" aria-label="${esc(x.hasil)}">${t}</span><div><div class="t">${esc(x.kriteria)}</div>${teks ? `<div class="b">${esc(teks)}</div>` : ''}${mini ? `<div class="kj-mini-baris">${mini}</div>` : ''}</div></li>`
-    })
-    .join('')
+  const kriteria = daftarKriteria(k)
   const baris = (id, label, isi) =>
     `<a class="kj-bukti-baris" href="#/kerja/${esc(k.key)}/${id}" data-kj-ke="${id}"><span class="db-eyebrow">${label}</span>${isi}<span class="dim kj-panah" aria-hidden="true">›</span></a>`
   return `<div class="kartu glass kj-ring-kartu"><h2>Bukti</h2>
@@ -1065,7 +1150,7 @@ export function ringkasanKerja(
   modeSesi = 'terminal',
   serah = null,
 ) {
-  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${kartuSerah(serah)}${kartuKeputusan(d.kerja)}
+  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${d.butuh?.titik === 'B' ? paketReview(d, kode) : ''}${kartuSerah(serah)}${kartuKeputusan(d.kerja)}
     <div class="kj-ringkas-kolom"><div class="kj-ringkas-kiri">${kartuTugas(d, buka)}${kartuDilakukan(d, kode, buka)}</div>
     <div class="kj-ringkas-kanan">${kartuBukti(d, kode, buka)}${riwayatTerbaru(d.kerja)}</div></div></section>`
 }

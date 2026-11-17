@@ -105,6 +105,13 @@ bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk me
 
 Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan daftar alasannya. Mundur selalu boleh.
 
+## Dashboard, Statistik, dan review
+
+- **Dashboard** (`#/dasbor`) = apa yang harus kamu lakukan: strip mini (3 slot + komputer, klik ke Workspace), tiga lajur **Butuh kamu · AI sedang jalan · Menunggu pihak lain** (plus Antre dan Ditunda), angka tindakan (Butuh kamu, slot terpakai, CI merah, cek staging terbuka, tugas Plane belum diambil), dan temuan terbaru.
+- **Butuh kamu** memberi satu aksi per tiket: Jawab · Buka terminal · Jalankan Pahami · ◆A Setujui & Kerjakan · ◆B Review · ◆C Jalankan Serahkan / Push / Salin deskripsi MR · ◆D Plane. Tiket yang sudah di-push dan ber-MR dengan cek staging terbuka pindah ke **Menunggu pihak lain**.
+- **Statistik** (`#/statistik`) = tren: tugas Plane, sedang dikerjakan, heatmap jalan skenario, produktivitas uji, radar per grup, aktivitas.
+- **Paket review ◆B** muncul di Ringkasan Kerja saat hasil siap direview: kriteria + bukti di kiri; di kanan *Yang perlu kamu perhatikan* (keputusan yang diambil AI sendiri, kriteria belum lulus, peringatan gerbang, bagian catatan **Perlu diperhatikan**) dan perubahan kode per lapisan; di atas status gerbang fokus/CI dan catatan akhir. **Setuju & Serahkan** mencatat keputusan, memajukan tahap ke Didokumentasikan, dan menjalankan fase Serahkan; **Minta ubah** mencatat permintaan ubah ◆B dan menjalankan fase Lanjutkan.
+
 ## Slot dan Workspace
 
 Tiga slot v2 untuk kerja paralel (`docs/RANCANGAN-KERJA-V2.md` §7):

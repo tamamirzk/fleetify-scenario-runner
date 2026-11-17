@@ -6529,9 +6529,10 @@ details.kj-tiket > summary h2 {
 .kj-langkah {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* Langkah tidak terbungkus; bila sempit, ringkasan di kanan yang turun baris (utuh). */
+  flex-wrap: nowrap;
   gap: 4px;
-  flex: 1;
+  flex: 0 1 auto;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -6575,7 +6576,13 @@ details.kj-tiket > summary h2 {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 16px;
+  margin-left: auto;
   font-size: var(--sr-text-sm);
+}
+@media (max-width: 900px) {
+  .kj-langkah {
+    flex-wrap: wrap;
+  }
 }
 
 /* Dua kolom ringkasan */
@@ -8069,6 +8076,119 @@ details.kj-tiket > summary h2 {
   .ws-meter-baris,
   .ws-slot-baris,
   .ws-bawah {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard tindakan (R-9.1): strip mini, tiga lajur, angka tindakan */
+.db-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  color: inherit;
+  text-decoration: none;
+  font-size: var(--sr-text-sm);
+}
+.db-strip:hover {
+  border-color: var(--sr-line-strong);
+}
+.db-mini-kom {
+  margin-left: auto;
+}
+.db-lajur3 {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 3fr);
+  gap: 12px;
+}
+.db-lajur-kolom {
+  min-width: 0;
+}
+.db-angka-baris {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.db-angka {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+}
+.db-angka-k {
+  font-size: var(--sr-text-xs);
+  color: var(--sr-text-2);
+}
+.db-angka-v {
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.db-angka-ket {
+  font-size: var(--sr-text-xs);
+}
+@media (max-width: 1100px) {
+  .db-lajur3 {
+    grid-template-columns: 1fr;
+  }
+  .db-angka-baris {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Paket review ◆B (R-9.2) */
+.kj-review {
+  padding: 14px 20px;
+  border-color: var(--sr-info-line, var(--sr-line-strong));
+}
+.kj-review-isi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 12px;
+}
+.kj-review-h {
+  margin: 0 0 8px;
+  font-size: var(--sr-text-sm);
+  font-weight: 600;
+}
+.kj-review-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sr-text-sm);
+}
+.kj-review-catatan {
+  margin-bottom: 12px;
+  font-size: var(--sr-text-sm);
+}
+.kj-review-kode {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sr-text-sm);
+}
+.kj-review-kode li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+}
+.kj-review-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+@media (max-width: 900px) {
+  .kj-review-isi {
     grid-template-columns: 1fr;
   }
 }

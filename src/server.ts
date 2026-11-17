@@ -7,8 +7,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
-import { butuhKamu } from './core/butuh-kamu.ts'
-import { jawabPertanyaan, renderCatatan } from './core/catatan.ts'
+import { butuhKamu, lajurKerja } from './core/butuh-kamu.ts'
+import { bagianPerhatian, jawabPertanyaan, renderCatatan } from './core/catatan.ts'
 import { config, ROOT } from './core/config.ts'
 import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
@@ -42,6 +42,7 @@ import {
   pilihanSlotKerja,
   potretKerja,
   pushKerja,
+  reviewKerja,
   sesiTerkini,
   setTahap,
   simpanLinkMr,
@@ -527,6 +528,7 @@ async function detailKerja(key: string) {
       brief: periksaCatatanKerja(key, 'brief'),
       akhir: periksaCatatanKerja(key, 'akhir'),
     },
+    perhatian: bagianPerhatian(bacaBerkasKerja(key, 'catatan.md')),
     butuh: butuhKamu(k, {
       brief: periksaCatatanKerja(key, 'brief'),
       akhir: periksaCatatanKerja(key, 'akhir'),
@@ -726,6 +728,24 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     lepasSlotKerja(key)
     return detailKerja(key)
   }
+  if (aksi === 'review') {
+    // ◆B (R-9.2): Setuju → Didokumentasikan lalu fase Serahkan; Minta ubah → fase Lanjutkan.
+    const setuju = body.setuju === true
+    const teks = String(body.teks ?? '')
+    try {
+      const r = reviewKerja(key, setuju, teks)
+      if (body.jalankan !== false)
+        await jalankanFase(key, setuju ? 'serahkan' : 'lanjut', 'terminal', {
+          port: config.port,
+          teks: setuju
+            ? undefined
+            : `Minta ubah #${r.mintaUbah} dari review Tams: ${teks}. Setelah dikerjakan: bun run kerja ubah-selesai ${key} ${r.mintaUbah}.`,
+        }).then(({ cara }) => (cara === 'dimulai' ? bukaTerminal(key) : undefined))
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
   if (aksi === 'tunda') {
     tundaKerja(key, body.tunda !== false, String(body.alasan ?? ''))
     return detailKerja(key)
@@ -905,16 +925,17 @@ const routes: Record<string, Handler> = {
       adaCatatan: (key) => bacaBerkasKerja(key, 'catatan.md') !== null,
       memotret: potretBerjalan,
     })
-    // Lajur "Butuh kamu" (R-5.2): satu butir per kerja yang menunggu Tams, dengan aksi utamanya.
-    const butuh = daftarKerja()
-      .map((k) =>
-        butuhKamu(k, {
-          brief: periksaCatatanKerja(k.key, 'brief'),
-          akhir: periksaCatatanKerja(k.key, 'akhir'),
-        }),
-      )
-      .filter((b) => b !== null)
-    const bekerja = daftarKerja()
+    // Lajur tindakan (R-9.1): tiap kerja di satu lajur; Butuh kamu membawa aksi utamanya (R-5.2).
+    const posisi = daftarKerja().map((k) =>
+      lajurKerja(k, {
+        brief: periksaCatatanKerja(k.key, 'brief'),
+        akhir: periksaCatatanKerja(k.key, 'akhir'),
+      }),
+    )
+    const di = (l: string) => posisi.filter((x) => x.lajur === l)
+    const butuh = di('butuh').map((x) => x.butuh)
+    const semuaKerja = daftarKerja()
+    const bekerja = semuaKerja
       .filter((k) => k.sesi?.status === 'bekerja')
       .map((k) => ({
         key: k.key,
@@ -922,11 +943,49 @@ const routes: Record<string, Handler> = {
         fase: k.sesi?.fase,
         mode: k.sesi?.mode,
         at: k.sesi?.at,
+        slot: k.slot ?? null,
       }))
-    const ditunda = daftarKerja()
-      .filter((k) => k.ditunda && k.tahap !== 'selesai')
-      .map((k) => ({ key: k.key, judul: k.judul, alasan: k.ditunda?.alasan ?? null }))
-    return { ...dasbor, butuhKamu: butuh, aiBekerja: bekerja, ditunda }
+    const ditunda = di('ditunda').map((x) => ({ key: x.key, judul: x.judul, alasan: x.alasan }))
+    // Strip mini: slot (pemakai, server, sesi) dan ringkasan komputer (R-9.1, R-7.9).
+    const pemakai = pemakaiSlot()
+    const slotMini = semuaSlot().map((d) => {
+      const k = keadaanSlot(d)
+      const p = pemakai.get(d.n) ?? []
+      const sesi =
+        p.map((x) => semuaKerja.find((y) => y.key === x.key)?.sesi?.status).find(Boolean) ?? null
+      return { n: d.n, pemakai: p.map((x) => x.key), api: k.api, web: k.web, sesi }
+    })
+    const km = bacaKomputer(semuaSlot().map((d) => [`Slot ${d.n}`, d.worktree]))
+    const angka = {
+      butuh: butuh.length,
+      slotTerpakai: slotMini.filter((x) => x.pemakai.length).length,
+      ciMerah: semuaKerja.filter((k) => k.tahap !== 'selesai' && k.gerbang?.ci?.hasil === 'gagal')
+        .length,
+      stagingTerbuka: semuaKerja.reduce(
+        (n, k) => n + (k.push ? k.cekStaging.filter((c) => !c.selesai).length : 0),
+        0,
+      ),
+      antre: di('antre').length,
+    }
+    return {
+      ...dasbor,
+      butuhKamu: butuh,
+      aiBekerja: bekerja,
+      pihakLain: di('pihak-lain').map((x) => ({ key: x.key, judul: x.judul, alasan: x.alasan })),
+      antre: di('antre').map((x) => ({ key: x.key, judul: x.judul })),
+      ditunda,
+      angka,
+      mini: {
+        slot: slotMini,
+        komputer: {
+          beban: km.cpu.beban,
+          core: km.cpu.core,
+          memoriBebas: km.memori.bebasPersen,
+          diskSisa: km.disk.sisaGiB,
+          peringatan: km.peringatan.length,
+        },
+      },
+    }
   },
   'GET /api/state': async () => ({ ...snapshot(), logs }),
   'GET /api/runs': async (_b, url) => listRuns(url.searchParams.get('scenario') || undefined),

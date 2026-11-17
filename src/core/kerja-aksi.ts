@@ -6,6 +6,8 @@ import {
   type DataCatatan,
   periksaCatatan,
   ringkasPeriksaCatatan,
+  tambahKeputusan,
+  tambahMintaUbah,
   templatCatatan,
 } from './catatan.ts'
 import { config, ROOT } from './config.ts'
@@ -494,4 +496,31 @@ export function lepasSlotKerja(key: string): Kerja {
   const k2 = pindahTahap({ ...k, slot: null }, k.tahap, `Slot ${k.slot ?? '-'} dilepas`)
   simpanKerja(k2)
   return k2
+}
+
+/**
+ * Keputusan review ◆B (R-9.2). Setuju: dicatat sebagai keputusan Tams dan tahap maju ke
+ * Didokumentasikan (gerbang catatan akhir tetap berlaku). Minta ubah: dicatat sebagai permintaan
+ * ubah ◆B. Menjalankan fase berikutnya dilakukan pemanggil (panel).
+ */
+export function reviewKerja(
+  key: string,
+  setuju: boolean,
+  teks = '',
+): { kerja: Kerja; mintaUbah?: number } {
+  if (setuju) {
+    ubahDataCatatan(key, (d) =>
+      tambahKeputusan(d, `Hasil disetujui (◆B)${teks.trim() ? `: ${teks.trim()}` : ''}`, 'tams'),
+    )
+    const k = bacaKerja(key)
+    return {
+      kerja:
+        k.tahap === 'didokumentasikan'
+          ? k
+          : setTahap(key, 'didokumentasikan', 'Hasil disetujui Tams (◆B)'),
+    }
+  }
+  if (!teks.trim()) throw new Error('Tulis apa yang perlu diubah')
+  const k = ubahDataCatatan(key, (d) => tambahMintaUbah(d, teks, 'B'))
+  return { kerja: k, mintaUbah: k.mintaUbah.at(-1)?.id }
 }

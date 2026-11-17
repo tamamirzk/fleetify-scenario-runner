@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { butuhKamu } from '../src/core/butuh-kamu.ts'
+import { butuhKamu, lajurKerja } from '../src/core/butuh-kamu.ts'
+import type { HasilGerbang } from '../src/core/gerbang.ts'
 import type { Kerja } from '../src/core/kerja.ts'
 import {
   argsClaude,
@@ -178,5 +179,85 @@ describe('butuh kamu (R-5.2)', () => {
     expect(butuhKamu(kerja({ tahap: 'diverifikasi' }), { brief: ok, akhir: ok })?.titik).toBe('B')
     expect(butuhKamu(kerja({ tahap: 'selesai' }), { brief: ok, akhir: ok })).toBeNull()
     expect(butuhKamu(kerja({ ditunda: { at: '' } }), { brief: belum, akhir: belum })).toBeNull()
+  })
+})
+
+describe('lajur Dashboard (R-9.1)', () => {
+  const ok = { ok: true, masalah: [] }
+  const kerja = (o: Partial<Kerja>) =>
+    ({
+      key: 'FMS-9',
+      judul: 'J',
+      tahap: 'didokumentasikan',
+      commit: ['abc'],
+      pertanyaan: [],
+      mintaUbah: [],
+      keputusan: [],
+      cekStaging: [],
+      ...o,
+    }) as Kerja
+  const push = { at: '', branch: 'feat/x', head: 'h', remote: null, jumlah: 1 }
+
+  it('◆C: CI belum → jalankan Serahkan; CI hijau → Push; sesudah push tanpa MR → buat MR', () => {
+    expect(butuhKamu(kerja({}), { brief: ok, akhir: ok })).toMatchObject({
+      titik: 'C',
+      aksi: { fase: 'serahkan' },
+    })
+    const ci = {
+      tingkat: 'ci',
+      hasil: 'lulus',
+      at: '',
+      head: 'h',
+      detik: 1,
+      langkah: [],
+      log: '',
+      catatan: [],
+    } satisfies HasilGerbang
+    expect(butuhKamu(kerja({ gerbang: { ci } }), { brief: ok, akhir: ok })?.aksi.label).toBe('Push')
+    expect(butuhKamu(kerja({ push }), { brief: ok, akhir: ok })?.aksi.label).toBe(
+      'Salin deskripsi MR',
+    )
+  })
+
+  it('MR ada + cek staging terbuka → Menunggu pihak lain; semua tercentang → ◆D', () => {
+    const cek = [
+      { id: 1, teks: 'migrasi', selesai: null },
+      { id: 2, teks: 'rbac', selesai: '2026' },
+    ]
+    const l = lajurKerja(kerja({ push, mr: 'https://x', cekStaging: cek }), {
+      brief: ok,
+      akhir: ok,
+    })
+    expect(l).toMatchObject({
+      lajur: 'pihak-lain',
+      alasan: 'MR menunggu merge/deploy · cek staging 1/2',
+    })
+    const d = lajurKerja(
+      kerja({ push, mr: 'https://x', cekStaging: [{ id: 1, teks: 'x', selesai: '2026' }] }),
+      { brief: ok, akhir: ok },
+    )
+    expect(d.butuh?.titik).toBe('D')
+  })
+
+  it('ditunda, antre, AI bekerja, selesai', () => {
+    expect(lajurKerja(kerja({ ditunda: { at: '' } }), { brief: ok, akhir: ok }).lajur).toBe(
+      'ditunda',
+    )
+    expect(lajurKerja(kerja({ tahap: 'selesai' }), { brief: ok, akhir: ok }).lajur).toBe('selesai')
+    const sesi = {
+      id: 'i',
+      fase: 'kerjakan' as const,
+      mode: 'terminal' as const,
+      status: 'bekerja' as const,
+      mulai: '',
+      at: '',
+    }
+    expect(lajurKerja(kerja({ sesi }), { brief: ok, akhir: ok }).lajur).toBe('ai')
+    expect(
+      lajurKerja(kerja({ tahap: 'dikerjakan', commit: [], antre: { at: '' } }), {
+        brief: ok,
+        akhir: { ok: false, masalah: ['x'] },
+      }).lajur,
+    ).toBe('butuh')
   })
 })
