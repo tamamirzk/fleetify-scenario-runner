@@ -145,6 +145,8 @@ export interface Kerja {
   push?: { at: string; branch: string; head: string; remote: string | null; jumlah: number }
   /** Link MR yang ditempel Tams. */
   mr?: string
+  /** MR sudah di-merge ke development (dideteksi dari git): batas tugas Tams (K19). */
+  merge?: { at: string; head: string }
   /** Slot kerja paralel yang dipakai (1–3); kosong = tidak memegang slot (R-7.1). */
   slot?: number | null
   /** Tiket menunggu slot kosong (lajur Antre); urutan menurut waktu. */

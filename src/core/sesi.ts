@@ -52,7 +52,7 @@ export function promptFase(
     case 'kerjakan':
       return `/kerjakan ${key} — fase KERJAKAN: baca jawaban dan keputusan Tams ("bun run kerja catatan ${key} --render"), implementasi di worktree, "bun run kerja gerbang ${key} fokus", verifikasi tiap kriteria, "kerja kesehatan" lalu potret sesudah, isi "Yang dikerjakan". Selesai bila "bun run kerja catatan ${key} akhir" ✓. ${umum}`
     case 'serahkan':
-      return `/kerjakan ${key} — fase SERAHKAN: merge origin/development ke branch kerja, "bun run kerja gerbang ${key} ci" sampai ✓ atau !, tambah daftar cek staging ("kerja staging ${key} tambah"), lalu panen dokumentasi ke docs-site ("bun run kerja panen ${key} --tulis"; check-v2 harus lulus, jangan commit fleetify-ops). Jangan push. ${umum}`
+      return `/kerjakan ${key} — fase SERAHKAN: merge origin/development ke branch kerja, "bun run kerja gerbang ${key} ci" sampai ✓ atau !, tambah catatan serah-terima untuk tim staging ("kerja staging ${key} tambah": migrasi, rls.sql, sync-rbac, uji di staging), lalu panen dokumentasi ke docs-site ("bun run kerja panen ${key} --tulis"; check-v2 harus lulus, jangan commit fleetify-ops). Jangan push. ${umum}`
     case 'lanjut':
       return `/kerjakan ${key} — lanjutkan dari keadaan di kerja.json. Arahan Tams: ${o.teks?.trim() || '(tanpa arahan tambahan)'}. ${umum}`
   }

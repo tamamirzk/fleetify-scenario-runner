@@ -97,7 +97,7 @@ bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk me
 | Keputusan | `keputusan[]` (+ jawaban pertanyaan) | `kerja putuskan KEY "…" --alasan "…" [--oleh ai\|tams]`; keputusan AI tampil "AI — tinjau" |
 | Minta ubah | `mintaUbah[]` | `kerja minta-ubah KEY A\|B "…"`, `kerja ubah-selesai KEY <no>` |
 | Verifikasi | `verifikasi[]` | `kerja cek …` (bagian "Verifikasi" tulisan lama diganti data) |
-| Setelah deploy | `cekStaging[]` | `kerja staging KEY tambah "…" \| centang <no> \| batal <no>` |
+| Catatan untuk tim staging | `cekStaging[]` (serah-terima, bukan tugasmu) | `kerja staging KEY tambah "…" \| centang <no> \| batal <no>` |
 
 **Gerbang catatan** (`kerja catatan KEY [brief|akhir]`, `--render` mencetak dokumennya):
 - **brief** (syarat maju ke Dikerjakan/Diverifikasi): Masalah & penyebab dan Rencana terisi, minimal satu kriteria.
@@ -107,8 +107,8 @@ Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan d
 
 ## Dashboard, Statistik, dan review
 
-- **Dashboard** (`#/dasbor`) = apa yang harus kamu lakukan: strip mini (3 slot + komputer, klik ke Workspace), tiga lajur **Butuh kamu · AI sedang jalan · Menunggu pihak lain** (plus Antre dan Ditunda), angka tindakan (Butuh kamu, slot terpakai, CI merah, cek staging terbuka, tugas Plane belum diambil), dan temuan terbaru.
-- **Butuh kamu** memberi satu aksi per tiket: Jawab · Buka terminal · Jalankan Pahami · ◆A Setujui & Kerjakan · ◆B Review · ◆C Jalankan Serahkan / Push / Salin deskripsi MR · ◆D Plane. Tiket yang sudah di-push dan ber-MR dengan cek staging terbuka pindah ke **Menunggu pihak lain**.
+- **Dashboard** (`#/dasbor`) = apa yang harus kamu lakukan: strip mini (3 slot + komputer, klik ke Workspace), tiga lajur **Butuh kamu · AI sedang jalan · Menunggu pihak lain** (plus Antre dan Ditunda), angka tindakan (Butuh kamu, slot terpakai, CI merah, MR menunggu merge, tugas Plane belum diambil), dan temuan terbaru.
+- **Butuh kamu** memberi satu aksi per tiket: Jawab · Buka terminal · Jalankan Pahami · ◆A Setujui & Kerjakan · ◆B Review · ◆C Jalankan Serahkan / Push / Salin deskripsi MR · ◆D Plane **Code Complete** → Selesai. Tiket yang sudah di-push dan ber-MR pindah ke **Menunggu pihak lain** sampai MR di-merge ke `development`; panel mendeteksi merge sendiri (commit push ada di `origin/development`). **Tugasmu berhenti di merge ke development** — deploy dan cek staging dikerjakan tim lain (K19).
 - **Statistik** (`#/statistik`) = tren: tugas Plane, sedang dikerjakan, heatmap jalan skenario, produktivitas uji, radar per grup, aktivitas.
 - **Paket review ◆B** muncul di Ringkasan Kerja saat hasil siap direview: kriteria + bukti di kiri; di kanan *Yang perlu kamu perhatikan* (keputusan yang diambil AI sendiri, kriteria belum lulus, peringatan gerbang, bagian catatan **Perlu diperhatikan**) dan perubahan kode per lapisan; di atas status gerbang fokus/CI dan catatan akhir. **Setuju & Serahkan** mencatat keputusan, memajukan tahap ke Didokumentasikan, dan menjalankan fase Serahkan; **Minta ubah** mencatat permintaan ubah ◆B dan menjalankan fase Lanjutkan.
 

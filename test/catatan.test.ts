@@ -159,7 +159,7 @@ Merge.
       'Keputusan',
       'Yang dikerjakan',
       'Verifikasi',
-      'Setelah deploy',
+      'Catatan untuk tim staging',
       'Merge development',
     ])
     expect(r).toContain('- ○ **#1** Pakai template? — usulan: Ya')

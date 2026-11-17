@@ -177,7 +177,7 @@ export function jenisBagian(judul: string): JenisBagian {
   if (/^(perlu diperhatikan|yang perlu kamu perhatikan|risiko)/.test(j)) return 'perhatian'
   if (/^verifikasi/.test(j)) return 'verifikasi'
   if (/^kendala/.test(j)) return 'kendala'
-  if (/^setelah (merge|deploy)|^pasca/.test(j)) return 'deploy'
+  if (/^setelah (merge|deploy)|^pasca|^catatan untuk tim staging/.test(j)) return 'deploy'
   return 'lain'
 }
 
@@ -380,7 +380,7 @@ export function renderCatatan(o: {
   const daftarStaging = o.data.cekStaging
     .map((c) => `- ${c.selesai ? '✓' : '○'} ${c.teks}`)
     .join('\n')
-  tulis('Setelah deploy', [prosa('deploy'), daftarStaging].filter(Boolean).join('\n\n'))
+  tulis('Catatan untuk tim staging', [prosa('deploy'), daftarStaging].filter(Boolean).join('\n\n'))
 
   for (const b of ambil('lain')) tulis(b.judul, tanpaKomentar(b.isi))
   return `${keluar.join('\n\n')}\n`

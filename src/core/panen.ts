@@ -90,7 +90,7 @@ export function isiPanen(s: SumberPanen, tanggal: string): string {
         .join('\n'),
     ],
     [
-      'Setelah deploy',
+      'Catatan untuk tim staging',
       s.data.cekStaging.map((c) => `- [${c.selesai ? 'x' : ' '}] ${c.teks}`).join('\n'),
     ],
   ]

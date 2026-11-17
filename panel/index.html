@@ -604,7 +604,9 @@ function dialogStatus(key) {
           : `<span class="warn-t">!</span> ${esc(key)} tidak ada di Tugas saya; status tersimpan: <b>${esc(sekarang)}</b>`
         const daftar = t.status ?? []
         const iKini = daftar.findIndex((s) => s.nama === sekarang)
-        const awal = daftar[iKini + 1] && !daftar[iKini + 1].selesai ? daftar[iKini + 1] : daftar.find((s) => s.nama !== sekarang)
+        // Batas tugas Tams = MR di-merge ke development → Code Complete (K19); bila tidak ada, status berikutnya.
+        const cc = daftar.find((s) => /^code complete$/i.test(s.nama) && s.nama !== sekarang)
+        const awal = cc ?? (daftar[iKini + 1] && !daftar[iKini + 1].selesai ? daftar[iKini + 1] : daftar.find((s) => s.nama !== sekarang))
         opsi.innerHTML = `<legend class="db-eyebrow">Status baru</legend>${daftar
           .map((s) => {
             const ini = s.nama === sekarang

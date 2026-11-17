@@ -37,7 +37,7 @@ import { metrikKerja, tokenSesi } from './metrik.ts'
 import { MODUL_V2, panen, tebakModul } from './panen.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
 import { potret } from './potret.ts'
-import { deskripsiMr, keadaanGit, pushBranch, syaratPush } from './serah.ts'
+import { deskripsiMr, keadaanGit, pushBranch, sudahDiMerge, syaratPush } from './serah.ts'
 import {
   argsClaude,
   type FaseSesi,
@@ -571,4 +571,24 @@ export function panenKerja(key: string, o: { modul?: string; tulis: boolean }) {
 /** Metrik semua kerja (R-9.3): lama per tahap, kerja ulang, token sesi Claude dari panel. */
 export function semuaMetrik() {
   return daftarKerja().map((k) => metrikKerja(k, tokenSesi(k.sesi?.id)))
+}
+
+/**
+ * Tandai kerja yang MR-nya sudah di-merge ke development (K19): commit push ada di
+ * origin/development. Dipanggil Dashboard; git fetch dibatasi di sudahDiMerge.
+ */
+export function periksaMergeSemua(): string[] {
+  const baru: string[] = []
+  for (const k of daftarKerja()) {
+    if (!k.push || k.merge || k.tahap === 'selesai') continue
+    if (!sudahDiMerge(worktreeKerja(k), k.push.head)) continue
+    const k2 = pindahTahap(
+      { ...k, merge: { at: new Date().toISOString(), head: k.push.head } },
+      k.tahap,
+      `MR di-merge ke development (${k.push.head.slice(0, 8)}): tugas Tams tinggal Plane Code Complete`,
+    )
+    simpanKerja(k2)
+    baru.push(k.key)
+  }
+  return baru
 }

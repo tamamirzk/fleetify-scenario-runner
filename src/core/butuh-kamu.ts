@@ -53,8 +53,17 @@ export function butuhKamu(k: Kerja, periksa: Periksa): ButuhKamu | null {
           ? { jenis: 'terminal', label: 'Buka terminal' }
           : { jenis: 'buka', label: 'Lihat hasil' },
     }
-  // Sesudah push: buat MR (C), lalu centang cek staging dan kirim Plane (D).
+  // Sesudah push: buat MR (C); setelah MR di-merge ke development, kirim Plane Code Complete (D).
+  // Deploy dan cek staging tugas tim lain (K19).
   if (k.push) {
+    if (k.merge)
+      return {
+        ...dasar,
+        titik: 'D',
+        alasan:
+          'MR sudah di-merge ke development: ubah status Plane ke Code Complete lalu tandai selesai',
+        aksi: { jenis: 'buka', label: 'Plane' },
+      }
     if (!k.mr)
       return {
         ...dasar,
@@ -62,15 +71,7 @@ export function butuhKamu(k: Kerja, periksa: Periksa): ButuhKamu | null {
         alasan: `Sudah di-push ke ${k.push.branch}: buat MR di GitLab lalu tempel link-nya`,
         aksi: { jenis: 'buka', label: 'Salin deskripsi MR' },
       }
-    const terbuka = k.cekStaging.filter((c) => !c.selesai).length
-    if (!terbuka)
-      return {
-        ...dasar,
-        titik: 'D',
-        alasan: 'Cek staging selesai: kirim komentar/status Plane lalu tandai selesai',
-        aksi: { jenis: 'buka', label: 'Plane' },
-      }
-    return null // menunggu merge/deploy: lajur pihak lain
+    return null // MR menunggu review/merge: lajur pihak lain
   }
   const awal = k.tahap === 'diambil' || k.tahap === 'dipelajari'
   if (awal && !periksa.brief.ok)
@@ -129,14 +130,12 @@ export function lajurKerja(k: Kerja, periksa: Periksa): PosisiLajur {
   if (b) return { ...dasar, lajur: 'butuh', alasan: b.alasan, butuh: b }
   if (k.sesi?.status === 'bekerja')
     return { ...dasar, lajur: 'ai', alasan: `Claude: ${k.sesi.fase} (${k.sesi.mode})` }
-  if (k.push) {
-    const terbuka = k.cekStaging.filter((c) => !c.selesai).length
+  if (k.push)
     return {
       ...dasar,
       lajur: 'pihak-lain',
-      alasan: `MR menunggu merge/deploy${k.cekStaging.length ? ` · cek staging ${k.cekStaging.length - terbuka}/${k.cekStaging.length}` : ''}`,
+      alasan: k.mr ? 'MR menunggu review/merge ke development' : 'Menunggu MR dibuat',
     }
-  }
   if (k.antre && !k.slot) return { ...dasar, lajur: 'antre', alasan: 'Menunggu slot kosong' }
   return { ...dasar, lajur: 'diam', alasan: 'Tidak ada langkah berikutnya yang jelas' }
 }

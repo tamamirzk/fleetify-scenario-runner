@@ -26,8 +26,8 @@ Latar: pada empat tiket meter (FMS-105/154/155/157), catatan tertinggal basi, CI
 ## 3. Fase dan titik sentuh
 
 ```
- AI     1. PAHAMI ──► 2. KERJAKAN ──► 3. SERAHKAN ──► 4. PASCA-DEPLOY
- Tams        ◆A setujui      ◆B review       ◆C izinkan push      ◆D centang staging
+ AI     1. PAHAMI ──► 2. KERJAKAN ──► 3. SERAHKAN ──► 4. MERGE (tim lain)
+ Tams        ◆A setujui      ◆B review       ◆C izinkan push      ◆D Plane Code Complete
              rencana         hasil           + Plane              → Selesai
 ```
 
@@ -36,7 +36,7 @@ Latar: pada empat tiket meter (FMS-105/154/155/157), catatan tertinggal basi, CI
 | 1. Pahami | Telusuri kode dan data; **ulangi klaim tiket di data**; potret sebelum | **Brief**: masalah & penyebab, kriteria → cara membuktikan, rencana per lapisan, risiko, pertanyaan + usulan jawaban | **◆A** Setujui / Minta ubah |
 | 2. Kerjakan | Kode di branch kerja; tes terfokus; verifikasi per kriteria; potret sesudah | Commit, bukti per kriteria, catatan "Yang dikerjakan" | **◆B** Setuju / Minta ubah |
 | 3. Serahkan | Merge `development`, gerbang CI penuh, deskripsi MR dari catatan, draf Plane, panen dokumentasi ke docs-site modul | Branch siap push | **◆C** Push (panel) → Tams buat MR di GitLab; kirim Plane |
-| 4. Pasca-deploy | Susun daftar cek staging | Daftar cek ○/✓ | **◆D** Centang semua → Selesai |
+| 4. Merge | Panel mendeteksi MR sudah di-merge ke `development` (commit push ada di `origin/development`) | Catatan serah-terima untuk tim staging | **◆D** Plane **Code Complete** → Selesai |
 
 - **R-3.1** ◆A wajib untuk tiket To Do. Tiket Ready in Staging melewati fase 2 (langsung verifikasi).
 - **R-3.2** Tiket kecil: ◆A boleh dilewati bila Brief tanpa pertanyaan; ◆B dan ◆C boleh digabung ("Setuju & push"). Tiket dengan migrasi, izin, atau perubahan API: semua titik wajib.
@@ -99,7 +99,7 @@ Port di atas bebas per 17 Nov 2026.
 
   Tiket dari Antre juga ditempatkan lewat pilihan yang sama (dari Workspace atau Dashboard).
 - **R-7.2** **Batas server dinamis berdasarkan tekanan memori**, bukan angka tetap. Panel **menolak menyalakan server slot baru** saat memori tertekan dan menyarankan slot diam mana yang dimatikan. Selebihnya panel hanya **menyarankan**, tidak mematikan otomatis. (Pengamatan 17 Nov: RAM 8 GiB sudah 94% terpakai sebelum ada slot.)
-- **R-7.3** Slot dilepas saat push di Serahkan selesai. Pasca-deploy tidak memakai slot. Satu klaster = satu slot.
+- **R-7.3** Slot dilepas saat push di Serahkan selesai. Menunggu merge tidak memakai slot. Satu klaster = satu slot.
 - **R-7.4** **Postgres 16 dan Redis berjalan native di Mac** (Homebrew); **Authentik tetap di Colima** dengan VM diperkecil. Postgres 14 Homebrew lama (rusak, tak dipakai v2) tidak disentuh.
 - **R-7.5** Database emas `fleetify_template` (seed MBL + data uji). Database slot di-reset dari template (`CREATE DATABASE … TEMPLATE`) saat tiket diambil.
 - **R-7.6** Halaman **Workspace** di panel:
@@ -124,11 +124,11 @@ Port di atas bebas per 17 Nov 2026.
 | `keputusan[]` | `{apa, siapa, kapan, alasan}` |
 | `pertanyaan[]` | `{teks, usulan[], jawaban, dijawabPada}`; tertutup saat dijawab |
 | `mintaUbah[]` | Catatan Tams dari ◆A/◆B |
-| `cekStaging[]` | `{teks, selesai}` |
+| `cekStaging[]` | `{teks, selesai}` — catatan serah-terima untuk tim staging (K19), bukan tugas Tams |
 | `mr` | Link MR yang ditempel Tams |
 | `metrik` | Lama per fase, jumlah kerja ulang, perkiraan token |
 
-- **R-8.1** Catatan adalah dokumen hidup dengan bentuk tetap: **Masalah & penyebab · Keputusan · Yang dikerjakan · Verifikasi · Kendala · Setelah deploy**. Verifikasi, Keputusan, dan Setelah deploy dirender dari data, sehingga tak bisa basi.
+- **R-8.1** Catatan adalah dokumen hidup dengan bentuk tetap: **Masalah & penyebab · Keputusan · Yang dikerjakan · Verifikasi · Kendala · Catatan untuk tim staging**. Verifikasi, Keputusan, dan Setelah deploy dirender dari data, sehingga tak bisa basi.
 - **R-8.2** Untuk tiket berbentuk keluhan, Brief wajib mencoba mengulang klaim di data dan mencatat hasilnya apa adanya, termasuk bila tak terulang.
 - **R-8.3** Saat Serahkan, bagian Keputusan dan Yang dikerjakan dipanen ke docs-site `fleetify-ops` halaman modul v2 terkait.
 - **R-8.4** Deskripsi MR dibuat otomatis dari catatan; tombol **Salin deskripsi MR** di panel.
@@ -174,6 +174,7 @@ Port di atas bebas per 17 Nov 2026.
 | K16 | 17 Nov | Tahap 5: Postgres 16 dan Redis native di port **5433** dan **6380** (Docker tetap 5432/6379 untuk Authentik dan v2-test); Redis native memakai `requirepass` yang sudah ada. Isolasi sesi antar-slot lewat **nama cookie per slot** (`SESSION_COOKIE_NAME`/`REFRESH_COOKIE_NAME` + `_slotN`), bukan nama host. API slot dipanggil langsung (proxy `/api` di `vite.config.ts` v2 selalu ke :3000). Slot terisi selalu bisa dipilih sebagai *gabung klaster*. VM Colima belum diperkecil: masih menampung DB v2-test sampai v2-test dipensiunkan |
 | K17 | 17 Nov | Tahap 6: lajur juga mencakup ◆C (Serahkan → Push → buat MR) dan ◆D (cek staging tercentang → Plane); "Menunggu pihak lain" = sudah di-push dan ber-MR dengan cek staging terbuka. Catatan mendapat bagian **Perlu diperhatikan** (sumber paket review). Tombol ◆B **Setuju & Serahkan** langsung menjalankan fase Serahkan; **Minta ubah** menjalankan fase Lanjutkan. Belum dikerjakan: gabungan ◆B+◆C untuk tiket kecil (R-3.2) dan pengaturan urutan Antre |
 | K18 | 17 Nov | Tahap 7: metrik = waktu kalender per tahap dari riwayat, kerja ulang (tahap mundur, minta ubah, CI gagal), token dari transkrip sesi Claude yang dijalankan dari panel (sesi chat VS Code tidak terhubung ke tiket). Panen ke `database/v2/<modul>/progres-plane/<kunci>.md` + `00-indeks-kerja.md` (preseden folder progres-plane); `alur.md`/`status.md` yang dikurasi tidak disentuh; commit fleetify-ops oleh Tams |
+| K19 | 17 Nov | **Tugas Tams berhenti saat MR di-merge ke `development`**; deploy dan pengecekan staging dikerjakan tim lain. Fase 4 menjadi *Merge*: panel mendeteksi merge sendiri, lalu ◆D = kirim Plane **Code Complete** → Selesai. `cekStaging` menjadi catatan serah-terima untuk tim staging (deskripsi MR, panen docs), bukan gerbang atau angka tugas. Menggantikan ◆D di K1 dan K17 |
 
 ## 12. Tidak termasuk
 

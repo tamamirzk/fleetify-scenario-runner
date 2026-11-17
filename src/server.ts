@@ -40,6 +40,7 @@ import {
   panenKerja,
   pemakaiSlot,
   periksaCatatanKerja,
+  periksaMergeSemua,
   pilihanSlotKerja,
   potretKerja,
   pushKerja,
@@ -946,6 +947,8 @@ const routes: Record<string, Handler> = {
       adaCatatan: (key) => bacaBerkasKerja(key, 'catatan.md') !== null,
       memotret: potretBerjalan,
     })
+    // MR yang sudah di-merge ke development memindah tiket ke langkah terakhir (K19).
+    periksaMergeSemua()
     // Lajur tindakan (R-9.1): tiap kerja di satu lajur; Butuh kamu membawa aksi utamanya (R-5.2).
     const posisi = daftarKerja().map((k) =>
       lajurKerja(k, {
@@ -982,10 +985,7 @@ const routes: Record<string, Handler> = {
       slotTerpakai: slotMini.filter((x) => x.pemakai.length).length,
       ciMerah: semuaKerja.filter((k) => k.tahap !== 'selesai' && k.gerbang?.ci?.hasil === 'gagal')
         .length,
-      stagingTerbuka: semuaKerja.reduce(
-        (n, k) => n + (k.push ? k.cekStaging.filter((c) => !c.selesai).length : 0),
-        0,
-      ),
+      menungguMerge: semuaKerja.filter((k) => k.push && !k.merge && k.tahap !== 'selesai').length,
       antre: di('antre').length,
     }
     return {

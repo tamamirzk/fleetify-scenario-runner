@@ -219,24 +219,26 @@ describe('lajur Dashboard (R-9.1)', () => {
     )
   })
 
-  it('MR ada + cek staging terbuka → Menunggu pihak lain; semua tercentang → ◆D', () => {
-    const cek = [
-      { id: 1, teks: 'migrasi', selesai: null },
-      { id: 2, teks: 'rbac', selesai: '2026' },
-    ]
+  it('K19: MR belum di-merge → Menunggu pihak lain (cek staging bukan tugas Tams); sudah di-merge → ◆D Plane Code Complete', () => {
+    const cek = [{ id: 1, teks: 'migrasi di staging', selesai: null }]
     const l = lajurKerja(kerja({ push, mr: 'https://x', cekStaging: cek }), {
       brief: ok,
       akhir: ok,
     })
     expect(l).toMatchObject({
       lajur: 'pihak-lain',
-      alasan: 'MR menunggu merge/deploy · cek staging 1/2',
+      alasan: 'MR menunggu review/merge ke development',
     })
     const d = lajurKerja(
-      kerja({ push, mr: 'https://x', cekStaging: [{ id: 1, teks: 'x', selesai: '2026' }] }),
+      kerja({ push, mr: 'https://x', cekStaging: cek, merge: { at: '', head: 'h' } }),
       { brief: ok, akhir: ok },
     )
-    expect(d.butuh?.titik).toBe('D')
+    expect(d.butuh).toMatchObject({ titik: 'D', aksi: { label: 'Plane' } })
+    expect(d.butuh?.alasan).toContain('Code Complete')
+    // Sudah di-merge walau link MR belum ditempel: tetap langkah terakhir, bukan "buat MR".
+    expect(
+      butuhKamu(kerja({ push, merge: { at: '', head: 'h' } }), { brief: ok, akhir: ok })?.titik,
+    ).toBe('D')
   })
 
   it('ditunda, antre, AI bekerja, selesai', () => {

@@ -97,9 +97,11 @@ export function deskripsiMr(o: {
     out.push(
       `### Commit\n\n${o.commit.map((c) => `- \`${c.sha.slice(0, 8)}\` ${c.judul}`).join('\n')}`,
     )
+  // Serah-terima: deploy dan cek staging dikerjakan tim lain (K19).
   const staging = o.tiket.flatMap((t) => t.data.cekStaging.map((c) => c.teks))
   const unik = [...new Set(staging)]
-  if (unik.length) out.push(`### Setelah deploy\n\n${unik.map((c) => `- [ ] ${c}`).join('\n')}`)
+  if (unik.length)
+    out.push(`### Catatan untuk tim staging\n\n${unik.map((c) => `- [ ] ${c}`).join('\n')}`)
   const g = o.gerbangCi
   if (g) {
     const catatan = g.langkah
@@ -148,4 +150,19 @@ export function keadaanGit(dir: string): KeadaanGit {
 export function pushBranch(dir: string, branch: string, adaUpstream: boolean) {
   const r = git(dir, ['push', ...(adaUpstream ? [] : ['-u']), 'origin', branch])
   return { ok: r.kode === 0, keluaran: `${r.out}\n${r.err}`.trim() }
+}
+
+const fetchTerakhir = new Map<string, number>()
+
+/**
+ * Apakah commit push sudah ada di origin/development (MR di-merge, K19)? `git fetch` dibatasi
+ * sekali per 3 menit per repo supaya Dashboard tetap cepat.
+ */
+export function sudahDiMerge(dir: string, head: string, kini = Date.now()): boolean {
+  const akar = git(dir, ['rev-parse', '--git-common-dir']).out || dir
+  if (kini - (fetchTerakhir.get(akar) ?? 0) > 180_000) {
+    git(dir, ['fetch', '-q', 'origin', 'development'])
+    fetchTerakhir.set(akar, kini)
+  }
+  return git(dir, ['merge-base', '--is-ancestor', head, 'origin/development']).kode === 0
 }

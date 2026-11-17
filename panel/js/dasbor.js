@@ -552,7 +552,7 @@ export function angkaTindakan(d) {
     ${tile('Butuh kamu', a.butuh ?? 0, 'tiket menunggu keputusanmu', a.butuh ? 'warn-t' : '')}
     ${tile('Slot terpakai', `${a.slotTerpakai ?? 0}/3`, 'maks. 3 tiket aktif', '', '#/workspace')}
     ${tile('CI merah', a.ciMerah ?? 0, 'gerbang CI gagal', a.ciMerah ? 'bad-t' : '')}
-    ${tile('Cek staging terbuka', a.stagingTerbuka ?? 0, 'setelah merge dan deploy', a.stagingTerbuka ? 'warn-t' : '')}
+    ${tile('MR menunggu merge', a.menungguMerge ?? 0, 'review/merge ke development oleh tim')}
     ${tile('Tugas Plane', t ? belumAmbil : '–', t ? `${t.terbuka} terbuka · belum diambil` : `Isi <code>PLANE_API_KEY</code> di <code>.env</code>`, '', '#/tugas')}
   </div>`
 }
