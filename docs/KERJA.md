@@ -87,6 +87,24 @@ bun run kerja plane FMS-87 komentar "catatan"  # pratinjau; tambah --ya untuk me
 bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk memindah
 ```
 
+## Catatan: dokumen hidup
+
+`catatan.md` hanya berisi bagian **tulisan**: Masalah & penyebab, Rencana, Yang dikerjakan, Kendala (kerangkanya dibuat saat `ambil`). Bagian **data** disimpan di `kerja.json` dan dirender ke catatan yang tampil di panel, sehingga tidak bisa basi:
+
+| Bagian | Sumber | Perintah |
+|---|---|---|
+| Pertanyaan terbuka | `pertanyaan[]` | `kerja tanya KEY "…" --usul "a"`; dijawab di panel (kartu **Butuh keputusanmu**) atau `kerja jawab KEY <no> "…"` |
+| Keputusan | `keputusan[]` (+ jawaban pertanyaan) | `kerja putuskan KEY "…" --alasan "…" [--oleh ai\|tams]`; keputusan AI tampil "AI — tinjau" |
+| Minta ubah | `mintaUbah[]` | `kerja minta-ubah KEY A\|B "…"`, `kerja ubah-selesai KEY <no>` |
+| Verifikasi | `verifikasi[]` | `kerja cek …` (bagian "Verifikasi" tulisan lama diganti data) |
+| Setelah deploy | `cekStaging[]` | `kerja staging KEY tambah "…" \| centang <no> \| batal <no>` |
+
+**Gerbang catatan** (`kerja catatan KEY [brief|akhir]`, `--render` mencetak dokumennya):
+- **brief** (syarat maju ke Dikerjakan/Diverifikasi): Masalah & penyebab dan Rencana terisi, minimal satu kriteria.
+- **akhir** (syarat maju ke Didokumentasikan/Selesai): Masalah & penyebab dan Yang dikerjakan terisi, semua kriteria sudah dicek, tak ada pertanyaan/minta ubah terbuka, tak ada bagian berjudul "Usulan…"/"Pertanyaan terbuka", tak ada teks "menunggu keputusan" atau "perlu disetujui sebelum".
+
+Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan daftar alasannya. Mundur selalu boleh.
+
 ## Gerbang dan kesehatan
 
 Keluaran ketiga perintah ini sengaja ringkas: satu baris vonis (`✓`, `!` peringatan, `×` gagal), lalu hanya yang bermasalah beserta saran. Detail lengkap ditulis ke berkas (`kerja/<KEY>/gerbang/*.log`).

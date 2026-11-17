@@ -327,6 +327,11 @@ function gambarKerja(key) {
       if (S.kj.kerja.potret[f] && !(await dialogTimpa(key, f))) return kabarKerja(key, `Potret ${f} tidak diubah.`)
       aksi(`Memotret ${f}`, () => api(`/api/kerja/${key}/potret`, { fase: f }))
     })
+  // Jawab pertanyaan AI: satu klik pada usulan, atau isian sendiri (R-5.1).
+  const jawab = (id, jawaban) => jawaban.trim() && aksi('Menyimpan jawaban', () => api(`/api/kerja/${key}/jawab`, { id: Number(id), jawaban }))
+  for (const b of document.querySelectorAll('#view [data-kj-jawab]')) b.onclick = () => jawab(b.dataset.kjJawab, b.dataset.nilai)
+  for (const f of document.querySelectorAll('#view [data-kj-jawab-form]'))
+    f.onsubmit = (e) => { e.preventDefault(); jawab(f.dataset.kjJawabForm, f.elements.jawaban.value) }
   for (const b of document.querySelectorAll('#view [data-kj-tahap]'))
     b.onclick = () => aksi('Memindah tahap', () => api(`/api/kerja/${key}/tahap`, { tahap: b.dataset.kjTahap, catatan: 'Dipindah dari panel' }))
   $('#kj-komentar')?.addEventListener('click', async () => {

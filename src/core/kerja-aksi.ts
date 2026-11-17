@@ -2,20 +2,30 @@
 // tulis ke Plane. Menulis ke Plane terlihat tim: pemanggil wajib sudah mendapat konfirmasi pengguna.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import {
+  type DataCatatan,
+  periksaCatatan,
+  ringkasPeriksaCatatan,
+  templatCatatan,
+} from './catatan.ts'
 import { config } from './config.ts'
 import { type HasilGerbang, jalankanGerbang } from './gerbang.ts'
 import {
   adaKerja,
+  bacaBerkasKerja,
   bacaKerja,
+  dataCatatan,
   dirKerja,
   type Fase,
   type HasilCek,
   type Kerja,
   kerjaDariTiket,
   komentarHtml,
+  LABEL_TAHAP,
   pindahTahap,
   setCek,
   simpanKerja,
+  TAHAP,
   type Tahap,
   TargetSchema,
 } from './kerja.ts'
@@ -28,13 +38,48 @@ export async function ambilKerja(key: string): Promise<Kerja> {
   const { kerja, tiketMd } = kerjaDariTiket(t, adaKerja(key) ? bacaKerja(key) : null)
   simpanKerja(kerja)
   writeFileSync(path.join(dirKerja(key), 'tiket.md'), tiketMd)
+  // Kerangka catatan: hanya bagian tulisan; bagian data dirender dari kerja.json (R-8.1).
+  if (bacaBerkasKerja(key, 'catatan.md') === null)
+    writeFileSync(path.join(dirKerja(key), 'catatan.md'), templatCatatan(key))
   return kerja
 }
 
+/** Gerbang catatan sebuah kerja: brief (akhir Pahami) atau akhir (sebelum Didokumentasikan). */
+export function periksaCatatanKerja(key: string, saat: 'brief' | 'akhir') {
+  const k = bacaKerja(key)
+  return periksaCatatan(bacaBerkasKerja(key, 'catatan.md'), dataCatatan(k), k.verifikasi, saat)
+}
+
+/** Gerbang yang harus lulus untuk MAJU ke sebuah tahap; mundur selalu boleh. */
+export const gerbangTahap = (tahap: Tahap): 'brief' | 'akhir' | null =>
+  tahap === 'dikerjakan' || tahap === 'diverifikasi'
+    ? 'brief'
+    : tahap === 'didokumentasikan' || tahap === 'selesai'
+      ? 'akhir'
+      : null
+
 export function setTahap(key: string, tahap: Tahap, catatan = ''): Kerja {
-  const k = pindahTahap(bacaKerja(key), tahap, catatan)
+  const lama = bacaKerja(key)
+  const maju = TAHAP.indexOf(tahap) > TAHAP.indexOf(lama.tahap)
+  const saat = gerbangTahap(tahap)
+  if (maju && saat) {
+    const p = periksaCatatanKerja(key, saat)
+    if (!p.ok)
+      throw new Error(
+        `Belum bisa pindah ke ${LABEL_TAHAP[tahap]}. ${ringkasPeriksaCatatan(p, saat)}`,
+      )
+  }
+  const k = pindahTahap(lama, tahap, catatan)
   simpanKerja(k)
   return k
+}
+
+/** Ubah bagian data catatan lalu simpan (keputusan, pertanyaan, minta ubah, cek staging). */
+export function ubahDataCatatan(key: string, f: (d: DataCatatan) => DataCatatan): Kerja {
+  const k = bacaKerja(key)
+  const k2 = { ...k, ...f(dataCatatan(k)) }
+  simpanKerja(k2)
+  return k2
 }
 
 /** Target potret dari objek atau berkas JSON; divalidasi skema. */

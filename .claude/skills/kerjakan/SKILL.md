@@ -26,13 +26,17 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
 
 ## 2. Dipelajari: catatan + potret sebelum
 
-1. **Cari di mana fiturnya di v2.** Repo v2 ada di `~/work/fleetify/v2`. Gunakan grep dengan sasaran jelas untuk menemukan migrasi, domain, route, komponen UI, dan teks i18n. Untuk penelusuran lintas file, ikuti skill `delegasi`. Catat branch v2 yang sedang dipakai server lokal.
-2. **Tulis `kerja/<KEY>/catatan.md`**, isinya:
-   - apa yang diminta tiket;
-   - di mana fiturnya di v2 (berkas, commit, migrasi);
-   - tabel kriteria tiket beserta cara membuktikannya;
-   - perbedaan antara teks tiket dan kode (misalnya diubah oleh tiket lain);
-   - risiko.
+1. **Cari di mana fiturnya di v2.** Repo v2 ada di `~/work/fleetify/v2`. Gunakan grep dengan sasaran jelas untuk menemukan migrasi, domain, route, komponen UI, dan teks i18n. Untuk penelusuran lintas berkas, pakai subagent bermodel murah (delegasi ke model kantor sudah tidak tersedia). Catat branch v2 yang sedang dipakai server lokal.
+2. **Tulis Brief di `kerja/<KEY>/catatan.md`** (kerangkanya dibuat saat `ambil`). Hanya bagian tulisan; bagian data dirender dari `kerja.json`:
+   - **Masalah & penyebab** — wajib. Untuk tiket keluhan, ulangi klaim tiket di data lokal (SELECT saja) dan tulis hasilnya apa adanya, termasuk bila tidak terulang.
+   - **Rencana** — per lapisan (DB/migrasi, backend, frontend), berkas yang disentuh, risiko. Tiket yang fiturnya sudah ada: "Tanpa kode; verifikasi saja".
+   - Jangan menulis bagian "Usulan…" atau "Pertanyaan terbuka" sebagai prosa. Gunakan data:
+     ```bash
+     bun run kerja cek <KEY> belum "kriteria" "cara membuktikan"   # tiap kriteria tiket
+     bun run kerja tanya <KEY> "pertanyaan" --usul "a" --usul "b"  # keputusan milik Tams
+     bun run kerja putuskan <KEY> "keputusan" --alasan "…"          # keputusan yang AI ambil sendiri (tampil "AI — tinjau")
+     ```
+   - `bun run kerja catatan <KEY> brief` harus `✓` sebelum lanjut. Pertanyaan dijawab Tams di panel (kartu **Butuh keputusanmu**) atau di chat, lalu dicatat dengan `bun run kerja jawab <KEY> <no> "jawaban"`.
 3. **Tentukan target potret.**
    - Halaman yang memperlihatkan fiturnya, dibuka sebagai persona yang relevan.
    - Query DB yang membuktikan aturannya. Query penghitung pelanggaran dengan hasil yang diharapkan 0 sangat berguna.
@@ -64,6 +68,8 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
   bun run kerja tahap <KEY> dikerjakan "Ringkas apa yang diubah"
   ```
 
+Di akhir Kerjakan, isi bagian **Yang dikerjakan** (dan **Kendala** bila ada) di `catatan.md`. Keputusan baru yang diambil sendiri selama mengerjakan dicatat dengan `kerja putuskan`. Permintaan ubah dari Tams dicatat `kerja minta-ubah <KEY> A|B "…"` dan ditutup `kerja ubah-selesai <KEY> <no>` setelah dikerjakan.
+
 ## 4. Diverifikasi
 
 Cek tiap kriteria di v2 lokal, lewat UI, data, atau kode. Catat hasilnya per kriteria:
@@ -85,7 +91,8 @@ bun run kerja tahap <KEY> diverifikasi "n lulus, m gagal"
    - Skenario ditulis di `scenarios/<grup>/` dengan `"tiket": ["<KEY>"]` dan `alur` yang tepat. Acuannya `docs/SKEMA-SKENARIO.md` dan `docs/MENULIS-SKENARIO.md`.
    - Putar skenarionya headless sampai lulus dua kali berturut-turut.
    - Lalu jalankan `bun run kerja catat <KEY> --skenario <slug>`.
-3. `bun run kerja tahap <KEY> didokumentasikan "…"`.
+3. Daftar cek setelah deploy: `bun run kerja staging <KEY> tambah "…"` per butir (migrasi, `rls.sql`, `sync-rbac`, query verifikasi di staging).
+4. `bun run kerja catatan <KEY> akhir` harus `✓` (tak ada pertanyaan/minta ubah terbuka, tak ada bagian "Usulan…" atau teks "menunggu keputusan"), lalu `bun run kerja tahap <KEY> didokumentasikan "…"`. Tahap menolak maju bila gerbangnya belum lulus.
 
 ## 6. Plane (terlihat tim — wajib konfirmasi)
 

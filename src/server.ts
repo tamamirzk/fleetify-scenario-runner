@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
+import { jawabPertanyaan, renderCatatan } from './core/catatan.ts'
 import { config, ROOT } from './core/config.ts'
 import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
@@ -15,6 +16,7 @@ import {
   bacaKerja,
   bedaBaris,
   daftarKerja,
+  dataCatatan,
   FASE,
   type Fase,
   KERJA_DIR,
@@ -27,9 +29,11 @@ import {
 import {
   ambilKerja,
   komentarKePlane,
+  periksaCatatanKerja,
   potretKerja,
   setTahap,
   statusKePlane,
+  ubahDataCatatan,
 } from './core/kerja-aksi.ts'
 import { kodeKerja } from './core/kode.ts'
 import { jalanTerkunci, lepasKunci, pemegangLain } from './core/kunci.ts'
@@ -473,7 +477,17 @@ async function detailKerja(key: string) {
   return {
     kerja: k,
     tiket: bacaBerkasKerja(key, 'tiket.md'),
-    catatan: bacaBerkasKerja(key, 'catatan.md'),
+    // Catatan = dokumen hidup: bagian tulisan + bagian data yang dirender (R-8.1).
+    catatan: renderCatatan({
+      key,
+      md: bacaBerkasKerja(key, 'catatan.md'),
+      data: dataCatatan(k),
+      verifikasi: k.verifikasi,
+    }),
+    periksa: {
+      brief: periksaCatatanKerja(key, 'brief'),
+      akhir: periksaCatatanKerja(key, 'akhir'),
+    },
     // Kapan status Plane terakhir dicek; segar = status di atas datang dari Plane, bukan salinan.
     plane: { dicek: waktuTugasSaya(), segar: segar && status.has(key) },
     db,
@@ -507,7 +521,23 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
   if (aksi === 'tahap') {
     const t = String(body.tahap ?? '') as Tahap
     if (!TAHAP.includes(t)) throw new HttpError(400, `Tahap tidak dikenal: ${t}`)
-    setTahap(key, t, String(body.catatan ?? ''))
+    try {
+      setTahap(key, t, String(body.catatan ?? ''))
+    } catch (e) {
+      // Gerbang catatan menolak maju (R-8.1): kembalikan alasannya apa adanya.
+      throw new HttpError(409, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'jawab') {
+    // Jawaban Tams di panel → pertanyaan ditutup dan dicatat sebagai keputusan (R-5.1).
+    const no = Number(body.id)
+    const jawaban = String(body.jawaban ?? '')
+    try {
+      ubahDataCatatan(key, (d) => jawabPertanyaan(d, no, jawaban))
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
     return detailKerja(key)
   }
   if (aksi === 'potret') {

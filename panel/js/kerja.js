@@ -929,8 +929,35 @@ function riwayatTerbaru(k, n = 5) {
 }
 
 /** Ringkasan: bilah tahap, lalu dua kolom (Tugas + Yang dilakukan | Bukti + Riwayat). */
+/**
+ * Kartu "Butuh keputusanmu": pertanyaan terbuka (jawab dengan satu klik pada usulan, atau isi
+ * sendiri) dan permintaan ubah yang belum selesai. Jawaban disimpan ke kerja.json (R-5.1).
+ */
+export function kartuKeputusan(k) {
+  const tanya = (k.pertanyaan ?? []).filter((p) => !p.jawaban)
+  const ubah = (k.mintaUbah ?? []).filter((x) => !x.selesai)
+  if (!tanya.length && !ubah.length) return ''
+  const butir = tanya
+    .map(
+      (
+        p,
+      ) => `<li class="kj-tanya" data-kj-tanya="${p.id}"><div class="kj-tanya-teks"><span class="dim">#${p.id}</span> ${esc(p.teks)}</div>
+        <div class="kj-tanya-aksi">${p.usulan.map((u) => `<button type="button" class="btn tb" data-kj-jawab="${p.id}" data-nilai="${esc(u)}">${esc(u)}</button>`).join('')}
+        <form class="kj-tanya-isi" data-kj-jawab-form="${p.id}"><input type="text" name="jawaban" placeholder="Jawaban lain…" aria-label="Jawaban lain untuk pertanyaan #${p.id}"><button type="submit" class="btn tb">Kirim</button></form></div></li>`,
+    )
+    .join('')
+  const daftarUbah = ubah
+    .map(
+      (x) =>
+        `<li class="kj-ubah"><span class="warn-t">○</span> <span class="dim">#${x.id} · ${x.titik === 'A' ? 'rencana' : 'hasil'}</span> ${esc(x.teks)}</li>`,
+    )
+    .join('')
+  return `<section class="kartu glass kj-keputusan" aria-label="Butuh keputusanmu"><div class="kj-ring-hd"><span class="db-eyebrow">Butuh keputusanmu</span><span class="dim kj-ring-ket">${tanya.length ? `${tanya.length} pertanyaan` : ''}${tanya.length && ubah.length ? ' · ' : ''}${ubah.length ? `${ubah.length} minta ubah dikerjakan AI` : ''}</span></div>
+    ${tanya.length ? `<ol class="kj-tanya-daftar">${butir}</ol>` : ''}${ubah.length ? `<ul class="kj-ubah-daftar">${daftarUbah}</ul>` : ''}</section>`
+}
+
 export function ringkasanKerja(d, kode = null, buka = new Set(), cekPlane = null) {
-  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}
+  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuKeputusan(d.kerja)}
     <div class="kj-ringkas-kolom"><div class="kj-ringkas-kiri">${kartuTugas(d, buka)}${kartuDilakukan(d, kode, buka)}</div>
     <div class="kj-ringkas-kanan">${kartuBukti(d, kode, buka)}${riwayatTerbaru(d.kerja)}</div></div></section>`
 }

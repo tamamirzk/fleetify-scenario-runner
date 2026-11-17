@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
+import type { CekStaging, DataCatatan, Keputusan, MintaUbah, Pertanyaan } from './catatan.ts'
 import { ROOT } from './config.ts'
 import type { HasilGerbang } from './gerbang.ts'
 import { PERSONA_IDS } from './personas.ts'
@@ -130,6 +131,11 @@ export interface Kerja {
   worktree?: string
   /** Hasil gerbang terakhir per tingkat (src/core/gerbang.ts). */
   gerbang?: Partial<Record<'fokus' | 'ci', HasilGerbang>>
+  /** Bagian data catatan (src/core/catatan.ts): dirender ke catatan, tidak bisa basi (R-8.1). */
+  keputusan: Keputusan[]
+  pertanyaan: Pertanyaan[]
+  mintaUbah: MintaUbah[]
+  cekStaging: CekStaging[]
 }
 
 export const dirKerja = (key: string) => {
@@ -156,8 +162,20 @@ export function normalkanKerja(raw: Kerja): Kerja {
     verifikasi: raw.verifikasi ?? [],
     branch: raw.branch ?? null,
     commit: raw.commit ?? [],
+    keputusan: raw.keputusan ?? [],
+    pertanyaan: raw.pertanyaan ?? [],
+    mintaUbah: raw.mintaUbah ?? [],
+    cekStaging: raw.cekStaging ?? [],
   }
 }
+
+/** Bagian data catatan sebuah kerja. */
+export const dataCatatan = (k: Kerja): DataCatatan => ({
+  keputusan: k.keputusan,
+  pertanyaan: k.pertanyaan,
+  mintaUbah: k.mintaUbah,
+  cekStaging: k.cekStaging,
+})
 
 /** Catat hasil satu kriteria (kriteria yang sama ditimpa, tidak peka huruf besar). */
 export function setCek(k: Kerja, kriteria: string, hasil: HasilCek, bukti = ''): Kerja {
@@ -248,6 +266,10 @@ export function kerjaDariTiket(
         target: { layar: [], db: [] },
         potret: {},
         skenario: [],
+        keputusan: [],
+        pertanyaan: [],
+        mintaUbah: [],
+        cekStaging: [],
       }
   const tiketMd = `# ${t.key} · ${t.judul}\n\nStatus Plane: ${t.status} · ${t.url}\n\n${htmlKeTeks(t.deskripsiHtml) || '(tanpa deskripsi)'}\n`
   return { kerja, tiketMd }

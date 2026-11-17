@@ -7,16 +7,34 @@
 //   bun run kerja potret FMS-87 sebelum|sesudah [--rinci]
 //   bun run kerja gerbang FMS-87 fokus|ci [--dir ~/work/fleetify/v2] [--rinci]   satu baris + log
 //   bun run kerja kesehatan [FMS-87]           layanan v2, Prisma, worktree API, komputer
+//   bun run kerja catatan FMS-87 [brief|akhir] [--render]   gerbang catatan; --render cetak dokumen
+//   bun run kerja tanya FMS-87 "pertanyaan" [--usul "a" --usul "b"]
+//   bun run kerja jawab FMS-87 <no> "jawaban"            jawaban Tams → keputusan
+//   bun run kerja putuskan FMS-87 "keputusan" [--alasan "…"] [--oleh ai|tams]
+//   bun run kerja minta-ubah FMS-87 A|B "teks"  ·  bun run kerja ubah-selesai FMS-87 <no>
+//   bun run kerja staging FMS-87 tambah "teks" | centang <no> | batal <no>
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
 //   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123 --worktree dir]
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
 //   bun run kerja plane FMS-87 status "Done" [--ya]
 
+import {
+  centangCekStaging,
+  jawabPertanyaan,
+  renderCatatan,
+  ringkasPeriksaCatatan,
+  selesaikanMintaUbah,
+  tambahCekStaging,
+  tambahKeputusan,
+  tambahMintaUbah,
+  tambahPertanyaan,
+} from './core/catatan.ts'
 import { ringkasGerbang } from './core/gerbang.ts'
 import {
   bacaBerkasKerja,
   bacaKerja,
   daftarKerja,
+  dataCatatan,
   FASE,
   type Fase,
   HASIL_CEK,
@@ -33,10 +51,12 @@ import {
   cekKerja,
   gerbangKerja,
   komentarKePlane,
+  periksaCatatanKerja,
   potretKerja,
   setTahap,
   setTarget,
   statusKePlane,
+  ubahDataCatatan,
 } from './core/kerja-aksi.ts'
 import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
 import { closeSharedBrowser } from './core/lib.ts'
@@ -83,7 +103,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -145,6 +165,95 @@ try {
       })
       console.log(ringkasGerbang(h))
       if (h.hasil === 'gagal') process.exitCode = 1
+      break
+    }
+    case 'catatan': {
+      if (!key) throw new Error('Pakai: bun run kerja catatan KEY [brief|akhir] [--render]')
+      const k = bacaKerja(key)
+      if (sisa.includes('--render')) {
+        console.log(
+          renderCatatan({
+            key,
+            md: bacaBerkasKerja(key, 'catatan.md'),
+            data: dataCatatan(k),
+            verifikasi: k.verifikasi,
+          }),
+        )
+        break
+      }
+      // Bawaan: brief sebelum Diverifikasi, akhir sejak Diverifikasi.
+      const saat =
+        posisi[0] === 'brief' || posisi[0] === 'akhir'
+          ? posisi[0]
+          : TAHAP.indexOf(k.tahap) >= TAHAP.indexOf('diverifikasi')
+            ? 'akhir'
+            : 'brief'
+      const p = periksaCatatanKerja(key, saat)
+      console.log(ringkasPeriksaCatatan(p, saat))
+      if (!p.ok) process.exitCode = 1
+      break
+    }
+    case 'tanya': {
+      if (!key || !posisi[0])
+        throw new Error('Pakai: bun run kerja tanya KEY "pertanyaan" [--usul "a"]')
+      const k = ubahDataCatatan(key, (d) => tambahPertanyaan(d, posisi.join(' '), opsi('usul')))
+      const p = k.pertanyaan.at(-1)
+      console.log(
+        `○ pertanyaan #${p?.id} dicatat; dijawab Tams di panel atau: bun run kerja jawab ${key} ${p?.id} "…"`,
+      )
+      break
+    }
+    case 'jawab': {
+      const no = Number(posisi[0])
+      if (!key || !no || !posisi[1])
+        throw new Error('Pakai: bun run kerja jawab KEY <no> "jawaban"')
+      const k = ubahDataCatatan(key, (d) => jawabPertanyaan(d, no, posisi.slice(1).join(' ')))
+      console.log(`✓ #${no} dijawab → keputusan #${k.keputusan.at(-1)?.id}`)
+      break
+    }
+    case 'putuskan': {
+      const oleh = opsi('oleh')[0] ?? 'ai'
+      if (!key || !posisi[0] || (oleh !== 'ai' && oleh !== 'tams'))
+        throw new Error(
+          'Pakai: bun run kerja putuskan KEY "keputusan" [--alasan "…"] [--oleh ai|tams]',
+        )
+      const k = ubahDataCatatan(key, (d) =>
+        tambahKeputusan(d, posisi.join(' '), oleh, opsi('alasan')[0]),
+      )
+      console.log(
+        `✓ keputusan #${k.keputusan.at(-1)?.id} (${oleh === 'ai' ? 'AI — tampil untuk ditinjau' : 'Tams'})`,
+      )
+      break
+    }
+    case 'minta-ubah': {
+      const titik = posisi[0]
+      if (!key || (titik !== 'A' && titik !== 'B') || !posisi[1])
+        throw new Error('Pakai: bun run kerja minta-ubah KEY A|B "teks"')
+      const k = ubahDataCatatan(key, (d) => tambahMintaUbah(d, posisi.slice(1).join(' '), titik))
+      console.log(`○ minta ubah #${k.mintaUbah.at(-1)?.id} dicatat`)
+      break
+    }
+    case 'ubah-selesai': {
+      const no = Number(posisi[0])
+      if (!key || !no) throw new Error('Pakai: bun run kerja ubah-selesai KEY <no>')
+      ubahDataCatatan(key, (d) => selesaikanMintaUbah(d, no))
+      console.log(`✓ minta ubah #${no} selesai`)
+      break
+    }
+    case 'staging': {
+      const aksi = posisi[0]
+      if (!key || !['tambah', 'centang', 'batal'].includes(aksi ?? ''))
+        throw new Error(
+          'Pakai: bun run kerja staging KEY tambah "teks" | centang <no> | batal <no>',
+        )
+      const k =
+        aksi === 'tambah'
+          ? ubahDataCatatan(key, (d) => tambahCekStaging(d, posisi.slice(1).join(' ')))
+          : ubahDataCatatan(key, (d) => centangCekStaging(d, Number(posisi[1]), aksi === 'centang'))
+      const sel = k.cekStaging.filter((c) => c.selesai).length
+      console.log(
+        `${sel === k.cekStaging.length ? '✓' : '○'} cek staging ${sel}/${k.cekStaging.length}`,
+      )
       break
     }
     case 'kesehatan': {
