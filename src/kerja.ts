@@ -4,12 +4,15 @@
 //   bun run kerja lihat FMS-87                  ringkasan keadaan
 //   bun run kerja tahap FMS-87 dipelajari "catatan"
 //   bun run kerja target FMS-87 target.json     sasaran potret (halaman + query DB)
-//   bun run kerja potret FMS-87 sebelum|sesudah
+//   bun run kerja potret FMS-87 sebelum|sesudah [--rinci]
+//   bun run kerja gerbang FMS-87 fokus|ci [--dir ~/work/fleetify/v2] [--rinci]   satu baris + log
+//   bun run kerja kesehatan [FMS-87]           layanan v2, Prisma, worktree API, komputer
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
-//   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123]   rujukan
+//   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123 --worktree dir]
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
 //   bun run kerja plane FMS-87 status "Done" [--ya]
 
+import { ringkasGerbang } from './core/gerbang.ts'
 import {
   bacaBerkasKerja,
   bacaKerja,
@@ -28,16 +31,19 @@ import {
   ambilKerja,
   catatKerja,
   cekKerja,
+  gerbangKerja,
   komentarKePlane,
   potretKerja,
   setTahap,
   setTarget,
   statusKePlane,
 } from './core/kerja-aksi.ts'
+import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
 import { closeSharedBrowser } from './core/lib.ts'
 
 const [perintah, key, ...sisa] = Bun.argv.slice(2)
 const ya = sisa.includes('--ya')
+const rinci = sisa.includes('--rinci')
 const posisi = sisa.filter((x) => !x.startsWith('--'))
 const opsi = (nama: string) => {
   const out: string[] = []
@@ -77,7 +83,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -116,8 +122,36 @@ try {
       const f = posisi[0] as Fase
       if (!key || !FASE.includes(f))
         throw new Error('Pakai: bun run kerja potret KEY sebelum|sesudah')
-      ringkas(await potretKerja(key, f, (l) => console.log(`  ${l}`)))
-      console.log(`\nBerkas: kerja/${key}/${f}/`)
+      // Ringkas (R-10.2): progres hanya dengan --rinci; hasil satu baris + yang gagal.
+      const k = await potretKerja(key, f, rinci ? (l) => console.log(`  ${l}`) : undefined)
+      const p = k.potret[f]
+      const gagal = [...(p?.layar ?? []), ...(p?.db ?? [])].filter((x) => x.galat)
+      const nL = p?.layar.filter((l) => l.file).length ?? 0
+      const nD = p?.db.filter((d) => d.file).length ?? 0
+      console.log(
+        `${gagal.length ? '×' : '✓'} potret ${f}: ${nL}/${p?.layar.length ?? 0} layar, ${nD}/${p?.db.length ?? 0} query · kerja/${key}/${f}/`,
+      )
+      for (const g of gagal) console.log(`  × ${g.nama}: ${String(g.galat).split('\n')[0]}`)
+      if (gagal.length) process.exitCode = 1
+      break
+    }
+    case 'gerbang': {
+      const t = posisi[0]
+      if (!key || (t !== 'fokus' && t !== 'ci'))
+        throw new Error('Pakai: bun run kerja gerbang KEY fokus|ci [--dir worktree] [--rinci]')
+      const h = await gerbangKerja(key, t, {
+        dir: opsi('dir')[0],
+        rinci: rinci ? (l) => console.log(l) : undefined,
+      })
+      console.log(ringkasGerbang(h))
+      if (h.hasil === 'gagal') process.exitCode = 1
+      break
+    }
+    case 'kesehatan': {
+      const commitKerja = key ? (bacaKerja(key).commit.at(-1) ?? null) : null
+      const h = await periksaKesehatan({ commitKerja })
+      console.log(ringkasKesehatan(h))
+      if (h.cek.some((c) => c.hasil === 'gagal')) process.exitCode = 1
       break
     }
     case 'cek': {
@@ -137,6 +171,7 @@ try {
           branch: opsi('branch')[0],
           commit: opsi('commit'),
           skenario: opsi('skenario'),
+          worktree: opsi('worktree')[0],
         }),
       )
       break

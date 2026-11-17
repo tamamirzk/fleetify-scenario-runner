@@ -1,7 +1,9 @@
 // Aksi Kerja yang dipakai CLI (bun run kerja) dan panel: ambil dari Plane, target, potret, cek, catat,
 // tulis ke Plane. Menulis ke Plane terlihat tim: pemanggil wajib sudah mendapat konfirmasi pengguna.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { config } from './config.ts'
+import { type HasilGerbang, jalankanGerbang } from './gerbang.ts'
 import {
   adaKerja,
   bacaKerja,
@@ -17,6 +19,7 @@ import {
   type Tahap,
   TargetSchema,
 } from './kerja.ts'
+import { PENTING_POTRET, periksaKesehatan } from './kesehatan.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
 import { potret } from './potret.ts'
 
@@ -52,6 +55,13 @@ export async function potretKerja(
   fase: Fase,
   log?: (l: string) => void,
 ): Promise<Kerja> {
+  // Tanpa web, API, atau DB, potret hanya merekam halaman galat dan menimpa bukti (R-7.7).
+  const sehat = await periksaKesehatan({ hanya: PENTING_POTRET })
+  const mati = sehat.cek.filter((c) => c.hasil === 'gagal')
+  if (mati.length)
+    throw new Error(
+      `Potret ${fase} dibatalkan: ${mati.map((c) => `${c.nama} ${c.info}${c.saran ? ` (${c.saran})` : ''}`).join('; ')}`,
+    )
   const hasil = await potret(bacaKerja(key), fase, log)
   // Baca ulang: kerja.json bisa berubah selama memotret (mis. hasil cek dicatat).
   const k = bacaKerja(key)
@@ -67,18 +77,44 @@ export async function potretKerja(
 
 export function catatKerja(
   key: string,
-  o: { branch?: string; commit?: string[]; skenario?: string[] },
+  o: { branch?: string; commit?: string[]; skenario?: string[]; worktree?: string },
 ): Kerja {
   const k = bacaKerja(key)
   const gabung = (a: string[], b: string[] = []) => [...new Set([...a, ...b])]
   const k2 = {
     ...k,
+    worktree: o.worktree ? path.resolve(o.worktree) : k.worktree,
     branch: o.branch ?? k.branch,
     commit: gabung(k.commit, o.commit),
     skenario: gabung(k.skenario, o.skenario),
   }
   simpanKerja(k2)
   return k2
+}
+
+/** Worktree v2 sebuah kerja: opsi eksplisit, lalu kerja.json, lalu V2_REPO_DIR. */
+export const worktreeKerja = (k: Kerja, dir?: string) =>
+  path.resolve(dir ?? k.worktree ?? config.v2RepoDir)
+
+/** Jalankan gerbang fokus/ci untuk sebuah kerja; hasil disimpan di kerja.json, log di kerja/<KEY>/gerbang/. */
+export async function gerbangKerja(
+  key: string,
+  tingkat: 'fokus' | 'ci',
+  o: { dir?: string; rinci?: (s: string) => void } = {},
+): Promise<HasilGerbang> {
+  const k = bacaKerja(key)
+  const dir = worktreeKerja(k, o.dir)
+  if (!existsSync(path.join(dir, '.git'))) throw new Error(`Worktree v2 tidak ditemukan: ${dir}`)
+  const cap = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 13)
+  const h = await jalankanGerbang({
+    dir,
+    tingkat,
+    logRel: `kerja/${key}/gerbang/${tingkat}-${cap}.log`,
+    rinci: o.rinci,
+  })
+  const k2 = bacaKerja(key)
+  simpanKerja({ ...k2, gerbang: { ...(k2.gerbang ?? {}), [tingkat]: h } })
+  return h
 }
 
 /** Catat hasil verifikasi satu kriteria tiket. */

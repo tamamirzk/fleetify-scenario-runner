@@ -77,12 +77,24 @@ bun run kerja ambil FMS-87
 bun run kerja lihat FMS-87
 bun run kerja target FMS-87 target.json
 bun run kerja tahap FMS-87 dipelajari "catatan"
-bun run kerja potret FMS-87 sebelum            # atau sesudah
+bun run kerja potret FMS-87 sebelum            # atau sesudah; --rinci untuk progres
+bun run kerja kesehatan [FMS-87]               # layanan v2, Prisma, worktree API, komputer
+bun run kerja gerbang FMS-87 fokus             # saat bekerja: hanya yang berubah
+bun run kerja gerbang FMS-87 ci                # sebelum push: ulang .gitlab-ci.yml v2
 bun run kerja cek FMS-87 lulus "kriteria" "bukti"
-bun run kerja catat FMS-87 --branch feat/x --commit abc123 --skenario slug
+bun run kerja catat FMS-87 --branch feat/x --commit abc123 --skenario slug --worktree ~/work/fleetify/v2
 bun run kerja plane FMS-87 komentar "catatan"  # pratinjau; tambah --ya untuk mengirim
 bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk memindah
 ```
+
+## Gerbang dan kesehatan
+
+Keluaran ketiga perintah ini sengaja ringkas: satu baris vonis (`✓`, `!` peringatan, `×` gagal), lalu hanya yang bermasalah beserta saran. Detail lengkap ditulis ke berkas (`kerja/<KEY>/gerbang/*.log`).
+
+- **`kesehatan`** memeriksa Postgres, Redis, Authentik, API, web, kesegaran Prisma client (berkas dan proses API), worktree mana yang melayani API (dan apakah sudah memuat commit kerja), serta disk, memori, dan CPU. Potret menjalankan cek web/API/DB lebih dulu dan menolak dengan alasan bila salah satunya mati.
+- **`gerbang fokus`** hanya untuk bagian yang berubah terhadap `development`: biome pada berkas berubah, typecheck, cek sinkron `Frontend/openapi.json`, tes terkait (`--changed`). Perubahan Backend ikut memeriksa tipe Frontend lewat client yang dibuat dari spec.
+- **`gerbang ci`** mengulang kelima job `.gitlab-ci.yml` v2 dengan variabel CI yang sama: konflik dengan development, backend (biome, typecheck, sinkron openapi), tes backend, frontend-static, tes frontend (penuh bila berkas pemicu berubah, selain itu terkait). Berkas tes yang gagal diuji ulang di checkout bersih `origin/development`; bila di sana juga gagal, hasilnya **peringatan**, bukan gagal. Bila `.gitlab-ci.yml` v2 berubah, gerbang memberi peringatan agar langkahnya ditinjau (`src/core/gerbang.ts`).
+- Hasil gerbang terakhir disimpan di `kerja.json` (`gerbang.fokus`, `gerbang.ci`). Worktree diambil dari `--dir`, lalu `worktree` di `kerja.json`, lalu `V2_REPO_DIR`.
 
 ## Menulis ke Plane
 

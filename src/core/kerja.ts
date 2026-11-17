@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path'
 import { z } from 'zod'
 import { ROOT } from './config.ts'
+import type { HasilGerbang } from './gerbang.ts'
 import { PERSONA_IDS } from './personas.ts'
 
 export const KERJA_DIR = path.join(ROOT, 'kerja')
@@ -125,6 +126,10 @@ export interface Kerja {
   target: Target
   potret: Partial<Record<Fase, Potret>>
   skenario: string[]
+  /** Worktree v2 tempat tiket ini dikerjakan (dipakai gerbang). Kosong = V2_REPO_DIR. */
+  worktree?: string
+  /** Hasil gerbang terakhir per tingkat (src/core/gerbang.ts). */
+  gerbang?: Partial<Record<'fokus' | 'ci', HasilGerbang>>
 }
 
 export const dirKerja = (key: string) => {

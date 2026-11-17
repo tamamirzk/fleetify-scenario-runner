@@ -54,7 +54,8 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
   - apakah migrasi boleh dijalankan.
 
   Jangan memindah server `v2-test` atau menjalankan migrasi tanpa izin.
-- Ikuti aturan `v2/CLAUDE.md`. Implementasikan, lalu jalankan tes terfokus (backend dan frontend).
+- Ikuti aturan `v2/CLAUDE.md`. Implementasikan, lalu jalankan `bun run kerja gerbang <KEY> fokus` (bukan merakit perintah tes sendiri). Laporkan baris vonisnya saja; buka log hanya bila ada yang gagal.
+- **Sebelum push** (hanya bila diminta): `bun run kerja gerbang <KEY> ci` wajib `✓` atau `!` (peringatan = kegagalan yang juga ada di development). Jangan push saat `×`.
 - Commit hanya bila pengguna mengizinkan. Push tidak pernah dilakukan tanpa diminta.
 - Catat dan laporkan:
 
@@ -79,7 +80,7 @@ bun run kerja tahap <KEY> diverifikasi "n lulus, m gagal"
 
 ## 5. Didokumentasikan
 
-1. `bun run kerja potret <KEY> sesudah`.
+1. `bun run kerja kesehatan <KEY>`: worktree yang melayani API harus sudah memuat commit kerja. Lalu `bun run kerja potret <KEY> sesudah`.
 2. Bila tiket menambah atau mengubah alur, usulkan skenario modul ke pengguna:
    - Skenario ditulis di `scenarios/<grup>/` dengan `"tiket": ["<KEY>"]` dan `alur` yang tepat. Acuannya `docs/SKEMA-SKENARIO.md` dan `docs/MENULIS-SKENARIO.md`.
    - Putar skenarionya headless sampai lulus dua kali berturut-turut.
