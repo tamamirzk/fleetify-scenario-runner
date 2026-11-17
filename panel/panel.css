@@ -7743,3 +7743,31 @@ details.kj-tiket > summary h2 {
   display: inline-flex;
   vertical-align: middle;
 }
+/* Catatan/tiket: tabel markdown dan butir bertingkat */
+.kj-md-tabel {
+  margin: 8px 0 12px;
+  overflow-x: auto;
+}
+.kj-md-tabel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sr-text-sm);
+}
+.kj-md-tabel th,
+.kj-md-tabel td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--sr-line);
+  text-align: left;
+  vertical-align: top;
+}
+.kj-md-tabel th {
+  color: var(--sr-text-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.kj-md-tabel td:first-child {
+  min-width: 180px;
+}
+.kj-md ul ul {
+  margin: 4px 0;
+}

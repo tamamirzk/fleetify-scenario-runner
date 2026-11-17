@@ -34,51 +34,87 @@ export function langkahTahap(tahap) {
   ).join('')}</ol>`
 }
 
-/** Markdown sederhana → HTML (judul, butir, kode, paragraf); cukup untuk catatan.md dan tiket.md. */
+/** Teks satu baris markdown → HTML: `kode`, **tebal**, *miring*. */
+const mdBaris = (t) => {
+  // Isi `kode` disisihkan dulu, supaya * di dalamnya tidak dianggap tebal/miring.
+  const kode = []
+  return esc(t)
+    .replace(/`([^`]+)`/g, (_m, x) => `\uE000${kode.push(x) - 1}\uE000`)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g, '$1<i>$2</i>')
+    .replace(/\uE000(\d+)\uE000/g, (_m, i) => `<code>${kode[Number(i)]}</code>`)
+}
+
+const selTabel = (baris) =>
+  baris
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((x) => x.trim())
+
+/**
+ * Markdown sederhana → HTML (judul, butir dua tingkat, tabel, kode, paragraf); cukup untuk
+ * catatan.md dan tiket.md.
+ */
 export function mdRingan(md) {
   if (!md) return ''
   const out = []
-  let daftar = false
-  let kode = false
-  for (const baris of md.split('\n')) {
-    if (baris.startsWith('```')) {
-      if (daftar) {
-        out.push('</ul>')
-        daftar = false
-      }
-      out.push(kode ? '</code></pre>' : '<pre class="kj-kode"><code>')
-      kode = !kode
-      continue
-    }
-    if (kode) {
-      out.push(`${esc(baris)}\n`)
-      continue
-    }
-    const isi = esc(baris)
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    const h = baris.match(/^(#{1,4})\s+(.*)$/)
-    const li = baris.match(/^\s*[-*]\s+(.*)$/)
-    if (li) {
-      if (!daftar) {
-        out.push('<ul>')
-        daftar = true
-      }
-      out.push(`<li>${isi.replace(/^\s*[-*]\s+/, '')}</li>`)
-      continue
-    }
-    if (daftar) {
-      out.push('</ul>')
-      daftar = false
-    }
-    if (h)
-      out.push(
-        `<h${Math.min(4, h[1].length + 2)}>${isi.replace(/^#+\s+/, '')}</h${Math.min(4, h[1].length + 2)}>`,
-      )
-    else if (baris.trim()) out.push(`<p>${isi}</p>`)
+  const baris = md.split('\n')
+  let tingkat = 0 // butir terbuka: 0 = tidak ada, 1 = daftar, 2 = daftar di dalam butir
+  const tutupDaftar = () => {
+    if (tingkat === 2) out.push('</li></ul>')
+    if (tingkat >= 1) out.push('</li></ul>')
+    tingkat = 0
   }
-  if (daftar) out.push('</ul>')
-  if (kode) out.push('</code></pre>')
+  for (let n = 0; n < baris.length; n++) {
+    const b = baris[n]
+    if (b.startsWith('```')) {
+      tutupDaftar()
+      const isi = []
+      while (++n < baris.length && !baris[n].startsWith('```')) isi.push(esc(baris[n]))
+      out.push(`<pre class="kj-kode"><code>${isi.join('\n')}</code></pre>`)
+      continue
+    }
+    // Tabel: baris kepala, baris pemisah |---|, lalu baris isi.
+    if (/^\s*\|.*\|\s*$/.test(b) && /^\s*\|[\s:|-]+\|\s*$/.test(baris[n + 1] ?? '')) {
+      tutupDaftar()
+      const kepala = selTabel(b)
+      const isi = []
+      n += 2
+      while (n < baris.length && /^\s*\|.*\|\s*$/.test(baris[n])) isi.push(selTabel(baris[n++]))
+      n--
+      out.push(
+        `<div class="kj-md-tabel"><table><thead><tr>${kepala.map((x) => `<th>${mdBaris(x)}</th>`).join('')}</tr></thead><tbody>${isi
+          .map((r) => `<tr>${r.map((x) => `<td>${mdBaris(x)}</td>`).join('')}</tr>`)
+          .join('')}</tbody></table></div>`,
+      )
+      continue
+    }
+    const li = b.match(/^(\s*)[-*]\s+(.*)$/)
+    if (li) {
+      const mau = li[1].length >= 2 && tingkat >= 1 ? 2 : 1
+      if (tingkat === 0 || mau > tingkat) out.push('<ul><li>')
+      else if (mau === tingkat) out.push('</li><li>')
+      else out.push('</li></ul></li><li>')
+      tingkat = mau
+      out.push(mdBaris(li[2]))
+      continue
+    }
+    // Baris lanjutan yang menjorok di dalam butir ikut butir itu.
+    if (tingkat && /^\s{2,}\S/.test(b)) {
+      out.push(` ${mdBaris(b.trim())}`)
+      continue
+    }
+    if (tingkat && !b.trim() && /^\s*([-*]\s|\s{2,}\S)/.test(baris[n + 1] ?? '')) continue
+    tutupDaftar()
+    const h = b.match(/^(#{1,4})\s+(.*)$/)
+    if (h) {
+      const t = Math.min(4, h[1].length + 2)
+      out.push(`<h${t}>${mdBaris(h[2])}</h${t}>`)
+    } else if (b.trim()) out.push(`<p>${mdBaris(b)}</p>`)
+  }
+  tutupDaftar()
   return out.join('')
 }
 

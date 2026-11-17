@@ -453,6 +453,18 @@ describe('halaman Kerja', () => {
     expect(h).toContain('<b>tebal</b>')
   })
 
+  it('markdown ringan: tabel, butir bertingkat, miring di luar kode', () => {
+    const h = mdRingan(
+      '- a\n  - a1\n- b *miring* `x_*_y`\n\n| Kriteria | Hasil |\n|---|---|\n| satu | ✓ ok |',
+    )
+    expect(h).toContain(
+      '<ul><li>a<ul><li>a1</li></ul></li><li>b <i>miring</i> <code>x_*_y</code></li></ul>',
+    )
+    expect(h).toContain('<th>Kriteria</th>')
+    expect(h).toContain('<td>✓ ok</td>')
+    expect(h).not.toContain('|---|')
+  })
+
   it('laporan kerja: bar dengan tab dan aksi; tab kosong memberi petunjuk', () => {
     const k = kerjaContoh()
     const d = { kerja: k, tiket: '# t', catatan: null, db: [], komentar: '' }
