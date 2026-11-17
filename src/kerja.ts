@@ -13,6 +13,7 @@
 //   bun run kerja putuskan FMS-87 "keputusan" [--alasan "…"] [--oleh ai|tams]
 //   bun run kerja minta-ubah FMS-87 A|B "teks"  ·  bun run kerja ubah-selesai FMS-87 <no>
 //   bun run kerja staging FMS-87 tambah "teks" | centang <no> | batal <no>
+//   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
 //   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123 --worktree dir]
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
@@ -56,6 +57,7 @@ import {
   setTahap,
   setTarget,
   statusKePlane,
+  tundaKerja,
   ubahDataCatatan,
 } from './core/kerja-aksi.ts'
 import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
@@ -103,7 +105,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -253,6 +255,17 @@ try {
       const sel = k.cekStaging.filter((c) => c.selesai).length
       console.log(
         `${sel === k.cekStaging.length ? '✓' : '○'} cek staging ${sel}/${k.cekStaging.length}`,
+      )
+      break
+    }
+    case 'tunda':
+    case 'aktifkan': {
+      if (!key) throw new Error('Pakai: bun run kerja tunda KEY ["alasan"] | aktifkan KEY')
+      tundaKerja(key, perintah === 'tunda', posisi.join(' '))
+      console.log(
+        perintah === 'tunda'
+          ? `⏸ ${key} ditunda: tidak muncul di "Butuh kamu"`
+          : `✓ ${key} aktif lagi`,
       )
       break
     }

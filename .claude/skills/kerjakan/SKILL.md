@@ -14,6 +14,8 @@ Pembagian peran: **AI yang mengerjakan, pengguna memonitor dan memverifikasi.**
 - Skenario modul adalah dokumentasi alur. Tulis skenario hanya bila tiket menambah atau mengubah alur yang layak diingat, dan tanya pengguna dulu.
 - Setiap tahap harus meninggalkan jejak yang bisa diperiksa pengguna: catatan, potret, commit, dan hasil cek.
 
+Sesi ini bisa dijalankan dari panel (kartu **Sesi AI**, tmux `kerja-<KEY>`); promptnya menyebut fasenya. Kerjakan **hanya fase itu**, lalu berhenti: hook memberi tahu panel bahwa giliran Tams. `git push`, `kerja plane`, dan migrasi deploy diblok di level alat; jangan mencoba jalan lain.
+
 Di akhir tiap tahap, laporkan ke pengguna dalam satu-dua kalimat, lalu lanjut. Berhenti dan tanya bila ada keputusan yang memang milik pengguna.
 
 ## 1. Diambil

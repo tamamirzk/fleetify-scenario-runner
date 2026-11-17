@@ -77,7 +77,7 @@ Fase dianggap selesai bila gerbangnya lulus, **bukan** karena tahap dipindah man
 - **R-6.2** Panel menjalankan fase dalam sesi tmux `kerja-<KEY>` di worktree slot tiket, lalu membuka Terminal.app (`osascript`) tersambung ke sesi itu. Menutup jendela tidak menghentikan kerja; tombol **Buka terminal** menyambung lagi.
 - **R-6.3** Mode per fase: **Terminal (bawaan)** atau **Latar** (`claude -p --output-format stream-json`, progres hanya di panel).
 - **R-6.4** Hook Claude Code (`Notification`, `Stop`) mengabari panel; tiket pindah ke lajur "Butuh kamu" saat Claude menunggu atau selesai. Kartu tiket menampilkan cuplikan terminal (`tmux capture-pane`).
-- **R-6.5** Izin alat per fase: Pahami hanya baca; Kerjakan boleh menulis di worktree slotnya; `git push`, Plane, dan migrasi di luar slot **diblok di level alat** (`--disallowedTools`). Batas langkah per fase (`--max-turns`).
+- **R-6.5** Izin alat per fase: Pahami hanya baca; Kerjakan boleh menulis di worktree slotnya; `git push`, Plane, dan migrasi di luar slot **diblok di level alat** (`--disallowedTools`). Batas biaya per fase untuk mode Latar (`--max-budget-usd`; CLI tidak punya `--max-turns`, lihat K15).
 - **R-6.6** Penyapuan kode lintas berkas memakai subagent Claude bermodel murah. **Delegasi ke model kantor (`delegate.sh`) sudah tidak tersedia.**
 
 ## 7. Lingkungan: slot
@@ -170,6 +170,7 @@ Port di atas bebas per 17 Nov 2026.
 | K12 | 17 Nov | Statistik skenario pindah ke halaman Statistik; Dashboard berisi lajur tindakan + strip slot/komputer |
 | K13 | 17 Nov | Monitoring komputer; batas server dinamis (menolak slot baru saat memori tertekan, selebihnya hanya saran) — menggantikan "maks 2 server" di K6 |
 | K14 | 17 Nov | Tiket diambil dari Tugas saya dengan memilih slot (kosong / gabung klaster / Antrekan) |
+| K15 | 17 Nov | Tahap 3: batas per fase memakai `--max-budget-usd` (tidak ada `--max-turns`); sesi Claude berjalan di akar scenario-runner dengan worktree v2 sebagai `--add-dir`; larangan push terbukti berlaku di mode izin `acceptEdits` dan `auto`, termasuk saat `git *` diizinkan |
 
 ## 12. Tidak termasuk
 

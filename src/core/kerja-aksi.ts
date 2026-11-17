@@ -8,7 +8,7 @@ import {
   ringkasPeriksaCatatan,
   templatCatatan,
 } from './catatan.ts'
-import { config } from './config.ts'
+import { config, ROOT } from './config.ts'
 import { type HasilGerbang, jalankanGerbang } from './gerbang.ts'
 import {
   adaKerja,
@@ -32,6 +32,16 @@ import {
 import { PENTING_POTRET, periksaKesehatan } from './kesehatan.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
 import { potret } from './potret.ts'
+import {
+  argsClaude,
+  type FaseSesi,
+  keadaanTmux,
+  type ModeSesi,
+  mulaiTmux,
+  promptFase,
+  type Sesi,
+  statusDariHook,
+} from './sesi.ts'
 
 export async function ambilKerja(key: string): Promise<Kerja> {
   const t = await ambilTiket(key)
@@ -195,4 +205,114 @@ export async function statusKePlane(key: string, nama: string): Promise<Kerja> {
   )
   simpanKerja(k2)
   return k2
+}
+
+/**
+ * Jalankan satu fase Claude untuk tiket (R-6.1–R-6.3): sesi tmux `kerja-<KEY>` di akar
+ * scenario-runner dengan worktree v2 sebagai --add-dir. Sesi Claude per tiket dibuat sekali.
+ */
+export async function jalankanFase(
+  key: string,
+  fase: FaseSesi,
+  mode: ModeSesi,
+  o: { teks?: string; port: number; model?: string },
+): Promise<{ kerja: Kerja; cara: string }> {
+  const k = bacaKerja(key)
+  const worktree = worktreeKerja(k)
+  const baru = !k.sesi
+  const id = k.sesi?.id ?? crypto.randomUUID()
+  const args = argsClaude({
+    key,
+    fase,
+    mode,
+    sesiId: id,
+    baru,
+    worktree,
+    port: o.port,
+    teks: o.teks,
+    model: o.model,
+  })
+  const cara = await mulaiTmux(key, {
+    args,
+    mode,
+    prompt: promptFase(key, fase, { worktree, teks: o.teks }),
+    cwd: ROOT,
+  })
+  const at = new Date().toISOString()
+  const sesi: Sesi = {
+    id,
+    fase,
+    mode,
+    status: 'bekerja',
+    mulai: cara === 'dimulai' ? at : (k.sesi?.mulai ?? at),
+    at,
+  }
+  const k2 = pindahTahap(
+    { ...bacaKerja(key), sesi },
+    k.tahap,
+    `Claude: fase ${fase} (${mode}, ${cara})`,
+  )
+  simpanKerja(k2)
+  return { kerja: k2, cara }
+}
+
+/** Kabar dari hook Claude Code → status sesi (R-6.4). Event tak dikenal diabaikan. */
+export function kabarSesi(
+  key: string,
+  payload: { hook_event_name?: string; message?: string },
+): Kerja | null {
+  const k = bacaKerja(key)
+  if (!k.sesi) return null
+  const s = statusDariHook(String(payload.hook_event_name ?? ''), payload.message)
+  if (!s) return null
+  const k2 = {
+    ...k,
+    sesi: { ...k.sesi, status: s.status, pesan: s.pesan, at: new Date().toISOString() },
+  }
+  simpanKerja(k2)
+  return k2
+}
+
+/** Status sesi yang dicocokkan dengan tmux: sesi yang prosesnya sudah mati dianggap berhenti. */
+export async function sesiTerkini(
+  key: string,
+): Promise<{ sesi: Sesi | null; tmux: Awaited<ReturnType<typeof keadaanTmux>> }> {
+  const k = bacaKerja(key)
+  const t = await keadaanTmux(key)
+  if (k.sesi && k.sesi.status !== 'berhenti' && !t.hidup) {
+    const k2 = {
+      ...k,
+      sesi: {
+        ...k.sesi,
+        status: 'berhenti' as const,
+        pesan: 'Proses Claude sudah berhenti',
+        at: new Date().toISOString(),
+      },
+    }
+    simpanKerja(k2)
+    return { sesi: k2.sesi, tmux: t }
+  }
+  return { sesi: k.sesi ?? null, tmux: t }
+}
+
+/** Tunda atau aktifkan lagi sebuah tiket; tercatat di riwayat. */
+export function tundaKerja(key: string, tunda: boolean, alasan = ''): Kerja {
+  const k = bacaKerja(key)
+  const { ditunda: _lama, ...tanpa } = k
+  const k2 = tunda
+    ? {
+        ...k,
+        ditunda: {
+          at: new Date().toISOString(),
+          ...(alasan.trim() ? { alasan: alasan.trim() } : {}),
+        },
+      }
+    : tanpa
+  const k3 = pindahTahap(
+    k2 as Kerja,
+    k.tahap,
+    tunda ? `Ditunda${alasan.trim() ? `: ${alasan.trim()}` : ''}` : 'Diaktifkan lagi',
+  )
+  simpanKerja(k3)
+  return k3
 }

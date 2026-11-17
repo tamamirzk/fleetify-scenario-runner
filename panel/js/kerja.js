@@ -956,8 +956,76 @@ export function kartuKeputusan(k) {
     ${tanya.length ? `<ol class="kj-tanya-daftar">${butir}</ol>` : ''}${ubah.length ? `<ul class="kj-ubah-daftar">${daftarUbah}</ul>` : ''}</section>`
 }
 
-export function ringkasanKerja(d, kode = null, buka = new Set(), cekPlane = null) {
-  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuKeputusan(d.kerja)}
+const LABEL_FASE_SESI = {
+  pahami: 'Pahami',
+  kerjakan: 'Kerjakan',
+  serahkan: 'Serahkan',
+  lanjut: 'Lanjutkan',
+}
+
+/** Tombol aksi utama dari aturan "Butuh kamu" (src/core/butuh-kamu.ts). */
+export function tombolButuh(b) {
+  if (!b) return ''
+  const a = b.aksi
+  const attr =
+    a.jenis === 'fase'
+      ? `data-kj-fase="${esc(a.fase)}"`
+      : a.jenis === 'terminal'
+        ? 'data-kj-terminal'
+        : 'data-kj-ke-keputusan'
+  return `<button type="button" class="btn tb utama-tb" ${attr}>${esc(a.label)}</button>`
+}
+
+/**
+ * Kartu Sesi AI (R-6.2–R-6.4): status sesi Claude tiket ini, tombol aksi utama, pilihan fase dan
+ * mode, Buka terminal, Hentikan, dan cuplikan layar tmux. `langsung` = hasil GET /sesi.
+ */
+export function kartuSesi(d, langsung = null, modeSesi = 'terminal') {
+  const s = langsung?.sesi ?? d.kerja.sesi ?? null
+  const hidup = !!langsung?.tmux?.hidup
+  const jam = s?.at ? JAM(s.at) : ''
+  const status = !s
+    ? '<span class="dim">○ Belum ada sesi Claude untuk tiket ini</span>'
+    : s.status === 'bekerja'
+      ? `<span class="chip info">● Claude bekerja</span><span class="dim">${esc(LABEL_FASE_SESI[s.fase] ?? s.fase)} · ${s.mode === 'latar' ? 'latar' : 'terminal'} · ${esc(jam)}</span>`
+      : s.status === 'menunggu'
+        ? `<span class="chip warn">◆ Menunggu kamu</span><span>${esc(s.pesan ?? '')}</span><span class="dim">${esc(jam)}</span>`
+        : `<span class="chip">○ Berhenti</span><span class="dim">${esc(s.pesan ?? '')} · ${esc(jam)}</span>`
+  const b = d.butuh
+  const fase = ['pahami', 'kerjakan', 'serahkan']
+    .map(
+      (f) =>
+        `<button type="button" class="btn tb" data-kj-fase="${f}">${LABEL_FASE_SESI[f]}</button>`,
+    )
+    .join('')
+  const mode = `<div class="pill" role="group" aria-label="Mode sesi">${['terminal', 'latar']
+    .map(
+      (m) =>
+        `<button type="button" data-kj-mode-sesi="${m}" aria-pressed="${modeSesi === m}">${m === 'terminal' ? 'Terminal' : 'Latar'}</button>`,
+    )
+    .join('')}</div>`
+  const cuplikan = langsung?.cuplikan?.length
+    ? `<pre class="kj-cuplikan" aria-label="Cuplikan terminal">${esc(langsung.cuplikan.join('\n'))}</pre>`
+    : ''
+  const tunda = d.kerja.ditunda
+    ? `<span class="chip">⏸ Ditunda${d.kerja.ditunda.alasan ? `: ${esc(d.kerja.ditunda.alasan)}` : ''}</span><button type="button" class="btn tb" data-kj-tunda="0">Aktifkan lagi</button>`
+    : '<button type="button" class="btn tb" data-kj-tunda="1" title="Sisihkan tiket ini dari Butuh kamu">Tunda</button>'
+  return `<section class="kartu glass kj-sesi" aria-label="Sesi AI"><div class="kj-sesi-hd"><span class="db-eyebrow">Sesi AI</span><span class="kj-sesi-status" role="status">${status}</span>
+      <span class="kj-sesi-aksi">${b ? `<span class="dim kj-sesi-alasan">${b.titik ? `◆${esc(b.titik)} · ` : ''}${esc(b.alasan)}</span>${tombolButuh(b)}` : ''}${langsung?.tmux?.ada ? `<button type="button" class="btn tb" data-kj-terminal>Buka terminal</button>` : ''}${hidup ? '<button type="button" class="btn tb" data-kj-hentikan>Hentikan</button>' : ''}${tunda}</span></div>
+    <details class="kj-sesi-lain"><summary class="dim kj-sesi-ringkas">Jalankan fase lain · mode · arahan</summary><div class="kj-sesi-baris">${mode}${fase}</div>
+      <form class="kj-tanya-isi" data-kj-lanjut><input type="text" name="teks" placeholder="Arahan untuk Claude (fase Lanjutkan)…" aria-label="Arahan untuk Claude"><button type="submit" class="btn tb">Lanjutkan</button></form></details>
+    ${cuplikan}</section>`
+}
+
+export function ringkasanKerja(
+  d,
+  kode = null,
+  buka = new Set(),
+  cekPlane = null,
+  sesi = null,
+  modeSesi = 'terminal',
+) {
+  return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${kartuKeputusan(d.kerja)}
     <div class="kj-ringkas-kolom"><div class="kj-ringkas-kiri">${kartuTugas(d, buka)}${kartuDilakukan(d, kode, buka)}</div>
     <div class="kj-ringkas-kanan">${kartuBukti(d, kode, buka)}${riwayatTerbaru(d.kerja)}</div></div></section>`
 }
@@ -1001,6 +1069,6 @@ export function laporanKerja(d, o = {}) {
             })
   return {
     bar: barKerja(d, { kembali: o.kembali, cekPlane: o.cekPlane }),
-    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane)}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
+    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane, o.sesi ?? null, o.modeSesi ?? 'terminal')}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
   }
 }

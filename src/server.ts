@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
+import { butuhKamu } from './core/butuh-kamu.ts'
 import { jawabPertanyaan, renderCatatan } from './core/catatan.ts'
 import { config, ROOT } from './core/config.ts'
 import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
@@ -28,11 +29,15 @@ import {
 } from './core/kerja.ts'
 import {
   ambilKerja,
+  jalankanFase,
+  kabarSesi,
   komentarKePlane,
   periksaCatatanKerja,
   potretKerja,
+  sesiTerkini,
   setTahap,
   statusKePlane,
+  tundaKerja,
   ubahDataCatatan,
 } from './core/kerja-aksi.ts'
 import { kodeKerja } from './core/kode.ts'
@@ -62,6 +67,14 @@ import {
   stepInfo,
   urutAlur,
 } from './core/scenarios.ts'
+import {
+  bukaTerminal,
+  cuplikanSesi,
+  FASE_SESI,
+  type FaseSesi,
+  hentikanSesi,
+  type ModeSesi,
+} from './core/sesi.ts'
 import {
   bacaLayar,
   bacaMutu,
@@ -488,6 +501,10 @@ async function detailKerja(key: string) {
       brief: periksaCatatanKerja(key, 'brief'),
       akhir: periksaCatatanKerja(key, 'akhir'),
     },
+    butuh: butuhKamu(k, {
+      brief: periksaCatatanKerja(key, 'brief'),
+      akhir: periksaCatatanKerja(key, 'akhir'),
+    }),
     // Kapan status Plane terakhir dicek; segar = status di atas datang dari Plane, bukan salinan.
     plane: { dicek: waktuTugasSaya(), segar: segar && status.has(key) },
     db,
@@ -503,6 +520,10 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
   if (req.method === 'GET' && !aksi) {
     if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
     return detailKerja(key)
+  }
+  if (req.method === 'GET' && aksi === 'sesi') {
+    const t = await sesiTerkini(key)
+    return { ...t, cuplikan: t.tmux.ada ? await cuplikanSesi(key) : [] }
   }
   if (req.method === 'GET' && aksi === 'kode') {
     if (!adaKerja(key)) throw new HttpError(404, `${key} belum diambil`)
@@ -527,6 +548,44 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
       // Gerbang catatan menolak maju (R-8.1): kembalikan alasannya apa adanya.
       throw new HttpError(409, (e as Error).message)
     }
+    return detailKerja(key)
+  }
+  if (aksi === 'tunda') {
+    tundaKerja(key, body.tunda !== false, String(body.alasan ?? ''))
+    return detailKerja(key)
+  }
+  if (aksi === 'kabar') {
+    // Hook Claude Code (UserPromptSubmit, Notification, Stop, SessionEnd) dari sesi tiket ini.
+    kabarSesi(key, body as { hook_event_name?: string; message?: string })
+    return { ok: true }
+  }
+  if (aksi === 'fase') {
+    const fase = String(body.fase ?? '') as FaseSesi
+    const mode = (body.mode === 'latar' ? 'latar' : 'terminal') as ModeSesi
+    if (!FASE_SESI.includes(fase)) throw new HttpError(400, `Fase tidak dikenal: ${fase}`)
+    try {
+      const { cara } = await jalankanFase(key, fase, mode, {
+        teks: typeof body.teks === 'string' ? body.teks : undefined,
+        port: config.port,
+        model: typeof body.model === 'string' ? body.model : undefined,
+      })
+      if (mode === 'terminal' && cara === 'dimulai') await bukaTerminal(key)
+    } catch (e) {
+      throw new HttpError(502, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'terminal') {
+    try {
+      await bukaTerminal(key)
+    } catch (e) {
+      throw new HttpError(502, (e as Error).message)
+    }
+    return { ok: true }
+  }
+  if (aksi === 'hentikan') {
+    await hentikanSesi(key)
+    await sesiTerkini(key)
     return detailKerja(key)
   }
   if (aksi === 'jawab') {
@@ -651,7 +710,7 @@ const routes: Record<string, Handler> = {
     const jumlah = new Map<string, number>()
     for (const b of semua) jumlah.set(b.task, (jumlah.get(b.task) ?? 0) + 1)
     const p = PROJECTS[0]
-    return susunDasbor({
+    const dasbor = susunDasbor({
       tugas,
       tugasGalat,
       kerja: daftarKerja().map((k) =>
@@ -669,6 +728,28 @@ const routes: Record<string, Handler> = {
       adaCatatan: (key) => bacaBerkasKerja(key, 'catatan.md') !== null,
       memotret: potretBerjalan,
     })
+    // Lajur "Butuh kamu" (R-5.2): satu butir per kerja yang menunggu Tams, dengan aksi utamanya.
+    const butuh = daftarKerja()
+      .map((k) =>
+        butuhKamu(k, {
+          brief: periksaCatatanKerja(k.key, 'brief'),
+          akhir: periksaCatatanKerja(k.key, 'akhir'),
+        }),
+      )
+      .filter((b) => b !== null)
+    const bekerja = daftarKerja()
+      .filter((k) => k.sesi?.status === 'bekerja')
+      .map((k) => ({
+        key: k.key,
+        judul: k.judul,
+        fase: k.sesi?.fase,
+        mode: k.sesi?.mode,
+        at: k.sesi?.at,
+      }))
+    const ditunda = daftarKerja()
+      .filter((k) => k.ditunda && k.tahap !== 'selesai')
+      .map((k) => ({ key: k.key, judul: k.judul, alasan: k.ditunda?.alasan ?? null }))
+    return { ...dasbor, butuhKamu: butuh, aiBekerja: bekerja, ditunda }
   },
   'GET /api/state': async () => ({ ...snapshot(), logs }),
   'GET /api/runs': async (_b, url) => listRuns(url.searchParams.get('scenario') || undefined),

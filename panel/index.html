@@ -242,6 +242,15 @@ function gambarDasbor() {
   const main = appMain('dasbor')
   main.innerHTML = halamanDasbor(S.dasbor, { galat: S.dasborGalat, minggu: S.dbMinggu })
   $('#db-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderDasbor() })
+  // Lajur Butuh kamu: jalankan fase (mode Terminal) atau buka terminal sesi tiket.
+  for (const b of main.querySelectorAll('[data-db-fase]'))
+    b.addEventListener('click', async () => {
+      b.disabled = true
+      try { await api(`/api/kerja/${b.dataset.key}/fase`, { fase: b.dataset.dbFase, mode: 'terminal' }); toast(`${b.dataset.key}: fase ${b.dataset.dbFase} berjalan`) } catch (e) { toast(e.message, true) }
+      renderDasbor()
+    })
+  for (const b of main.querySelectorAll('[data-db-terminal]'))
+    b.addEventListener('click', () => api(`/api/kerja/${b.dataset.dbTerminal}/terminal`, {}).catch((e) => toast(e.message, true)))
   for (const b of main.querySelectorAll('[data-db-salin]')) b.addEventListener('click', () => salin(b.dataset.dbSalin, `Disalin: ${b.dataset.dbSalin}`))
   for (const b of main.querySelectorAll('[data-db-minggu]')) b.addEventListener('click', () => {
     const label = b.getAttribute('aria-label')
@@ -267,7 +276,7 @@ function gambarKerja(key) {
   const view = $('#view')
   // Buka-tutup diff per berkas bertahan saat digambar ulang.
   const terbuka = new Set([...view.querySelectorAll('details.kj-berkas[open]')].map((x) => x.dataset.k))
-  const { bar, view: isi } = laporanKerja(S.kj, { tab, pilih: Number(sel) || 1, mode: S.kjMode, galat: S.kjGalat, sibuk: S.kjSibuk, kode: S.kjKode, kodeGalat: S.kjKodeGalat, kembali: svg('back', 16), buka: S.kjBuka, sinkron: S.kjSinkron, kunci: key, cekPlane: S.kjCekPlane, kabar: S.kjKabar })
+  const { bar, view: isi } = laporanKerja(S.kj, { tab, pilih: Number(sel) || 1, mode: S.kjMode, galat: S.kjGalat, sibuk: S.kjSibuk, kode: S.kjKode, kodeGalat: S.kjKodeGalat, kembali: svg('back', 16), buka: S.kjBuka, sinkron: S.kjSinkron, kunci: key, cekPlane: S.kjCekPlane, kabar: S.kjKabar, sesi: S.kjSesi, modeSesi: S.kjModeSesi ?? 'terminal' })
   $('#bar').innerHTML = bar
   view.innerHTML = isi
   for (const x of view.querySelectorAll('details.kj-berkas')) if (terbuka.has(x.dataset.k)) x.open = true
@@ -327,6 +336,24 @@ function gambarKerja(key) {
       if (S.kj.kerja.potret[f] && !(await dialogTimpa(key, f))) return kabarKerja(key, `Potret ${f} tidak diubah.`)
       aksi(`Memotret ${f}`, () => api(`/api/kerja/${key}/potret`, { fase: f }))
     })
+  // Sesi AI (R-6.2–R-6.4): jalankan fase, buka terminal, hentikan; cuplikan diperbarui berkala.
+  for (const b of document.querySelectorAll('#view [data-kj-fase]'))
+    b.onclick = () => aksi(`Menjalankan fase ${b.dataset.kjFase}`, () => api(`/api/kerja/${key}/fase`, { fase: b.dataset.kjFase, mode: S.kjModeSesi ?? 'terminal' })).then(() => pantauSesi(key, true))
+  for (const b of document.querySelectorAll('#view [data-kj-mode-sesi]')) b.onclick = () => { S.kjModeSesi = b.dataset.kjModeSesi; gambarKerja(key) }
+  for (const b of document.querySelectorAll('#view [data-kj-terminal]'))
+    b.onclick = () => api(`/api/kerja/${key}/terminal`, {}).catch((e) => toast(e.message, true))
+  $('#view [data-kj-hentikan]')?.addEventListener('click', () => aksi('Menghentikan sesi', () => api(`/api/kerja/${key}/hentikan`, {})).then(() => pantauSesi(key, true)))
+  $('#view [data-kj-lanjut]')?.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const teks = e.currentTarget.elements.teks.value.trim()
+    if (teks) aksi('Mengirim arahan', () => api(`/api/kerja/${key}/fase`, { fase: 'lanjut', mode: S.kjModeSesi ?? 'terminal', teks })).then(() => pantauSesi(key, true))
+  })
+  $('#view [data-kj-tunda]')?.addEventListener('click', (e) => {
+    const tunda = e.currentTarget.dataset.kjTunda === '1'
+    aksi(tunda ? 'Menunda tiket' : 'Mengaktifkan tiket', () => api(`/api/kerja/${key}/tunda`, { tunda }))
+  })
+  $('#view [data-kj-ke-keputusan]')?.addEventListener('click', () => ($('#view .kj-keputusan') ?? $('#kj-laporan'))?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  pantauSesi(key)
   // Jawab pertanyaan AI: satu klik pada usulan, atau isian sendiri (R-5.1).
   const jawab = (id, jawaban) => jawaban.trim() && aksi('Menyimpan jawaban', () => api(`/api/kerja/${key}/jawab`, { id: Number(id), jawaban }))
   for (const b of document.querySelectorAll('#view [data-kj-jawab]')) b.onclick = () => jawab(b.dataset.kjJawab, b.dataset.nilai)
@@ -482,6 +509,28 @@ function dialogStatus(key) {
     }
     periksa()
   }, 520)
+}
+/**
+ * Pantau sesi Claude tiket yang sedang dibuka: GET /sesi tiap 4 detik selama halaman Kerja tiket
+ * itu terbuka dan ada sesi tmux; gambar ulang hanya bila status/cuplikan berubah.
+ */
+function pantauSesi(key, segera = false) {
+  clearTimeout(S.kjSesiT)
+  const tarik = async () => {
+    if (route()[0] !== 'kerja' || route()[1] !== key) return
+    try {
+      const s = await api(`/api/kerja/${encodeURIComponent(key)}/sesi`)
+      const beda = JSON.stringify(s) !== JSON.stringify(S.kjSesi)
+      S.kjSesi = s
+      if (beda && !document.activeElement?.closest?.('form')) {
+        // Status berubah (mis. hook Stop): muat ulang data kerja supaya "Butuh kamu" ikut segar.
+        if (s.sesi?.status !== S.kj?.kerja?.sesi?.status) S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`)
+        gambarKerja(key)
+      }
+      if (s.tmux?.ada) S.kjSesiT = setTimeout(tarik, 4000)
+    } catch {}
+  }
+  S.kjSesiT = setTimeout(tarik, segera ? 300 : S.kjSesi ? 4000 : 0)
 }
 /** Peta mini (kotak = bagian yang terlihat; klik/seret untuk loncat) dan gulir bersama Berdampingan. */
 function pasangPeta() {

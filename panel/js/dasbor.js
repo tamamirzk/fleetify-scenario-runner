@@ -465,6 +465,29 @@ export function daftarAktivitas(aktivitas) {
 }
 
 /**
+ * Lajur "Butuh kamu" dan "AI sedang jalan" (R-5.2, R-6.4): tiap butir punya satu tombol aksi
+ * utama; tombol yang butuh AI menjalankan fase berikut. Rancangan penuh tiga lajur ada di tahap 6.
+ */
+export function lajurButuh(butuh, bekerja, ditunda = []) {
+  const tombol = (b) =>
+    b.aksi.jenis === 'fase'
+      ? `<button type="button" class="btn db-pil" data-db-fase="${esc(b.aksi.fase)}" data-key="${esc(b.key)}">${esc(b.aksi.label)}</button>`
+      : b.aksi.jenis === 'terminal'
+        ? `<button type="button" class="btn db-pil" data-db-terminal="${esc(b.key)}">${esc(b.aksi.label)}</button>`
+        : `<a class="btn db-pil" href="#/kerja/${esc(b.key)}">${esc(b.aksi.label)}</a>`
+  const kiri = butuh.length
+    ? `<ul class="db-butuh">${butuh.map((b) => `<li><a class="mono" href="#/kerja/${esc(b.key)}">${esc(b.key)}</a><span class="db-butuh-teks">${b.titik ? `<b>◆${esc(b.titik)}</b> ` : ''}${esc(b.alasan)}<span class="dim"> · ${esc(b.judul)}</span></span>${tombol(b)}</li>`).join('')}</ul>`
+    : '<p class="dim">Tidak ada yang menunggumu.</p>'
+  const tunda = ditunda.length
+    ? `<p class="dim db-tunda">⏸ ${ditunda.length} ditunda: ${ditunda.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')}</p>`
+    : ''
+  const kanan = bekerja.length
+    ? `<ul class="db-butuh">${bekerja.map((x) => `<li><a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a><span class="db-butuh-teks">● ${esc(x.fase ?? '')} · ${esc(x.mode ?? '')}<span class="dim"> · ${esc(x.judul)}</span></span></li>`).join('')}</ul>`
+    : '<p class="dim">Tidak ada sesi Claude yang sedang bekerja.</p>'
+  return `<div class="db-lajur"><section class="db-panel" aria-labelledby="db-butuh-h"><h2 id="db-butuh-h" class="db-lajur-h">Butuh kamu <span class="dim">${butuh.length}</span></h2>${kiri}${tunda}</section><section class="db-panel" aria-labelledby="db-ai-h"><h2 id="db-ai-h" class="db-lajur-h">AI sedang jalan <span class="dim">${bekerja.length}</span></h2>${kanan}</section></div>`
+}
+
+/**
  * Isi halaman Dasbor.
  * @param {any} d hasil /api/dasbor
  * @param {{ galat?: string | null, minggu?: number }} [o] minggu = mundur dari minggu berjalan
@@ -474,5 +497,5 @@ export function halamanDasbor(d, { galat = null, minggu = 0 } = {}) {
   if (galat)
     return `${kepala}<div class="errbox" role="alert"><b>Dashboard gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
   if (!d) return `${kepala}<div class="empty">Memuat dashboard…</div>`
-  return `<div class="db">${kepala}${panelAktif(d.kerja.aktif)}${kotakAngka(d)}<div class="db-baris-grafik">${heatmap(d.jalan.harian, d.jalan.ringkas)}${produktivitas(d.jalan.harian, minggu)}</div><div class="db-baris-bawah">${radar(d.skenario.perGrup, d.skenario.total)}${daftarTemuan(d.temuan.terbaru)}${daftarAktivitas(d.aktivitas)}</div></div>`
+  return `<div class="db">${kepala}${lajurButuh(d.butuhKamu ?? [], d.aiBekerja ?? [], d.ditunda ?? [])}${panelAktif(d.kerja.aktif)}${kotakAngka(d)}<div class="db-baris-grafik">${heatmap(d.jalan.harian, d.jalan.ringkas)}${produktivitas(d.jalan.harian, minggu)}</div><div class="db-baris-bawah">${radar(d.skenario.perGrup, d.skenario.total)}${daftarTemuan(d.temuan.terbaru)}${daftarAktivitas(d.aktivitas)}</div></div>`
 }

@@ -105,6 +105,17 @@ bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk me
 
 Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan daftar alasannya. Mundur selalu boleh.
 
+## Sesi Claude dari panel
+
+Halaman Kerja punya kartu **Sesi AI**; Dashboard punya lajur **Butuh kamu** dan **AI sedang jalan**.
+
+- **Jalankan fase** (Pahami, Kerjakan, Serahkan, atau Lanjutkan dengan arahan) menjalankan `claude` di sesi tmux `kerja-<KEY>`, dari akar scenario-runner dengan worktree v2 sebagai `--add-dir`. Satu tiket = satu sesi Claude (`--session-id`, lalu `--resume`), ID-nya di `kerja.json` (`sesi`).
+- **Mode Terminal** (bawaan) membuka Terminal.app yang tersambung ke sesi itu: kamu bisa menonton, menyetujui izin, atau mengetik arahan. Menutup jendela tidak menghentikan kerja; **Buka terminal** menyambung lagi (atau `tmux attach -t kerja-<KEY>`). Bila sesi masih hidup, fase berikutnya dikirim ke sesi yang sama sehingga konteksnya tetap.
+- **Mode Latar** memakai `claude -p` dengan batas biaya per fase; progres ringkas tampil sebagai cuplikan di panel.
+- **Izin per fase:** Pahami hanya boleh menulis di `kerja/`; Kerjakan boleh menulis di worktree. Semua fase melarang `git push`, `kerja plane`, dan `prisma migrate deploy` di level alat; push dan Plane hanya lewat tombol panel.
+- **Hook** (`UserPromptSubmit`, `Notification`, `Stop`, `SessionEnd`) mengabari panel lewat `POST /api/kerja/<KEY>/kabar`: status sesi menjadi *bekerja*, *menunggu kamu*, atau *berhenti*.
+- **Butuh kamu** memberi satu tombol per tiket: Jawab (pertanyaan terbuka), Buka terminal (Claude menunggu), Jalankan Pahami (Brief belum ada), Setujui & Kerjakan (◆A), atau Review (◆B).
+
 ## Gerbang dan kesehatan
 
 Keluaran ketiga perintah ini sengaja ringkas: satu baris vonis (`✓`, `!` peringatan, `×` gagal), lalu hanya yang bermasalah beserta saran. Detail lengkap ditulis ke berkas (`kerja/<KEY>/gerbang/*.log`).

@@ -9,6 +9,7 @@ import type { CekStaging, DataCatatan, Keputusan, MintaUbah, Pertanyaan } from '
 import { ROOT } from './config.ts'
 import type { HasilGerbang } from './gerbang.ts'
 import { PERSONA_IDS } from './personas.ts'
+import type { Sesi } from './sesi.ts'
 
 export const KERJA_DIR = path.join(ROOT, 'kerja')
 
@@ -136,6 +137,10 @@ export interface Kerja {
   pertanyaan: Pertanyaan[]
   mintaUbah: MintaUbah[]
   cekStaging: CekStaging[]
+  /** Sesi Claude tiket ini (src/core/sesi.ts). */
+  sesi?: Sesi
+  /** Tiket disisihkan Tams: tidak muncul di "Butuh kamu" sampai diaktifkan lagi. */
+  ditunda?: { at: string; alasan?: string }
 }
 
 export const dirKerja = (key: string) => {

@@ -7811,3 +7811,95 @@ details.kj-tiket > summary h2 {
   color: var(--sr-text);
   font: inherit;
 }
+
+/* Sesi AI di Ringkasan Kerja (R-6.2–R-6.4) */
+.kj-sesi {
+  padding: 14px 20px;
+}
+.kj-sesi-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.kj-sesi-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--sr-text-sm);
+}
+.kj-sesi-aksi {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.kj-sesi-alasan {
+  font-size: var(--sr-text-sm);
+}
+.kj-sesi-lain {
+  margin-top: 10px;
+}
+.kj-sesi-lain .kj-sesi-ringkas {
+  cursor: pointer;
+  font-size: var(--sr-text-xs);
+}
+.kj-sesi-baris {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.kj-cuplikan {
+  max-height: 220px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-inset);
+  border: 1px solid var(--sr-line);
+  font: var(--sr-text-xs) / 1.5 var(--sr-font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Dashboard: lajur Butuh kamu · AI sedang jalan (tahap 3; rancangan penuh di tahap 6) */
+.db-lajur {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+}
+.db-lajur-h {
+  margin: 0 0 10px;
+  font-size: var(--sr-text-md);
+}
+.db-butuh {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-butuh li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.db-butuh-teks {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .db-lajur {
+    grid-template-columns: 1fr;
+  }
+}
+.db-tunda {
+  margin: 10px 0 0;
+  font-size: var(--sr-text-xs);
+}
