@@ -33,6 +33,8 @@ import {
   TargetSchema,
 } from './kerja.ts'
 import { PENTING_POTRET, periksaKesehatan } from './kesehatan.ts'
+import { metrikKerja, tokenSesi } from './metrik.ts'
+import { MODUL_V2, panen, tebakModul } from './panen.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
 import { potret } from './potret.ts'
 import { deskripsiMr, keadaanGit, pushBranch, syaratPush } from './serah.ts'
@@ -523,4 +525,50 @@ export function reviewKerja(
   if (!teks.trim()) throw new Error('Tulis apa yang perlu diubah')
   const k = ubahDataCatatan(key, (d) => tambahMintaUbah(d, teks, 'B'))
   return { kerja: k, mintaUbah: k.mintaUbah.at(-1)?.id }
+}
+
+/**
+ * Panen catatan kerja ke docs-site fleetify-ops (R-8.3). Modul: opsi, lalu `kerja.json`, lalu
+ * tebakan dari judul/tiket. Tanpa `tulis` hanya pratinjau. Saat ditulis, modul disimpan dan
+ * dicatat di riwayat; commit di fleetify-ops dilakukan Tams.
+ */
+export function panenKerja(key: string, o: { modul?: string; tulis: boolean }) {
+  const k = bacaKerja(key)
+  const modul = o.modul ?? k.modul ?? tebakModul(k.judul, bacaBerkasKerja(key, 'tiket.md'))
+  if (!modul)
+    throw new Error(
+      `Modul docs-site untuk ${key} tidak bisa ditebak: pakai --modul (${MODUL_V2.map((m) => m.slug).join(', ')})`,
+    )
+  const h = panen(
+    {
+      key,
+      judul: k.judul,
+      url: k.url,
+      branch: k.branch,
+      commit: k.commit,
+      mr: k.mr,
+      tahap: LABEL_TAHAP[k.tahap],
+      md: bacaBerkasKerja(key, 'catatan.md'),
+      data: dataCatatan(k),
+      verifikasi: k.verifikasi,
+    },
+    modul,
+    { tulis: o.tulis, tanggal: new Date().toISOString().slice(0, 10) },
+  )
+  if (o.tulis) {
+    const k2 = bacaKerja(key)
+    simpanKerja(
+      pindahTahap(
+        { ...k2, modul },
+        k2.tahap,
+        `Dipanen ke docs-site: ${h.rel}${h.cek?.ok ? '' : ' (check-v2 GAGAL)'}`,
+      ),
+    )
+  }
+  return { ...h, modul }
+}
+
+/** Metrik semua kerja (R-9.3): lama per tahap, kerja ulang, token sesi Claude dari panel. */
+export function semuaMetrik() {
+  return daftarKerja().map((k) => metrikKerja(k, tokenSesi(k.sesi?.id)))
 }

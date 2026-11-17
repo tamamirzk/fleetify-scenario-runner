@@ -95,6 +95,7 @@ bun run kerja tahap <KEY> diverifikasi "n lulus, m gagal"
    - Putar skenarionya headless sampai lulus dua kali berturut-turut.
    - Lalu jalankan `bun run kerja catat <KEY> --skenario <slug>`.
 3. Daftar cek setelah deploy: `bun run kerja staging <KEY> tambah "…"` per butir (migrasi, `rls.sql`, `sync-rbac`, query verifikasi di staging).
+   Lalu panen ke docs-site: `bun run kerja panen <KEY> --tulis` (check-v2 harus lulus; jangan commit fleetify-ops).
 4. `bun run kerja catatan <KEY> akhir` harus `✓` (tak ada pertanyaan/minta ubah terbuka, tak ada bagian "Usulan…" atau teks "menunggu keputusan"), lalu `bun run kerja tahap <KEY> didokumentasikan "…"`. Tahap menolak maju bila gerbangnya belum lulus.
 
 ## 6. Plane (terlihat tim — wajib konfirmasi)

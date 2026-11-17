@@ -8192,3 +8192,28 @@ details.kj-tiket > summary h2 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Statistik: metrik per tiket (R-9.3) */
+.db-metrik-gulir {
+  overflow-x: auto;
+}
+.db-metrik {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sr-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.db-metrik th,
+.db-metrik td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--sr-line);
+  text-align: left;
+  white-space: nowrap;
+}
+.db-metrik th {
+  color: var(--sr-text-2);
+  font-weight: 600;
+}
+.db-metrik .kanan {
+  text-align: right;
+}

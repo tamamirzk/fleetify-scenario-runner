@@ -151,6 +151,8 @@ export interface Kerja {
   antre?: { at: string }
   /** Kunci tiket pemegang slot bila tiket ini gabung klaster (branch dan DB yang sama). */
   klaster?: string
+  /** Modul docs-site V2 tempat catatan dipanen (slug process_key, mis. fleet). */
+  modul?: string
 }
 
 export const dirKerja = (key: string) => {

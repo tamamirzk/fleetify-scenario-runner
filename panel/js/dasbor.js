@@ -570,6 +570,49 @@ export function halamanDasbor(d, { galat = null } = {}) {
   return `<div class="db">${kepala}${stripMini(d.mini)}${lajurTindakan(d)}${angkaTindakan(d)}${daftarTemuan(d.temuan.terbaru)}</div>`
 }
 
+const LABEL_TAHAP_M = {
+  diambil: 'Diambil',
+  dipelajari: 'Dipelajari',
+  dikerjakan: 'Dikerjakan',
+  diverifikasi: 'Diverifikasi',
+  didokumentasikan: 'Didokumentasikan',
+  selesai: 'Selesai',
+}
+const lama = (ms) =>
+  !ms
+    ? '–'
+    : ms >= 86_400_000
+      ? `${(ms / 86_400_000).toFixed(1)} h`
+      : ms >= 3_600_000
+        ? `${(ms / 3_600_000).toFixed(1)} j`
+        : `${Math.max(1, Math.round(ms / 60_000))} m`
+const ribuan = (n) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} jt` : `${Math.round(n / 1000)} rb`
+
+/**
+ * Metrik per tiket (R-9.3): lama per tahap (waktu kalender), kerja ulang, token sesi Claude yang
+ * dijalankan dari panel. Sesi chat VS Code tidak terhubung ke tiket, jadi tidak terhitung.
+ */
+export function tabelMetrik(metrik) {
+  const kolom = ['dipelajari', 'dikerjakan', 'diverifikasi', 'didokumentasikan']
+  const baris = metrik
+    .map((m) => {
+      const t = m.token
+      const ulang = [
+        m.kerjaUlang.tahapMundur ? `mundur ${m.kerjaUlang.tahapMundur}` : '',
+        m.kerjaUlang.mintaUbah ? `minta ubah ${m.kerjaUlang.mintaUbah}` : '',
+        m.kerjaUlang.gerbangCiGagal ? 'CI gagal' : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
+      return `<tr><td><a class="mono" href="#/kerja/${esc(m.key)}">${esc(m.key)}</a></td><td>${esc(LABEL_TAHAP_M[m.tahap] ?? m.tahap)}</td>${kolom.map((k) => `<td class="kanan">${lama(m.durasi[k])}</td>`).join('')}<td class="kanan"><b>${lama(m.totalMs)}</b></td><td>${ulang ? `<span class="warn-t">!</span> ${esc(ulang)}` : '<span class="dim">–</span>'}</td><td class="kanan">${t ? `${ribuan(t.input + t.cacheBaca + t.cacheTulis)} masuk · ${ribuan(t.output)} keluar` : '<span class="dim">–</span>'}</td></tr>`
+    })
+    .join('')
+  return `<section class="db-panel" aria-labelledby="db-metrik-h"><h2 id="db-metrik-h" class="db-lajur-h">Metrik per tiket</h2>
+    ${metrik.length ? `<div class="db-metrik-gulir"><table class="db-metrik"><thead><tr><th>Tiket</th><th>Tahap</th>${kolom.map((k) => `<th class="kanan">${LABEL_TAHAP_M[k]}</th>`).join('')}<th class="kanan">Total</th><th>Kerja ulang</th><th class="kanan">Token</th></tr></thead><tbody>${baris}</tbody></table></div>` : '<p class="dim">Belum ada kerja.</p>'}
+    <p class="dim db-angka-ket">Waktu kalender per tahap (termasuk menunggu). Token hanya dari sesi Claude yang dijalankan dari panel; kerja di chat VS Code tidak terhubung ke tiket.</p></section>`
+}
+
 /**
  * Halaman Statistik (R-9.4): tren dan detail yang dipindah dari Dashboard.
  * @param {any} d hasil /api/dasbor
@@ -581,5 +624,5 @@ export function halamanStatistik(d, { galat = null, minggu = 0 } = {}) {
     return `${kepala}<div class="errbox" role="alert"><b>Statistik gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
   if (!d) return `${kepala}<div class="empty">Memuat statistik…</div>`
   return `<div class="db">${kepala}${kotakAngka(d)}${panelAktif(d.kerja.aktif)}<div class="db-baris-grafik">${heatmap(d.jalan.harian, d.jalan.ringkas)}${produktivitas(d.jalan.harian, minggu)}</div><div class="db-baris-bawah">${radar(d.skenario.perGrup, d.skenario.total)}${daftarAktivitas(d.aktivitas)}</div>
-    <section class="db-panel" aria-labelledby="db-metrik-h"><h2 id="db-metrik-h" class="db-lajur-h">Metrik per tiket</h2><p class="dim">Lama per fase, kerja ulang, dan perkiraan token dicatat mulai tahap 7 rancangan.</p></section></div>`
+    ${tabelMetrik(d.metrik ?? [])}</div>`
 }

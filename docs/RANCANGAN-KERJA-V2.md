@@ -1,6 +1,6 @@
 # Rancangan alur Kerja v2
 
-**Status:** disetujui Tams 17 Nov 2026, belum diimplementasi.
+**Status:** disetujui Tams 17 Nov 2026; ketujuh tahap diimplementasikan 17 Nov 2026 (lihat §11 K15–K18 untuk penyesuaian dan yang belum dikerjakan).
 **Fungsi dokumen:** acuan tunggal. Setiap tahap implementasi dicocokkan ke kebutuhan bernomor (`R-…`) di sini. Perubahan rancangan hanya lewat entri baru di §11 *Log keputusan*, tidak dengan mengubah diam-diam.
 **Menggantikan:** alur 6 tahap di `docs/KERJA.md` dan skill `kerjakan` (keduanya diperbarui saat tahap implementasi terkait selesai).
 
@@ -173,6 +173,7 @@ Port di atas bebas per 17 Nov 2026.
 | K15 | 17 Nov | Tahap 3: batas per fase memakai `--max-budget-usd` (tidak ada `--max-turns`); sesi Claude berjalan di akar scenario-runner dengan worktree v2 sebagai `--add-dir`; larangan push terbukti berlaku di mode izin `acceptEdits` dan `auto`, termasuk saat `git *` diizinkan |
 | K16 | 17 Nov | Tahap 5: Postgres 16 dan Redis native di port **5433** dan **6380** (Docker tetap 5432/6379 untuk Authentik dan v2-test); Redis native memakai `requirepass` yang sudah ada. Isolasi sesi antar-slot lewat **nama cookie per slot** (`SESSION_COOKIE_NAME`/`REFRESH_COOKIE_NAME` + `_slotN`), bukan nama host. API slot dipanggil langsung (proxy `/api` di `vite.config.ts` v2 selalu ke :3000). Slot terisi selalu bisa dipilih sebagai *gabung klaster*. VM Colima belum diperkecil: masih menampung DB v2-test sampai v2-test dipensiunkan |
 | K17 | 17 Nov | Tahap 6: lajur juga mencakup ◆C (Serahkan → Push → buat MR) dan ◆D (cek staging tercentang → Plane); "Menunggu pihak lain" = sudah di-push dan ber-MR dengan cek staging terbuka. Catatan mendapat bagian **Perlu diperhatikan** (sumber paket review). Tombol ◆B **Setuju & Serahkan** langsung menjalankan fase Serahkan; **Minta ubah** menjalankan fase Lanjutkan. Belum dikerjakan: gabungan ◆B+◆C untuk tiket kecil (R-3.2) dan pengaturan urutan Antre |
+| K18 | 17 Nov | Tahap 7: metrik = waktu kalender per tahap dari riwayat, kerja ulang (tahap mundur, minta ubah, CI gagal), token dari transkrip sesi Claude yang dijalankan dari panel (sesi chat VS Code tidak terhubung ke tiket). Panen ke `database/v2/<modul>/progres-plane/<kunci>.md` + `00-indeks-kerja.md` (preseden folder progres-plane); `alur.md`/`status.md` yang dikurasi tidak disentuh; commit fleetify-ops oleh Tams |
 
 ## 12. Tidak termasuk
 

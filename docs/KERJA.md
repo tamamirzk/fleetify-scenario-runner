@@ -112,6 +112,11 @@ Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan d
 - **Statistik** (`#/statistik`) = tren: tugas Plane, sedang dikerjakan, heatmap jalan skenario, produktivitas uji, radar per grup, aktivitas.
 - **Paket review ◆B** muncul di Ringkasan Kerja saat hasil siap direview: kriteria + bukti di kiri; di kanan *Yang perlu kamu perhatikan* (keputusan yang diambil AI sendiri, kriteria belum lulus, peringatan gerbang, bagian catatan **Perlu diperhatikan**) dan perubahan kode per lapisan; di atas status gerbang fokus/CI dan catatan akhir. **Setuju & Serahkan** mencatat keputusan, memajukan tahap ke Didokumentasikan, dan menjalankan fase Serahkan; **Minta ubah** mencatat permintaan ubah ◆B dan menjalankan fase Lanjutkan.
 
+## Metrik dan panen dokumentasi
+
+- **Metrik per tiket** (Statistik, CLI `kerja metrik [KEY]`): waktu kalender per tahap (termasuk menunggu), kerja ulang (tahap mundur, permintaan ubah, gerbang CI gagal), dan token sesi Claude yang dijalankan dari panel. Kerja di chat VS Code tidak terhubung ke tiket, jadi tidak terhitung.
+- **Panen** (tombol **Panen dokumentasi** di kartu Serahkan, CLI `kerja panen KEY [--modul fleet] [--tulis]`): catatan dipanen ke `fleetify-ops/docs-site/database/v2/<modul>/progres-plane/<kunci>.md` (masalah, keputusan, yang dikerjakan, perlu diperhatikan, verifikasi, cek setelah deploy) plus indeks `00-indeks-kerja.md`, lalu `npm run check-v2`. Tanpa `--tulis` hanya pratinjau. Modul ditebak dari judul tiket (`[MBL] Fleet - …` → `fleet`) atau disimpan di `kerja.json` (`modul`). Halaman `alur.md`/`status.md` tidak disentuh; commit di fleetify-ops dilakukan Tams.
+
 ## Slot dan Workspace
 
 Tiga slot v2 untuk kerja paralel (`docs/RANCANGAN-KERJA-V2.md` §7):

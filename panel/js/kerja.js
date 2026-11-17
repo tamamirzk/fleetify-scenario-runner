@@ -1137,7 +1137,7 @@ export function kartuSerah(s) {
     ${masalahCi ? `<ul class="kj-serah-daftar">${masalahCi}</ul>` : ''}
     <div class="kj-serah-git"><span class="mono">${esc(git.branch ?? '(detached)')}</span><span class="dim">${git.akanDipush.length} commit akan dikirim · ${esc(git.remote ?? 'tanpa remote')}${s.klaster.length > 1 ? ` · klaster ${esc(s.klaster.join(', '))}` : ''}</span>${sudah}</div>
     ${s.syarat.boleh ? '' : `<p class="dim kj-catatan-kecil">Push belum bisa: ${esc(s.syarat.alasan.join('; '))}.</p>`}
-    <div class="kj-serah-mr"><button type="button" class="btn tb" data-kj-salin-mr>Salin deskripsi MR</button>
+    <div class="kj-serah-mr"><button type="button" class="btn tb" data-kj-salin-mr>Salin deskripsi MR</button><button type="button" class="btn tb" data-kj-panen title="Tulis catatan ke fleetify-ops/docs-site (database/v2/<modul>/progres-plane/) lalu jalankan check-v2">Panen dokumentasi</button>
       <form class="kj-tanya-isi" data-kj-mr><input type="url" name="url" value="${esc(s.linkMr ?? '')}" placeholder="Tempel link MR dari GitLab…" aria-label="Link MR"><button type="submit" class="btn tb">Simpan</button></form>${s.linkMr ? `<a class="btn tb" href="${esc(s.linkMr)}" target="_blank" rel="noopener">Buka MR ↗</a>` : ''}</div></section>`
 }
 

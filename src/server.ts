@@ -37,12 +37,14 @@ import {
   keadaanSerah,
   komentarKePlane,
   lepasSlotKerja,
+  panenKerja,
   pemakaiSlot,
   periksaCatatanKerja,
   pilihanSlotKerja,
   potretKerja,
   pushKerja,
   reviewKerja,
+  semuaMetrik,
   sesiTerkini,
   setTahap,
   simpanLinkMr,
@@ -746,6 +748,25 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     }
     return detailKerja(key)
   }
+  if (aksi === 'panen') {
+    // Panen catatan ke docs-site fleetify-ops (R-8.3); tanpa tulis = pratinjau.
+    try {
+      const h = panenKerja(key, {
+        modul: typeof body.modul === 'string' ? body.modul : undefined,
+        tulis: body.tulis === true,
+      })
+      return {
+        rel: h.rel,
+        modul: h.modul,
+        baru: h.baru,
+        berubah: h.berubah,
+        cek: h.cek,
+        isi: body.tulis === true ? undefined : h.isi,
+      }
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+  }
   if (aksi === 'tunda') {
     tundaKerja(key, body.tunda !== false, String(body.alasan ?? ''))
     return detailKerja(key)
@@ -969,6 +990,7 @@ const routes: Record<string, Handler> = {
     }
     return {
       ...dasbor,
+      metrik: semuaMetrik(),
       butuhKamu: butuh,
       aiBekerja: bekerja,
       pihakLain: di('pihak-lain').map((x) => ({ key: x.key, judul: x.judul, alasan: x.alasan })),

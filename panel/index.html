@@ -445,6 +445,15 @@ function gambarKerja(key) {
       kabarKerja(key, `<span class="ok-t">✓</span> Di-push ke ${esc(S.kjSerah.push?.branch ?? '')}. Buat MR-nya di GitLab, lalu tempel link-nya di kartu Serahkan.`, 8000)
     } catch (e) { toast(e.message, true); gambarKerja(key) }
   })
+  $('#view [data-kj-panen]')?.addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true
+    try {
+      const h = await api(`/api/kerja/${key}/panen`, { tulis: true })
+      toast(`${h.cek?.ok ? '✓' : '×'} Dipanen ke fleetify-ops/${h.rel} · check-v2 ${h.cek?.ok ? 'lulus' : 'GAGAL'}`, !h.cek?.ok)
+      S.kj = await api(`/api/kerja/${encodeURIComponent(key)}`)
+    } catch (err) { toast(err.message, true) }
+    gambarKerja(key)
+  })
   $('#view [data-kj-salin-mr]')?.addEventListener('click', () => salin(S.kjSerah?.mr?.isi ?? '', 'Deskripsi MR disalin'))
   $('#view [data-kj-mr]')?.addEventListener('submit', async (e) => {
     e.preventDefault()

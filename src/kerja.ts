@@ -16,6 +16,8 @@
 //   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
 //   bun run kerja slot FMS-87 <1|2|3>  ·  antre FMS-87  ·  lepas FMS-87   (slot paralel)
 //   bun run kerja workspace                  slot, layanan bersama, Antre, komputer
+//   bun run kerja panen FMS-87 [--modul fleet] [--tulis]   catatan → docs-site (pratinjau tanpa --tulis)
+//   bun run kerja metrik [FMS-87]            lama per tahap, kerja ulang, token sesi Claude
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
 //   bun run kerja catat FMS-87 --skenario slug [--branch feat/x --commit abc123 --worktree dir]
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
@@ -56,9 +58,11 @@ import {
   gerbangKerja,
   komentarKePlane,
   lepasSlotKerja,
+  panenKerja,
   pemakaiSlot,
   periksaCatatanKerja,
   potretKerja,
+  semuaMetrik,
   setTahap,
   setTarget,
   slotKerja,
@@ -114,7 +118,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -312,6 +316,40 @@ try {
         `komputer: beban ${km.cpu.beban.toFixed(1)}/${km.cpu.core} · memori bebas ${km.memori.bebasPersen ?? '?'}% · disk sisa ${Math.round(km.disk.sisaGiB)} GiB`,
       )
       for (const w of km.peringatan) console.log(`  ! ${w.teks} → ${w.saran}`)
+      break
+    }
+    case 'panen': {
+      if (!key) throw new Error('Pakai: bun run kerja panen KEY [--modul fleet] [--tulis]')
+      const tulis = sisa.includes('--tulis')
+      const h = panenKerja(key, { modul: opsi('modul')[0], tulis })
+      if (!tulis) {
+        console.log(
+          `PRATINJAU (belum ditulis) → fleetify-ops/${h.rel} · ${h.baru ? 'berkas baru' : h.berubah ? 'berubah' : 'tidak berubah'}\n`,
+        )
+        console.log(h.isi)
+        break
+      }
+      console.log(
+        `${h.cek?.ok ? '✓' : '×'} dipanen → fleetify-ops/${h.rel} (modul ${h.modul}) · check-v2 ${h.cek?.ok ? 'lulus' : 'GAGAL'}`,
+      )
+      if (!h.cek?.ok) {
+        console.log(h.cek?.keluaran)
+        process.exitCode = 1
+      }
+      break
+    }
+    case 'metrik': {
+      const jam = (ms: number) =>
+        ms >= 86_400_000
+          ? `${(ms / 86_400_000).toFixed(1)} hari`
+          : `${(ms / 3_600_000).toFixed(1)} jam`
+      const ribu = (n: number) => `${Math.round(n / 1000)}k`
+      for (const m of semuaMetrik().filter((x) => !key || x.key === key)) {
+        const t = m.token
+        console.log(
+          `${m.key.padEnd(8)} ${LABEL_TAHAP[m.tahap].padEnd(17)} total ${jam(m.totalMs).padStart(9)} · mundur ${m.kerjaUlang.tahapMundur} · minta ubah ${m.kerjaUlang.mintaUbah}${m.kerjaUlang.gerbangCiGagal ? ' · CI gagal' : ''} · token ${t ? `in ${ribu(t.input)} out ${ribu(t.output)} cache ${ribu(t.cacheBaca + t.cacheTulis)}` : '–'}`,
+        )
+      }
       break
     }
     case 'kesehatan': {
