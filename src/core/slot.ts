@@ -9,6 +9,13 @@ import { config, readDotEnv } from './config.ts'
 export const NOMOR_SLOT = [1, 2, 3] as const
 export type NomorSlot = (typeof NOMOR_SLOT)[number]
 
+/**
+ * Slot tetap untuk sesi chat dan bug tanpa tiket (BUG-n / REQ-n). Tiket Plane memakai slot lain;
+ * slot ini baru dipinjam bila semuanya penuh. DB-nya tidak pernah di-reset dari template: data
+ * uji yang disiapkan saat chat dipakai lagi di sesi berikutnya.
+ */
+export const SLOT_CHAT: NomorSlot = 3
+
 /** Postgres native (Homebrew postgresql@16) yang menampung DB slot dan template. */
 export const PG_SLOT = {
   port: 5433,
@@ -66,7 +73,10 @@ export function pilihanSlot(
         n,
         keadaan: 'kosong',
         pemakai: [],
-        keterangan: 'branch baru dari development; DB slot di-reset dari template',
+        keterangan:
+          n === SLOT_CHAT
+            ? 'slot chat/bug — pinjam hanya bila slot lain penuh; branch baru dari development; DB tidak di-reset'
+            : 'branch baru dari development; DB slot di-reset dari template',
       }
     return {
       n,
@@ -77,8 +87,18 @@ export function pilihanSlot(
   })
 }
 
-/** Nama branch kerja untuk tiket baru: feat/fms-160. */
-export const branchBaru = (key: string) => `feat/${key.toLowerCase()}`
+/** Nama branch kerja untuk tiket baru: feat/fms-160; kerja bug lokal: fix/bug-3. */
+export const branchBaru = (key: string) =>
+  `${key.startsWith('BUG-') ? 'fix' : 'feat'}/${key.toLowerCase()}`
+
+/**
+ * Alamat slot, eksplisit. Skrip uji memakai ini, BUKAN `config.apiUrl` yang dibaca sebelum
+ * `denganSlot` (nilai bawaan .env = server :5173 — salah port yang berulang kali terjadi).
+ */
+export function urlSlot(n: NomorSlot) {
+  const s = defSlot(n)
+  return { web: `http://localhost:${s.portWeb}`, api: `http://localhost:${s.portApi}/api/v1` }
+}
 
 /** Lingkungan slot untuk potret/kesehatan: alamat web/API dan DB dari .env slot itu. */
 export function lingkunganSlot(s: DefSlot) {
@@ -233,7 +253,7 @@ export function migrasiSlot(s: DefSlot): string[] {
  * Siapkan slot untuk tiket baru: worktree harus bersih; fetch development; branch kerja dibuat
  * dari origin/development (atau dipakai bila sudah ada); server dimatikan; DB di-reset dari template.
  */
-export function siapkanSlotBaru(s: DefSlot, branch: string) {
+export function siapkanSlotBaru(s: DefSlot, branch: string, o: { resetDb?: boolean } = {}) {
   if (!existsSync(path.join(s.worktree, '.git')))
     throw new Error(`Worktree ${s.worktree} belum ada`)
   if (git(s, 'status', '--porcelain').out)
@@ -242,10 +262,12 @@ export function siapkanSlotBaru(s: DefSlot, branch: string) {
   const ada = git(s, 'rev-parse', '--verify', '-q', `refs/heads/${branch}`).kode === 0
   const sw = ada
     ? git(s, 'switch', '-q', branch)
-    : git(s, 'switch', '-q', '-c', branch, 'origin/development')
+    : // --no-track: tanpa upstream ke development, `git pull/push` polos di worktree tak
+      // menyasar development; push pertama dari panel memasang upstream ke branch sendiri.
+      git(s, 'switch', '-q', '--no-track', '-c', branch, 'origin/development')
   if (sw.kode !== 0) throw new Error(`git switch ${branch} gagal: ${sw.err}`)
   matikanSlot(s)
-  resetDbSlot(s)
+  if (o.resetDb ?? s.n !== SLOT_CHAT) resetDbSlot(s)
   // Template bisa tertinggal dari development: migrasi menyamakan DB dengan skema branch.
   const langkah = migrasiSlot(s)
   // Client API frontend (gitignore) mengikuti spec branch baru.

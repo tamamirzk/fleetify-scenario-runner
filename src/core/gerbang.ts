@@ -23,6 +23,16 @@ export interface Langkah {
   tes?: boolean
 }
 
+/**
+ * Nama cookie bawaan env.ts v2. Worktree slot memakai nama cookie sendiri di .env (mis.
+ * fleetify_session_slot2) dan nama itu ikut masuk ke spec OpenAPI; export untuk openapi.json
+ * yang di-commit harus memakai nama bawaan, seperti di CI yang tidak punya .env.
+ */
+export const COOKIE_BAWAAN: Record<string, string> = {
+  SESSION_COOKIE_NAME: 'fleetify_session',
+  REFRESH_COOKIE_NAME: 'fleetify_refresh',
+}
+
 /** Variabel global `.gitlab-ci.yml` v2: placeholder agar env.ts lolos validasi tanpa DB/Redis. */
 export const CI_ENV: Record<string, string> = {
   NODE_ENV: 'test',
@@ -43,7 +53,7 @@ export const CI_ENV: Record<string, string> = {
  * Sidik `.gitlab-ci.yml` saat langkah di bawah disalin. Bila berbeda, gerbang memberi peringatan:
  * CI v2 berubah dan langkah di berkas ini perlu ditinjau ulang.
  */
-export const SIDIK_CI_DIKENAL = '2d2b0e3683df'
+export const SIDIK_CI_DIKENAL = '35e3fcc38bcd'
 export const sidikCi = (yml: string) => createHash('sha256').update(yml).digest('hex').slice(0, 12)
 
 /** Berkas pemicu tes frontend PENUH (salinan `full_triggers` job frontend-test). */
@@ -99,6 +109,7 @@ export function langkahCi(base: string, berubah: string[]): Langkah[] {
       judul: 'Backend: Frontend/openapi.json sinkron',
       proyek: 'Backend',
       cmd: 'bun run openapi:export && cp openapi.json ../Frontend/openapi.json && git diff --exit-code -- ../Frontend/openapi.json',
+      env: COOKIE_BAWAAN,
       butuh: ['be-prisma'],
     },
     {
@@ -194,7 +205,7 @@ export function langkahFokus(base: string, berubah: string[]): Langkah[] {
         judul: 'Backend: Frontend/openapi.json sinkron',
         proyek: 'Backend',
         cmd: 'bun run openapi:export && cp openapi.json ../Frontend/openapi.json && git diff --exit-code -- ../Frontend/openapi.json',
-        env: CI_ENV,
+        env: { ...CI_ENV, ...COOKIE_BAWAAN },
       },
       {
         id: 'be-test',

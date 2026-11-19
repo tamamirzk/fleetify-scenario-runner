@@ -58,7 +58,8 @@ export interface SumberPanen {
 /** Isi berkas panen satu tiket (markdown docs-site). Murni; `tanggal` = YYYY-MM-DD. */
 export function isiPanen(s: SumberPanen, tanggal: string): string {
   const meta = [
-    ['Tiket', `[${s.key}](${s.url})`],
+    // Kerja tanpa tiket Plane (mis. bug dari chat) tidak punya URL: jangan tulis tautan kosong.
+    ['Tiket', s.url ? `[${s.key}](${s.url})` : `${s.key} (tanpa tiket Plane)`],
     ['Branch', s.branch ? `\`${s.branch}\`` : '—'],
     ['Commit', s.commit.length ? s.commit.map((c) => `\`${c.slice(0, 8)}\``).join(', ') : '—'],
     ['MR', s.mr ? `[${s.mr.replace(/^https?:\/\//, '')}](${s.mr})` : '—'],

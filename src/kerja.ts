@@ -71,6 +71,7 @@ import {
   tundaKerja,
   ubahDataCatatan,
 } from './core/kerja-aksi.ts'
+import { AWALAN_LOKAL, type AwalanLokal, buatKerjaLokal } from './core/kerja-lokal.ts'
 import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
 import { bacaKomputer } from './core/komputer.ts'
 import { closeSharedBrowser } from './core/lib.ts'
@@ -79,7 +80,22 @@ import { denganSlot, keadaanSlot, type NomorSlot, semuaSlot } from './core/slot.
 const [perintah, key, ...sisa] = Bun.argv.slice(2)
 const ya = sisa.includes('--ya')
 const rinci = sisa.includes('--rinci')
-const posisi = sisa.filter((x) => !x.startsWith('--'))
+// Opsi bernilai (`--alasan "…"`): nilainya bukan argumen posisi. Dulu ikut masuk, sehingga
+// `kerja putuskan KEY "…" --alasan "x" --oleh tams` menempelkan "x tams" ke teks keputusan.
+const OPSI_BERNILAI = new Set([
+  '--alasan',
+  '--branch',
+  '--commit',
+  '--dir',
+  '--modul',
+  '--oleh',
+  '--skenario',
+  '--usul',
+  '--worktree',
+])
+const posisi = sisa.filter(
+  (x, i) => !x.startsWith('--') && !(i > 0 && OPSI_BERNILAI.has(sisa[i - 1] as string)),
+)
 const opsi = (nama: string) => {
   const out: string[] = []
   sisa.forEach((x, i) => {
@@ -118,7 +134,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|baru|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -280,6 +296,22 @@ try {
           ? `⏸ ${key} ditunda: tidak muncul di "Butuh kamu"`
           : `✓ ${key} aktif lagi`,
       )
+      break
+    }
+    case 'baru': {
+      // Kerja lokal tanpa tiket Plane: `kerja baru BUG "judul"` → BUG-n di slot chat.
+      const awalan = key as AwalanLokal
+      const judul = posisi[0]
+      if (!AWALAN_LOKAL.includes(awalan) || !judul)
+        throw new Error(
+          `Pakai: bun run kerja baru <${AWALAN_LOKAL.join('|')}> "judul" [--tanpa-slot]`,
+        )
+      const { kerja, langkah } = buatKerjaLokal(awalan, judul, {
+        tempat: !sisa.includes('--tanpa-slot'),
+      })
+      console.log(`✓ ${kerja.key} · ${kerja.judul}`)
+      if (kerja.slot) console.log(`  slot ${kerja.slot} (chat) · branch ${kerja.branch}`)
+      for (const l of langkah) console.log(`  · ${l}`)
       break
     }
     case 'slot': {

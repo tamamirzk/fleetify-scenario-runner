@@ -58,6 +58,7 @@ import {
   type PemakaiSlot,
   pilihanSlot,
   semuaSlot,
+  SLOT_CHAT,
   siapkanSlotBaru,
 } from './slot.ts'
 
@@ -462,7 +463,8 @@ export function tempatkanDiSlot(key: string, n: NomorSlot): { kerja: Kerja; lang
   let ubah: Partial<Kerja>
   if (pil.keadaan === 'kosong') {
     const branch = k.branch ?? branchBaru(key)
-    langkah = [`branch ${branch}`, 'DB slot di-reset dari template', ...siapkanSlotBaru(s, branch)]
+    const db = n === SLOT_CHAT ? 'DB slot chat dipertahankan' : 'DB slot di-reset dari template'
+    langkah = [`branch ${branch}`, db, ...siapkanSlotBaru(s, branch)]
     ubah = { slot: n, worktree: s.worktree, branch, klaster: undefined }
   } else {
     const induk = pil.pemakai[0] as PemakaiSlot

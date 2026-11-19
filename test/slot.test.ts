@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { halamanWorkspace, isiPilihSlot, stripKomputer } from '../panel/js/workspace.js'
 import { AMBANG, kelompokkan, nilaiKomputer } from '../src/core/komputer.ts'
-import { branchBaru, defSlot, pilihanSlot } from '../src/core/slot.ts'
+import { branchBaru, defSlot, pilihanSlot, SLOT_CHAT, urlSlot } from '../src/core/slot.ts'
 
 describe('slot: definisi dan pilihan (R-7.1, R-7.1a)', () => {
   it('port, DB, dan tmux tiap slot tidak bertabrakan', () => {
@@ -27,6 +27,29 @@ describe('slot: definisi dan pilihan (R-7.1, R-7.1a)', () => {
       'gabung klaster FMS-105 (branch feat/meter; DB tidak di-reset)',
     )
     expect(p[0]?.keterangan).toContain('DB slot di-reset dari template')
+  })
+
+  it('slot chat (3) ditandai pinjaman dan DB-nya tidak di-reset', () => {
+    expect(SLOT_CHAT).toBe(3)
+    const siap = new Map([
+      [1, true],
+      [2, true],
+      [3, true],
+    ])
+    const p = pilihanSlot(new Map(), siap)
+    expect(p[2]?.keterangan).toContain('slot chat/bug')
+    expect(p[2]?.keterangan).toContain('DB tidak di-reset')
+    expect(p[0]?.keterangan).not.toContain('slot chat')
+  })
+
+  it('alamat slot eksplisit dan branch kerja lokal', () => {
+    expect(urlSlot(3)).toEqual({
+      web: 'http://localhost:5183',
+      api: 'http://localhost:3030/api/v1',
+    })
+    expect(branchBaru('FMS-160')).toBe('feat/fms-160')
+    expect(branchBaru('REQ-2')).toBe('feat/req-2')
+    expect(branchBaru('BUG-3')).toBe('fix/bug-3')
   })
 })
 

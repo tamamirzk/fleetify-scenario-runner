@@ -81,7 +81,7 @@ export function deskripsiMr(o: {
   for (const t of o.tiket) {
     const kepala = o.tiket.length > 1 ? `### ${t.key} · ${t.judul}\n\n` : ''
     const isi = [
-      `Tiket: ${t.url}`,
+      t.url ? `Tiket: ${t.url}` : 'Tiket: — (tanpa tiket Plane)',
       bagian(t.md, 'masalah') && `**Masalah & penyebab**\n\n${bagian(t.md, 'masalah')}`,
       bagian(t.md, 'dikerjakan') && `**Yang dikerjakan**\n\n${bagian(t.md, 'dikerjakan')}`,
       t.data.keputusan.length &&

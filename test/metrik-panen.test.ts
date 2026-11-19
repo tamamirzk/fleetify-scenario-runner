@@ -129,6 +129,25 @@ describe('panen ke docs-site (R-8.3)', () => {
     expect(isi).not.toContain('<!--')
   })
 
+  it('kerja tanpa tiket Plane: tanpa tautan kosong', () => {
+    const isi = isiPanen(
+      {
+        key: 'FMS-0',
+        judul: 'Bug dari chat',
+        url: '',
+        branch: null,
+        commit: [],
+        tahap: 'Dikerjakan',
+        md: null,
+        data: DATA_CATATAN_KOSONG,
+        verifikasi: [],
+      },
+      '2026-11-17',
+    )
+    expect(isi).toContain('| Tiket | FMS-0 (tanpa tiket Plane) |')
+    expect(isi).not.toContain('[FMS-0]()')
+  })
+
   it('indeks menautkan berkas per tiket', () => {
     expect(isiIndeks('fleet', [{ nama: 'fms-105.md', judul: 'FMS-105 · Meter' }])).toContain(
       '- [FMS-105 · Meter](./fms-105.md)',
