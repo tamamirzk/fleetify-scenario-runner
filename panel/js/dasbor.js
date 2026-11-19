@@ -482,8 +482,19 @@ const butir = (key, teks, judul, tombol = '') =>
  * Tiga lajur tindakan (R-9.1): Butuh kamu (aksi utama per butir), AI sedang jalan, Menunggu pihak
  * lain; di bawahnya Antre dan Ditunda. Lajur kiri satu-satunya yang wajib dilihat tiap hari.
  */
+/** Antrean slot tertahan: butir Butuh kamu dengan aksi memindahkan sisa antrean ke slot lain. */
+export function butirTertahan(t) {
+  const tujuan = [1, 2, 3]
+    .filter((n) => n !== t.slot)
+    .map((n) => `<option value="${n}">Slot ${n}</option>`)
+    .join('')
+  const antre = t.antrean.map((x) => esc(x.key)).join(', ')
+  return `<li class="db-tertahan"><a class="mono" href="#/kerja/${esc(t.oleh)}">${esc(t.oleh)}</a><span class="db-butuh-teks">Antrean slot ${t.slot} tertahan oleh ${esc(t.oleh)} (${esc(t.alasan)})<span class="dim"> · menunggu: ${antre}</span></span><span class="db-tertahan-aksi"><select class="in" data-db-sisa-ke="${t.slot}" aria-label="Slot tujuan sisa antrean slot ${t.slot}">${tujuan}<option value="global">Antre global</option></select><button type="button" class="btn db-pil" data-db-sisa="${t.slot}">Pindahkan sisa antrean ke slot lain</button></span></li>`
+}
+
 export function lajurTindakan(d) {
   const butuh = d.butuhKamu ?? []
+  const tertahan = d.antreanTertahan ?? []
   const ai = d.aiBekerja ?? []
   const lain = d.pihakLain ?? []
   const kolom = (id, judul, n, isi, kosong) =>
@@ -498,6 +509,7 @@ export function lajurTindakan(d) {
       ),
     )
     .join('')
+  const kiriSemua = kiri + tertahan.map(butirTertahan).join('')
   const tengah = ai
     .map((x) =>
       butir(
@@ -514,7 +526,7 @@ export function lajurTindakan(d) {
   const tunda = d.ditunda?.length
     ? `<span>Ditunda ${d.ditunda.length}: ${d.ditunda.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')}</span>`
     : ''
-  return `<div class="db-lajur3">${kolom('db-butuh-h', 'Butuh kamu', butuh.length, kiri, 'Tidak ada yang menunggumu.')}${kolom('db-ai-h', 'AI sedang jalan', ai.length, tengah, 'Tidak ada sesi Claude yang bekerja.')}${kolom('db-lain-h', 'Menunggu pihak lain', lain.length, kanan, 'Tidak ada yang menunggu pihak lain.')}</div>${antre || tunda ? `<p class="dim db-tunda">${[antre, tunda].filter(Boolean).join(' · ')}</p>` : ''}`
+  return `<div class="db-lajur3">${kolom('db-butuh-h', 'Butuh kamu', butuh.length + tertahan.length, kiriSemua, 'Tidak ada yang menunggumu.')}${kolom('db-ai-h', 'AI sedang jalan', ai.length, tengah, 'Tidak ada sesi Claude yang bekerja.')}${kolom('db-lain-h', 'Menunggu pihak lain', lain.length, kanan, 'Tidak ada yang menunggu pihak lain.')}</div>${antre || tunda ? `<p class="dim db-tunda">${[antre, tunda].filter(Boolean).join(' · ')}</p>` : ''}`
 }
 
 /** Strip mini: 3 slot (● bekerja · ◆ menunggu · ○ kosong) + kesehatan komputer; ke Workspace. */
@@ -531,7 +543,7 @@ export function stripMini(m) {
   const slot = m.slot
     .map((s) => {
       const [t, arti] = tanda(s)
-      return `<span class="db-mini-slot" title="Slot ${s.n}${s.chat ? ' (chat)' : ''}: ${esc(arti)}"><b>${t}</b> Slot ${s.n} <span class="dim">${s.chat ? 'chat · ' : ''}${s.pemakai.length ? esc(s.pemakai.join(', ')) : 'kosong'}${s.api || s.web ? ' · server hidup' : ''}</span></span>`
+      return `<span class="db-mini-slot" title="Slot ${s.n}${s.chat ? ' (chat)' : ''}: ${esc(arti)}"><b>${t}</b> Slot ${s.n} <span class="dim">${s.chat ? 'chat · ' : ''}${s.pemakai.length ? esc(s.pemakai.join(', ')) : 'kosong'}${s.antre ? ` · antre ${s.antre}` : ''}${s.api || s.web ? ' · server hidup' : ''}</span></span>`
     })
     .join('')
   const k = m.komputer

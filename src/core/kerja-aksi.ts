@@ -1,7 +1,26 @@
 // Aksi Kerja yang dipakai CLI (bun run kerja) dan panel: ambil dari Plane, target, potret, cek, catat,
 // tulis ke Plane. Menulis ke Plane terlihat tim: pemanggil wajib sudah mendapat konfirmasi pengguna.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
+import {
+  antreanLengkap,
+  cekBasi,
+  denganAntre,
+  geserUrutan,
+  pilihBerikutnya,
+  type TujuanAntre,
+  type UsulanTiket,
+  usulanRencana,
+} from './antrean.ts'
 import {
   type DataCatatan,
   periksaCatatan,
@@ -43,7 +62,13 @@ import {
 } from './laporan-kerja.ts'
 import { metrikKerja, tokenSesi } from './metrik.ts'
 import { MODUL_V2, panen, tebakModul } from './panen.ts'
-import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
+import {
+  ambilTiket,
+  komentarTiket,
+  pindahStatusTiket,
+  planeDikonfigurasi,
+  tugasSayaTersimpan,
+} from './plane.ts'
 import { potret } from './potret.ts'
 import { deskripsiMr, keadaanGit, pushBranch, sudahDiMerge, syaratPush } from './serah.ts'
 import {
@@ -442,7 +467,10 @@ export function keadaanSerah(key: string, gerbangBerjalan = false) {
  * Push dari panel (R-2.3, R-4.2): syarat diperiksa ulang di server, push biasa ke origin, lalu
  * dicatat di semua tiket se-klaster. Hanya dipanggil dari endpoint panel setelah klik Tams.
  */
-export function pushKerja(key: string): Kerja {
+export function pushKerja(
+  key: string,
+  o: { setelahLepas?: (n: number, pelepas: string[]) => void } = {},
+): Kerja {
   const s = keadaanSerah(key)
   if (!s.syarat.boleh) throw new Error(`Push ditolak: ${s.syarat.alasan.join('; ')}`)
   const branch = s.git.branch as string
@@ -457,6 +485,8 @@ export function pushKerja(key: string): Kerja {
     jumlah: s.git.akanDipush.length,
   }
   // Slot dilepas setelah push (R-7.3): Pasca-deploy tidak memakai worktree.
+  const slotLama = bacaKerja(key).slot ?? null
+  const pelepas = klasterKerja(bacaKerja(key)).map((x) => x.key)
   for (const x of klasterKerja(bacaKerja(key)))
     simpanKerja(
       pindahTahap(
@@ -465,6 +495,10 @@ export function pushKerja(key: string): Kerja {
         `Di-push ke ${branch} (${catat.jumlah} commit, ${s.git.head.slice(0, 8)}) dari panel`,
       ),
     )
+  // Pergantian otomatis (K21): kerja pertama di antrean slot itu naik, di proses terpisah supaya
+  // respons push tidak menunggu git switch + migrasi.
+  if (slotLama && (NOMOR_SLOT as readonly number[]).includes(slotLama))
+    (o.setelahLepas ?? mulaiAntreanLatar)(slotLama, pelepas)
   return bacaKerja(key)
 }
 
@@ -504,7 +538,11 @@ export function pilihanSlotKerja() {
  * dimatikan, DB di-reset dari template lalu dimigrasi. Slot terisi: gabung klaster (branch dan
  * DB yang sama, tanpa reset). Mengembalikan ringkasan langkah.
  */
-export function tempatkanDiSlot(key: string, n: NomorSlot): { kerja: Kerja; langkah: string[] } {
+export function tempatkanDiSlot(
+  key: string,
+  n: NomorSlot,
+  o: { resetDb?: boolean } = {},
+): { kerja: Kerja; langkah: string[] } {
   const k = bacaKerja(key)
   if (k.slot) throw new Error(`${key} sudah di slot ${k.slot}`)
   const pil = pilihanSlotKerja().find((p) => p.n === n)
@@ -514,15 +552,16 @@ export function tempatkanDiSlot(key: string, n: NomorSlot): { kerja: Kerja; lang
   let ubah: Partial<Kerja>
   if (pil.keadaan === 'kosong') {
     const branch = k.branch ?? branchBaru(key)
-    const db = n === SLOT_CHAT ? 'DB slot chat dipertahankan' : 'DB slot di-reset dari template'
-    langkah = [`branch ${branch}`, db, ...siapkanSlotBaru(s, branch)]
+    const reset = o.resetDb ?? n !== SLOT_CHAT
+    const db = reset ? 'DB slot di-reset dari template' : 'DB slot dipertahankan (tanpa reset)'
+    langkah = [`branch ${branch}`, db, ...siapkanSlotBaru(s, branch, { resetDb: reset })]
     ubah = { slot: n, worktree: s.worktree, branch, klaster: undefined }
   } else {
     const induk = pil.pemakai[0] as PemakaiSlot
     langkah = [`gabung klaster ${induk.key} (branch ${induk.branch ?? '-'})`]
     ubah = { slot: n, worktree: s.worktree, branch: induk.branch, klaster: induk.key }
   }
-  const { antre: _a, ...tanpaAntre } = bacaKerja(key)
+  const { antre: _a, peringatanAntre: _w, ...tanpaAntre } = bacaKerja(key)
   const k2 = pindahTahap(
     { ...tanpaAntre, ...ubah } as Kerja,
     k.tahap,
@@ -532,17 +571,242 @@ export function tempatkanDiSlot(key: string, n: NomorSlot): { kerja: Kerja; lang
   return { kerja: k2, langkah }
 }
 
-/** Masukkan tiket ke Antre (menunggu slot kosong). */
-export function antrekanKerja(key: string): Kerja {
+/**
+ * Masukkan tiket ke antrean: `slot` = antre di slot itu (naik otomatis setelah kerja aktifnya
+ * di-push); tanpa `slot` = antre global (Tams menempatkan sendiri). Hanya menulis kerja.json.
+ */
+export function antrekanKerja(key: string, o: { slot?: number } = {}): Kerja {
   const k = bacaKerja(key)
-  if (k.slot) throw new Error(`${key} sedang memegang slot ${k.slot}`)
+  const tujuan: TujuanAntre = o.slot ?? 'global'
   const k2 = pindahTahap(
-    { ...k, antre: { at: new Date().toISOString() } },
+    denganAntre(daftarKerja(), k, tujuan, new Date().toISOString()),
     k.tahap,
-    'Masuk antrean slot',
+    tujuan === 'global' ? 'Masuk antrean slot' : `Masuk antrean slot ${tujuan}`,
   )
   simpanKerja(k2)
   return k2
+}
+
+/** Geser butir naik/turun di antreannya. */
+export function aturUrutAntre(key: string, arah: 'naik' | 'turun'): Kerja {
+  const semua = daftarKerja()
+  for (const u of geserUrutan(semua, key, arah)) {
+    const k = bacaKerja(u.key)
+    if (k.antre) simpanKerja({ ...k, antre: { ...k.antre, urutan: u.urutan } })
+  }
+  return bacaKerja(key)
+}
+
+/** Pindahkan butir ke antrean slot lain, atau `global` (juga cara mengeluarkannya dari antrean slot). */
+export function pindahAntre(key: string, tujuan: TujuanAntre): Kerja {
+  const k = bacaKerja(key)
+  if (!k.antre) throw new Error(`${key} tidak ada di antrean`)
+  const k2 = pindahTahap(
+    denganAntre(daftarKerja(), k, tujuan, new Date().toISOString()),
+    k.tahap,
+    tujuan === 'global'
+      ? `Dikeluarkan dari antrean slot ${k.antre.slot ?? '-'} (kembali ke antre global)`
+      : `Dipindah ke antrean slot ${tujuan}`,
+  )
+  simpanKerja(k2)
+  return k2
+}
+
+/** Pindahkan sisa antrean sebuah slot ke slot lain (antrean tertahan); urutan dipertahankan. */
+export function pindahkanSisaAntre(dari: number, ke: TujuanAntre): string[] {
+  const keys = antreanLengkap(daftarKerja(), dari)
+    .filter((k) => k.tahap !== 'selesai')
+    .map((k) => k.key)
+  for (const key of keys) pindahAntre(key, ke)
+  return keys
+}
+
+/** Modul docs-site sebuah kerja: yang tersimpan, atau tebakan dari judul + tiket.md. */
+export const modulKerja = (k: Kerja): string | null =>
+  k.modul ?? tebakModul(k.judul, bacaBerkasKerja(k.key, 'tiket.md'))
+
+/**
+ * Rencana slot: usulan untuk tiket yang sudah diambil tapi belum punya slot atau antrean slot
+ * (antre global ikut dihitung). Hanya usulan; Tams mengonfirmasi per tiket.
+ */
+export function rencanaSlotKerja(): UsulanTiket[] {
+  const semua = daftarKerja()
+  const menunggu = semua
+    .filter(
+      (k) =>
+        !k.slot &&
+        !k.push &&
+        !k.ditunda &&
+        (k.tahap === 'diambil' || k.tahap === 'dipelajari') &&
+        (!k.antre || k.antre.slot === undefined),
+    )
+    .sort((a, b) => (a.diambil_at ?? '').localeCompare(b.diambil_at ?? ''))
+  if (!menunggu.length) return []
+  const pil = pilihanSlotKerja()
+  return usulanRencana(
+    menunggu.map((k) => ({
+      key: k.key,
+      judul: k.judul,
+      modul: modulKerja(k),
+      lokal: adalahKerjaLokal(k),
+    })),
+    pil.map((p) => ({
+      n: p.n,
+      siap: p.keadaan !== 'tidak-siap',
+      pemakai: p.pemakai.map((x) => ({
+        key: x.key,
+        modul: modulKerja(semua.find((y) => y.key === x.key) as Kerja),
+      })),
+      antre: antreanLengkap(semua, p.n).filter((k) => k.tahap !== 'selesai').length,
+    })),
+  )
+}
+
+// ── Pergantian otomatis setelah push (K21) ─────────────────────────────────
+
+export interface DepGanti {
+  semua(): Kerja[]
+  simpan(k: Kerja): void
+  /** Status segar tiket di Plane (read-only); null = tak diketahui. */
+  statusPlane(key: string): Promise<string | null>
+  /** Tempatkan di slot kosong: branch baru dari development, DB tidak di-reset. */
+  tempatkan(key: string, n: NomorSlot, o: { resetDb: boolean }): { kerja: Kerja; langkah: string[] }
+  selesaiNama: string[]
+  kini(): string
+}
+
+export interface HasilGanti {
+  ditempatkan: string | null
+  dilewati: { key: string; alasan: string }[]
+  gagal: { key: string; alasan: string } | null
+}
+
+/**
+ * Status Plane segar untuk cek basi: baca satu tiket (read-only); bila gagal, cadangannya cache
+ * Tugas saya. Kerja lokal tidak sampai ke sini (cekBasi mengecualikannya).
+ */
+async function statusPlaneSegar(key: string): Promise<string | null> {
+  if (!planeDikonfigurasi()) return null
+  try {
+    return (await ambilTiket(key)).status
+  } catch {
+    return tugasSayaTersimpan()?.tugas.find((t) => t.key === key)?.status ?? null
+  }
+}
+
+const depBawaan = (): DepGanti => ({
+  semua: daftarKerja,
+  simpan: simpanKerja,
+  statusPlane: statusPlaneSegar,
+  tempatkan: tempatkanDiSlot,
+  selesaiNama: config.plane.statusSelesai,
+  kini: () => new Date().toISOString(),
+})
+
+/**
+ * Slot `n` baru dilepas: tempatkan kerja pertama di antrean slot itu. Slot masih terisi → tidak
+ * berbuat apa-apa. Tiap giliran dicek basi dulu (selesai di Plane/dibatalkan/kerja selesai →
+ * dilewati dan dicatat); penempatan gagal berhenti di situ dan kerja tetap di antrean.
+ * Tidak menyentuh antrean global.
+ */
+export async function gantiOtomatis(
+  n: NomorSlot,
+  o: { pelepas?: string[]; dep?: DepGanti } = {},
+): Promise<HasilGanti> {
+  const dep = o.dep ?? depBawaan()
+  const hasil: HasilGanti = { ditempatkan: null, dilewati: [], gagal: null }
+  const catat = (k: Kerja, teks: string) => dep.simpan(pindahTahap(k, k.tahap, teks))
+  for (let putaran = 0; putaran < 50; putaran++) {
+    const semua = dep.semua()
+    if (semua.some((k) => k.slot === n && k.tahap !== 'selesai')) return hasil
+    const calon = pilihBerikutnya(antreanLengkap(semua, n))
+    if (!calon) return hasil
+    const kini = dep.kini()
+    // Selesai tak perlu bertanya ke Plane.
+    const status = calon.tahap === 'selesai' ? null : await dep.statusPlane(calon.key)
+    const basi = cekBasi(calon, status, dep.selesaiNama)
+    if (basi) {
+      const { antre: _a, ...tanpa } = calon
+      const k2 = pindahTahap(
+        {
+          ...tanpa,
+          ...(calon.tahap === 'selesai'
+            ? {}
+            : { peringatanAntre: { at: kini, jenis: 'dilewati' as const, slot: n, alasan: basi } }),
+        } as Kerja,
+        calon.tahap,
+        `Dilewati dari antrean slot ${n}: ${basi}`,
+      )
+      dep.simpan(k2)
+      hasil.dilewati.push({ key: calon.key, alasan: basi })
+      continue
+    }
+    try {
+      const { kerja } = dep.tempatkan(calon.key, n, { resetDb: false })
+      const dari = o.pelepas?.length ? ` setelah ${o.pelepas.join(', ')} di-push` : ''
+      catat(
+        kerja,
+        `Giliran antrean slot ${n} tiba${dari}: ditempatkan otomatis, DB slot tidak di-reset`,
+      )
+      for (const p of o.pelepas ?? []) {
+        const kp = dep.semua().find((x) => x.key === p)
+        if (kp) catat(kp, `Slot ${n} diteruskan otomatis ke ${calon.key} (antrean slot ${n})`)
+      }
+      hasil.ditempatkan = calon.key
+    } catch (e) {
+      const alasan = (e as Error).message
+      const k = dep.semua().find((x) => x.key === calon.key) ?? calon
+      dep.simpan(
+        pindahTahap(
+          { ...k, peringatanAntre: { at: kini, jenis: 'gagal', slot: n, alasan } },
+          k.tahap,
+          `Penempatan otomatis ke slot ${n} gagal: ${alasan}`,
+        ),
+      )
+      hasil.gagal = { key: calon.key, alasan }
+    }
+    return hasil
+  }
+  return hasil
+}
+
+const DIR_LOG_ANTRE = () => path.join(ROOT, 'kerja', '_antre-log')
+
+/**
+ * Jalankan pergantian slot di proses terpisah (CLI `kerja antre-mulai`): menempatkan memakai
+ * spawnSync (git, migrasi) yang bisa puluhan detik, jadi tidak boleh di proses server panel.
+ */
+export function mulaiAntreanLatar(n: number, pelepas: string[] = []) {
+  mkdirSync(DIR_LOG_ANTRE(), { recursive: true })
+  const log = openSync(path.join(DIR_LOG_ANTRE(), `slot-${n}.log`), 'a')
+  try {
+    const args = [path.join(ROOT, 'src', 'kerja.ts'), 'antre-mulai', String(n)]
+    if (pelepas.length) args.push('--pelepas', pelepas.join(','))
+    spawn(process.execPath, args, {
+      cwd: ROOT,
+      detached: true,
+      stdio: ['ignore', log, log],
+    }).unref()
+  } finally {
+    closeSync(log)
+  }
+}
+
+/** Pintu CLI `kerja antre-mulai`: kunci per slot (satu pergantian sekaligus), lalu gantiOtomatis. */
+export async function jalankanAntreanSlot(
+  n: NomorSlot,
+  pelepas: string[] = [],
+): Promise<HasilGanti> {
+  mkdirSync(DIR_LOG_ANTRE(), { recursive: true })
+  const kunci = path.join(DIR_LOG_ANTRE(), `slot-${n}.lock`)
+  if (existsSync(kunci) && Date.now() - Number(readFileSync(kunci, 'utf8') || 0) < 10 * 60_000)
+    throw new Error(`Pergantian slot ${n} sedang berjalan`)
+  writeFileSync(kunci, String(Date.now()))
+  try {
+    return await gantiOtomatis(n, { pelepas })
+  } finally {
+    rmSync(kunci, { force: true })
+  }
 }
 
 /** Lepas slot tanpa push (mis. tiket ditunda); worktree dan branch tetap. */

@@ -4,8 +4,9 @@
 // dipakai). Di sini catatannya dibuat lengkap dan langsung ditempatkan di slot chat.
 import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { bacaKerja, dirKerja, KERJA_DIR, type Kerja, simpanKerja } from './kerja.ts'
-import { tempatkanDiSlot } from './kerja-aksi.ts'
+import { antreanSlot } from './antrean.ts'
+import { bacaKerja, daftarKerja, dirKerja, KERJA_DIR, type Kerja, simpanKerja } from './kerja.ts'
+import { antrekanKerja, pemakaiSlot, tempatkanDiSlot } from './kerja-aksi.ts'
 import { SLOT_CHAT } from './slot.ts'
 
 export const AWALAN_LOKAL = ['BUG', 'REQ'] as const
@@ -49,7 +50,7 @@ export function kerjaLokal(key: string, judul: string, sumber: string, kini: str
 
 /**
  * Buat kerja lokal lalu tempatkan di slot chat (branch baru dari development, DB slot chat
- * dipertahankan). `tempat: false` hanya membuat catatannya.
+ * dipertahankan); bila slot chat terisi, masuk antreannya. `tempat: false` hanya membuat catatannya.
  */
 export function buatKerjaLokal(
   awalan: AwalanLokal,
@@ -65,5 +66,17 @@ export function buatKerjaLokal(
     `# ${key} · ${judul}\n\nTanpa tiket Plane. Sumber: ${sumber}.\n`,
   )
   if (o.tempat === false) return { kerja: bacaKerja(key), langkah: [] }
+  // Slot chat terisi: masuk antrean slot chat (bukan gagal); naik otomatis setelah pemakainya di-push.
+  const pemakai = pemakaiSlot().get(SLOT_CHAT) ?? []
+  if (pemakai.length) {
+    const k = antrekanKerja(key, { slot: SLOT_CHAT })
+    const urutan = antreanSlot(daftarKerja(), SLOT_CHAT).findIndex((x) => x.key === key) + 1
+    return {
+      kerja: k,
+      langkah: [
+        `slot ${SLOT_CHAT} (chat) dipakai ${pemakai.map((p) => p.key).join(', ')}: ${key} masuk antrean slot ${SLOT_CHAT} (urutan ${urutan}); naik otomatis setelah slot dilepas`,
+      ],
+    }
+  }
   return tempatkanDiSlot(key, SLOT_CHAT)
 }

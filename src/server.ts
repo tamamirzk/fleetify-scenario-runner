@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
+import { antreanSlot, antreanTertahan, PERINGATAN_KLASTER } from './core/antrean.ts'
 import { butuhKamu, lajurKerja } from './core/butuh-kamu.ts'
 import { bagianPerhatian, jawabPertanyaan, renderCatatan } from './core/catatan.ts'
 import { config, ROOT } from './core/config.ts'
@@ -33,19 +34,24 @@ import {
 import {
   ambilKerja,
   antrekanKerja,
+  aturUrutAntre,
   gerbangKerja,
   jalankanFase,
   kabarSesi,
   keadaanSerah,
   komentarKePlane,
   lepasSlotKerja,
+  mulaiAntreanLatar,
   panenKerja,
   pemakaiSlot,
   periksaCatatanKerja,
   periksaMergeSemua,
   pilihanSlotKerja,
+  pindahAntre,
+  pindahkanSisaAntre,
   potretKerja,
   pushKerja,
+  rencanaSlotKerja,
   reviewKerja,
   semuaMetrik,
   sesiTerkini,
@@ -611,6 +617,13 @@ async function susunWorkspace() {
     return {
       ...k,
       pemakai: p,
+      antrean: antreanSlot(semua, d.n).map((x) => ({
+        key: x.key,
+        judul: x.judul,
+        urutan: x.antre?.urutan ?? null,
+        ditunda: !!x.ditunda,
+        peringatan: x.peringatanAntre?.alasan ?? null,
+      })),
       chat: d.n === SLOT_CHAT,
       sesi: sesi ?? null,
       diam: (k.api || k.web) && sesi?.status !== 'bekerja',
@@ -621,10 +634,17 @@ async function susunWorkspace() {
     slot.filter((x) => x.diam).map((x) => `slot ${x.n}`),
   )
   const antre = semua
-    .filter((k) => k.antre && !k.slot && k.tahap !== 'selesai')
+    .filter((k) => k.antre && k.antre.slot === undefined && !k.slot && k.tahap !== 'selesai')
     .sort((a, b) => (a.antre?.at ?? '').localeCompare(b.antre?.at ?? ''))
     .map((k) => ({ key: k.key, judul: k.judul, at: k.antre?.at }))
-  return { slot, layanan: await layananBersama(), antre, komputer, pilihan: pilihanSlotKerja() }
+  return {
+    slot,
+    layanan: await layananBersama(),
+    antre,
+    rencana: { usulan: rencanaSlotKerja(), peringatan: PERINGATAN_KLASTER },
+    komputer,
+    pilihan: pilihanSlotKerja(),
+  }
 }
 
 /** Aksi per slot: nyalakan, matikan, migrasi, reset-db. */
@@ -647,7 +667,18 @@ async function ruteSlot(req: IncomingMessage, n: number, aksi: string) {
     else if (aksi === 'migrasi')
       return { langkah: migrasiSlot(d), workspace: await susunWorkspace() }
     else if (aksi === 'reset') resetDbSlot(d)
-    else throw new HttpError(404, `Aksi slot tidak dikenal: ${aksi}`)
+    else if (aksi === 'mulai') {
+      // Mulai antrean slot (K21): proses terpisah, tidak menahan respons.
+      if (pemakaiSlot().get(n)?.length) throw new HttpError(409, `Slot ${n} masih dipakai`)
+      mulaiAntreanLatar(n)
+    } else if (aksi === 'sisa') {
+      // Antrean tertahan: pindahkan seluruh sisa antrean slot ini ke slot lain (atau global).
+      const body = await readBody(req)
+      const ke = body.ke === 'global' ? 'global' : Number(body.ke)
+      if (ke !== 'global' && (!(NOMOR_SLOT as readonly number[]).includes(ke) || ke === n))
+        throw new HttpError(400, 'Pilih slot tujuan yang berbeda')
+      return { dipindah: pindahkanSisaAntre(n, ke), workspace: await susunWorkspace() }
+    } else throw new HttpError(404, `Aksi slot tidak dikenal: ${aksi}`)
   } catch (e) {
     if (e instanceof HttpError) throw e
     throw new HttpError(409, (e as Error).message)
@@ -737,8 +768,26 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     }
   }
   if (aksi === 'antre') {
+    // Antre global, atau di slot tertentu (body.slot): naik otomatis setelah slot itu dilepas.
     try {
-      antrekanKerja(key)
+      antrekanKerja(key, body.slot ? { slot: Number(body.slot) } : {})
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'urut') {
+    try {
+      aturUrutAntre(key, body.arah === 'turun' ? 'turun' : 'naik')
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    return detailKerja(key)
+  }
+  if (aksi === 'pindah') {
+    // Pindah antrean ke slot lain, atau `global` (= keluarkan dari antrean slot).
+    try {
+      pindahAntre(key, body.ke === 'global' ? 'global' : Number(body.ke))
     } catch (e) {
       throw new HttpError(409, (e as Error).message)
     }
@@ -1024,6 +1073,7 @@ const routes: Record<string, Handler> = {
         p.map((x) => semuaKerja.find((y) => y.key === x.key)?.sesi?.status).find(Boolean) ?? null
       return {
         n: d.n,
+        antre: antreanSlot(semuaKerja, d.n).length,
         pemakai: p.map((x) => x.key),
         api: k.api,
         web: k.web,
@@ -1047,6 +1097,11 @@ const routes: Record<string, Handler> = {
       aiBekerja: bekerja,
       pihakLain: di('pihak-lain').map((x) => ({ key: x.key, judul: x.judul, alasan: x.alasan })),
       antre: di('antre').map((x) => ({ key: x.key, judul: x.judul })),
+      antreanTertahan: antreanTertahan(
+        semuaKerja,
+        (k) => posisi.find((x) => x.key === k.key)?.butuh ?? null,
+        Date.now(),
+      ),
       ditunda,
       angka,
       mini: {

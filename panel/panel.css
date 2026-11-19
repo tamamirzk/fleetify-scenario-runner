@@ -8078,6 +8078,69 @@ details.kj-tiket > summary h2 {
   align-items: center;
   gap: 8px;
 }
+.ws-berikutnya {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--sr-text-sm);
+}
+.ws-berikut {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ws-berikut li,
+.ws-rencana-baris {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.ws-urut {
+  color: var(--sr-text-2);
+}
+.ws-berikut-isi,
+.ws-rencana-isi {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ws-rencana-alasan {
+  display: block;
+  font-size: var(--sr-text-xs);
+}
+.ws-berikut-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ws-mulai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--sr-text-xs);
+}
+.ws-peringatan-klaster {
+  margin: 8px 0 0;
+  font-size: var(--sr-text-xs);
+}
+.db-butuh li.db-tertahan {
+  flex-wrap: wrap;
+}
+.db-tertahan .db-butuh-teks {
+  flex: 1 1 200px;
+}
+.db-tertahan-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
 @media (max-width: 900px) {
   .ws-meter-baris,
   .ws-slot-baris,

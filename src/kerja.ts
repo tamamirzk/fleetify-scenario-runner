@@ -19,8 +19,9 @@
 //   bun run kerja minta-ubah FMS-87 A|B "teks"  ·  bun run kerja ubah-selesai FMS-87 <no>
 //   bun run kerja staging FMS-87 tambah "teks" | centang <no> | batal <no>
 //   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
-//   bun run kerja slot FMS-87 <1|2|3>  ·  antre FMS-87  ·  lepas FMS-87   (slot paralel)
-//   bun run kerja workspace                  slot, layanan bersama, Antre, komputer
+//   bun run kerja slot FMS-87 <1|2|3>  ·  antre FMS-87 [--slot n]  ·  lepas FMS-87   (slot paralel)
+//   bun run kerja antre-urut FMS-87 naik|turun  ·  antre-pindah FMS-87 <n|global>  ·  antre-mulai <n>
+//   bun run kerja workspace                  slot, antrean per slot, Antre global, komputer
 //   bun run kerja panen FMS-87 [--modul fleet] [--tulis]   catatan → docs-site (pratinjau tanpa --tulis)
 //   bun run kerja metrik [FMS-87]            lama per tahap, kerja ulang, token sesi Claude
 //   bun run kerja cek FMS-87 lulus|gagal|belum "kriteria" ["bukti"]
@@ -29,6 +30,7 @@
 //   bun run kerja plane FMS-87 status "Done" [--ya]
 
 import { readFileSync } from 'node:fs'
+import { antreanSlot, slotAntre } from './core/antrean.ts'
 import {
   centangCekStaging,
   jawabPertanyaan,
@@ -60,15 +62,18 @@ import {
 import {
   ambilKerja,
   antrekanKerja,
+  aturUrutAntre,
   catatKerja,
   cekKerja,
   gerbangKerja,
+  jalankanAntreanSlot,
   komentarKePlane,
   laporanLengkap,
   lepasSlotKerja,
   panenKerja,
   pemakaiSlot,
   periksaCatatanKerja,
+  pindahAntre,
   potretKerja,
   semuaMetrik,
   setTahap,
@@ -92,7 +97,7 @@ import {
   tambahTemuan,
 } from './core/laporan-kerja.ts'
 import { closeSharedBrowser } from './core/lib.ts'
-import { denganSlot, keadaanSlot, type NomorSlot, semuaSlot } from './core/slot.ts'
+import { denganSlot, keadaanSlot, type NomorSlot, SLOT_CHAT, semuaSlot } from './core/slot.ts'
 
 const [perintah, key, ...sisa] = Bun.argv.slice(2)
 const ya = sisa.includes('--ya')
@@ -109,10 +114,12 @@ const OPSI_BERNILAI = new Set([
   '--koreksi',
   '--modul',
   '--oleh',
+  '--pelepas',
   '--penyebab',
   '--rinci-berkas',
   '--tabel-berkas',
   '--skenario',
+  '--slot',
   '--usul',
   '--worktree',
 ])
@@ -165,7 +172,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|baru|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|baru|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|antre-urut|antre-pindah|antre-mulai|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -435,9 +442,55 @@ try {
       break
     }
     case 'antre': {
-      if (!key) throw new Error('Pakai: bun run kerja antre KEY')
-      antrekanKerja(key)
-      console.log(`⏸ ${key} masuk antrean slot`)
+      // Tanpa --slot: antre global (Tams menempatkan sendiri). Dengan --slot n: antre di slot n,
+      // naik otomatis setelah kerja aktif slot itu di-push.
+      if (!key) throw new Error('Pakai: bun run kerja antre KEY [--slot <1|2|3>]')
+      const n = opsi('slot')[0] ? Number(opsi('slot')[0]) : undefined
+      if (n !== undefined && ![1, 2, 3].includes(n)) throw new Error('--slot harus 1, 2, atau 3')
+      const k = antrekanKerja(key, n ? { slot: n } : {})
+      if (n) {
+        const urutan = antreanSlot(daftarKerja(), n).findIndex((x) => x.key === key) + 1
+        console.log(`⏸ ${key} masuk antrean slot ${n} (urutan ${urutan})`)
+        if (!pemakaiSlot().get(n)?.length)
+          console.log(`  ! slot ${n} sedang kosong: mulai dengan "kerja antre-mulai ${n}"`)
+      } else console.log(`⏸ ${k.key} masuk antrean global`)
+      break
+    }
+    case 'antre-urut': {
+      const arah = posisi[0]
+      if (!key || (arah !== 'naik' && arah !== 'turun'))
+        throw new Error('Pakai: bun run kerja antre-urut KEY naik|turun')
+      aturUrutAntre(key, arah)
+      const k = bacaKerja(key)
+      const urutan = antreanSlot(daftarKerja(), slotAntre(k)).findIndex((x) => x.key === key) + 1
+      console.log(
+        `✓ ${key} ${arah}: urutan ${urutan} di antrean ${slotAntre(k) === 'global' ? 'global' : `slot ${slotAntre(k)}`}`,
+      )
+      break
+    }
+    case 'antre-pindah': {
+      const ke = posisi[0]
+      if (!key || !ke || (ke !== 'global' && ![1, 2, 3].includes(Number(ke))))
+        throw new Error('Pakai: bun run kerja antre-pindah KEY <1|2|3|global>')
+      pindahAntre(key, ke === 'global' ? 'global' : Number(ke))
+      console.log(`✓ ${key} dipindah ke antrean ${ke === 'global' ? 'global' : `slot ${ke}`}`)
+      break
+    }
+    case 'antre-mulai': {
+      // Dijalankan otomatis (proses terpisah) setelah push; juga bisa manual bila slot kosong.
+      const n = Number(key)
+      if (![1, 2, 3].includes(n))
+        throw new Error('Pakai: bun run kerja antre-mulai <1|2|3> [--pelepas KEY,KEY]')
+      const h = await jalankanAntreanSlot(
+        n as NomorSlot,
+        (opsi('pelepas')[0] ?? '').split(',').filter(Boolean),
+      )
+      for (const d of h.dilewati) console.log(`↷ ${d.key} dilewati: ${d.alasan}`)
+      if (h.ditempatkan)
+        console.log(`✓ ${h.ditempatkan} ditempatkan di slot ${n} (DB tidak di-reset)`)
+      if (h.gagal) console.log(`× ${h.gagal.key} gagal ditempatkan: ${h.gagal.alasan}`)
+      if (!h.ditempatkan && !h.gagal)
+        console.log(`antrean slot ${n} kosong atau slot masih terpakai`)
       break
     }
     case 'lepas': {
@@ -452,9 +505,17 @@ try {
         const k = keadaanSlot(d)
         const p = pemakai.get(d.n) ?? []
         console.log(
-          `slot ${d.n}: ${p.length ? p.map((x) => x.key).join(', ') : 'kosong'} · ${k.branch ?? `detached ${k.head ?? '-'}`}${k.bersih ? '' : ' (kotor)'} · API :${d.portApi} ${k.api ? '●' : '○'} · web :${d.portWeb} ${k.web ? '●' : '○'} · DB ${k.dbUkuran ?? '-'}`,
+          `slot ${d.n}${d.n === SLOT_CHAT ? ' (chat)' : ''}: ${p.length ? p.map((x) => x.key).join(', ') : 'kosong'} · ${k.branch ?? `detached ${k.head ?? '-'}`}${k.bersih ? '' : ' (kotor)'} · API :${d.portApi} ${k.api ? '●' : '○'} · web :${d.portWeb} ${k.web ? '●' : '○'} · DB ${k.dbUkuran ?? '-'}`,
         )
+        for (const [i, x] of antreanSlot(daftarKerja(), d.n).entries())
+          console.log(
+            `    ${i + 1}. berikutnya: ${x.key} · ${x.judul}${x.ditunda ? ' (ditunda)' : ''}`,
+          )
       }
+      const global = daftarKerja().filter(
+        (x) => x.antre && x.antre.slot === undefined && !x.slot && x.tahap !== 'selesai',
+      )
+      if (global.length) console.log(`antre global: ${global.map((x) => x.key).join(', ')}`)
       const km = bacaKomputer(semuaSlot().map((d) => [`Slot ${d.n}`, d.worktree]))
       console.log(
         `komputer: beban ${km.cpu.beban.toFixed(1)}/${km.cpu.core} · memori bebas ${km.memori.bebasPersen ?? '?'}% · disk sisa ${Math.round(km.disk.sisaGiB)} GiB`,

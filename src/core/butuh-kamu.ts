@@ -43,6 +43,20 @@ export function butuhKamu(k: Kerja, periksa: Periksa): ButuhKamu | null {
       alasan: `${tanya} pertanyaan menunggu jawabanmu`,
       aksi: { jenis: 'buka', label: 'Jawab' },
     }
+  // Pergantian otomatis antrean slot (K21) berhenti di kerja ini: dilewati (selesai di Plane) atau gagal.
+  const w = k.peringatanAntre
+  if (w && !k.slot)
+    return w.jenis === 'dilewati'
+      ? {
+          ...dasar,
+          alasan: `Dilewati dari antrean slot ${w.slot}: ${w.alasan}`,
+          aksi: { jenis: 'tahap', label: 'Tandai selesai', tahap: 'selesai' },
+        }
+      : {
+          ...dasar,
+          alasan: `Penempatan otomatis ke slot ${w.slot} gagal: ${w.alasan}`,
+          aksi: { jenis: 'buka', label: 'Lihat' },
+        }
   const s = k.sesi
   if (s?.status === 'bekerja') return null
   if (s?.status === 'menunggu')
@@ -145,6 +159,11 @@ export function lajurKerja(k: Kerja, periksa: Periksa): PosisiLajur {
       lajur: 'pihak-lain',
       alasan: k.mr ? 'MR menunggu review/merge ke development' : 'Menunggu MR dibuat',
     }
-  if (k.antre && !k.slot) return { ...dasar, lajur: 'antre', alasan: 'Menunggu slot kosong' }
+  if (k.antre && !k.slot)
+    return {
+      ...dasar,
+      lajur: 'antre',
+      alasan: k.antre.slot ? `Antre di slot ${k.antre.slot}` : 'Menunggu slot kosong',
+    }
   return { ...dasar, lajur: 'diam', alasan: 'Tidak ada langkah berikutnya yang jelas' }
 }

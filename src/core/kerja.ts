@@ -150,8 +150,17 @@ export interface Kerja {
   merge?: { at: string; head: string }
   /** Slot kerja paralel yang dipakai (1–3); kosong = tidak memegang slot (R-7.1). */
   slot?: number | null
-  /** Tiket menunggu slot kosong (lajur Antre); urutan menurut waktu. */
-  antre?: { at: string }
+  /**
+   * Tiket menunggu slot (lajur Antre). Tanpa `slot` = antre global (Tams menempatkan sendiri);
+   * dengan `slot` = antre di slot itu dan ditempatkan otomatis setelah kerja aktifnya di-push
+   * (src/core/antrean.ts). `urutan` = nomor dalam antrean (kecil = lebih dulu).
+   */
+  antre?: { at: string; slot?: number; urutan?: number }
+  /**
+   * Catatan dari pergantian otomatis yang butuh Tams: kerja dilewati karena sudah selesai di
+   * Plane, atau penempatan otomatisnya gagal. Hilang saat kerja ditempatkan/diantrekan lagi.
+   */
+  peringatanAntre?: { at: string; jenis: 'dilewati' | 'gagal'; slot: number; alasan: string }
   /** Kunci tiket pemegang slot bila tiket ini gabung klaster (branch dan DB yang sama). */
   klaster?: string
   /**

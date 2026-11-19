@@ -252,12 +252,18 @@ async function pilihSlot(key) {
   return bukaDialogKerja(isiPilihSlot(key, w.pilihan), (d, hasil) => {
     const ok = d.querySelector('#ws-pilih-ok')
     for (const r of d.querySelectorAll('input[name=ws-slot]'))
-      r.onchange = () => { hasil.nilai = r.value; ok.disabled = false; ok.textContent = r.value === 'antre' ? 'Antrekan' : `Ambil ke slot ${r.value}` }
+      r.onchange = () => { hasil.nilai = r.value; ok.disabled = false; ok.textContent = r.value.startsWith('antre') ? 'Antrekan' : `Ambil ke slot ${r.value}` }
   }, 560)
 }
 /** Tempatkan kerja yang sudah diambil: ke slot (bisa ±1 menit: reset + migrasi DB) atau Antre. */
 async function tempatkanTiket(key, pilihan) {
   if (pilihan === 'antre') { await api(`/api/kerja/${key}/antre`, {}); toast(`${key} masuk antrean`); return }
+  if (pilihan.startsWith('antre:')) {
+    const n = Number(pilihan.slice(6))
+    await api(`/api/kerja/${key}/antre`, { slot: n })
+    toast(`${key} masuk antrean slot ${n}: naik otomatis setelah slot dilepas`)
+    return
+  }
   toast(`Menyiapkan slot ${pilihan} untuk ${key}: branch, reset dan migrasi DB…`)
   const r = await api(`/api/kerja/${key}/slot`, { n: Number(pilihan) })
   toast(`${key} di slot ${pilihan}: ${(r.langkah ?? []).slice(0, 2).join(' · ')}`)
@@ -282,6 +288,34 @@ function gambarWorkspace(sibuk = null) {
         const r = await api(`/api/slot/${n}/${a}`, {})
         S.ws = r.workspace ?? S.ws
         if (r.langkah) toast(`Slot ${n}: ${r.langkah.join(' · ')}`)
+      } catch (e) { toast(e.message, true) }
+      renderWorkspace()
+    })
+  // Antrean per slot: urutan, pindah slot, keluarkan, mulai (slot kosong tapi antrean belum jalan).
+  const ubahAntrean = async (url, body, pesan) => {
+    try { await api(url, body); if (pesan) toast(pesan) } catch (e) { toast(e.message, true) }
+    renderWorkspace()
+  }
+  for (const b of main.querySelectorAll('[data-ws-urut]'))
+    b.addEventListener('click', () => ubahAntrean(`/api/kerja/${b.dataset.wsUrut}/urut`, { arah: b.dataset.arah }))
+  for (const sel of main.querySelectorAll('[data-ws-pindah]'))
+    sel.addEventListener('change', () => sel.value && ubahAntrean(`/api/kerja/${sel.dataset.wsPindah}/pindah`, { ke: sel.value }, `${sel.dataset.wsPindah} dipindah ke antrean slot ${sel.value}`))
+  for (const b of main.querySelectorAll('[data-ws-keluar]'))
+    b.addEventListener('click', () => ubahAntrean(`/api/kerja/${b.dataset.wsKeluar}/pindah`, { ke: 'global' }, `${b.dataset.wsKeluar} kembali ke antre global`))
+  for (const b of main.querySelectorAll('[data-ws-mulai]'))
+    b.addEventListener('click', () => ubahAntrean(`/api/slot/${b.dataset.wsMulai}/mulai`, {}, `Antrean slot ${b.dataset.wsMulai} dimulai di latar; segarkan sebentar lagi`))
+  // Rencana slot: Tams menerapkan usulan (atau pilihan lain) per tiket.
+  for (const b of main.querySelectorAll('[data-ws-terap]'))
+    b.addEventListener('click', async () => {
+      const key = b.dataset.wsTerap
+      const [jenis, n] = (main.querySelector(`[data-ws-opsi="${key}"]`)?.value ?? '').split(':')
+      b.disabled = true
+      try {
+        if (jenis === 'antre') await tempatkanTiket(key, Number(n) ? `antre:${n}` : 'antre')
+        else {
+          gambarWorkspace(`Menyiapkan slot ${n} untuk ${key}`)
+          await tempatkanTiket(key, n)
+        }
       } catch (e) { toast(e.message, true) }
       renderWorkspace()
     })
@@ -347,6 +381,14 @@ function gambarDasbor() {
     b.addEventListener('click', async () => {
       b.disabled = true
       try { await api(`/api/kerja/${b.dataset.key}/tahap`, { tahap: b.dataset.dbTahap, catatan: 'MR sudah di-merge ke development: ditandai selesai dari Dashboard' }); toast(`${b.dataset.key}: selesai`) } catch (e) { toast(e.message, true) }
+      renderDasbor()
+    })
+  // Antrean tertahan: pindahkan sisa antrean slot ke slot lain.
+  for (const b of main.querySelectorAll('[data-db-sisa]'))
+    b.addEventListener('click', async () => {
+      b.disabled = true
+      const ke = main.querySelector(`[data-db-sisa-ke="${b.dataset.dbSisa}"]`)?.value
+      try { const r = await api(`/api/slot/${b.dataset.dbSisa}/sisa`, { ke }); toast(`${(r.dipindah ?? []).join(', ')} dipindah ke ${ke === 'global' ? 'antre global' : `antrean slot ${ke}`}`) } catch (e) { toast(e.message, true) }
       renderDasbor()
     })
   for (const b of main.querySelectorAll('[data-db-terminal]'))
