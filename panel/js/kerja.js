@@ -35,7 +35,7 @@ export function langkahTahap(tahap) {
 }
 
 /** Teks satu baris markdown → HTML: `kode`, **tebal**, *miring*. */
-const mdBaris = (t) => {
+export const mdBaris = (t) => {
   // Isi `kode` disisihkan dulu, supaya * di dalamnya tidak dianggap tebal/miring.
   const kode = []
   return esc(t)
@@ -217,6 +217,11 @@ export const TAB_KERJA = [
   ['kode', 'Kode'],
   ['catatan', 'Catatan'],
 ]
+/** Kerja format 2 (laporan lima kartu): tanpa catatan.md, jadi tanpa tab Catatan. */
+export const formatDua = (d) => d?.kerja?.format === 2
+/** Tab laporan sebuah kerja: format 2 hanya Layar | Data | Kode. */
+export const tabKerja = (d) =>
+  formatDua(d) ? TAB_KERJA.filter(([id]) => id !== 'catatan') : TAB_KERJA
 const LABEL_TAHAP = Object.fromEntries(TAHAP)
 const jamPendek = (iso) =>
   iso
@@ -391,10 +396,12 @@ export function kepalaLaporanKerja(d, tab, kode = null) {
           ? 'Catatan kerja dan riwayat lengkap'
           : `${k.target.layar.length} halaman · sebelum ${jamPendek(k.potret.sebelum?.at)} · sesudah ${jamPendek(k.potret.sesudah?.at)}`
   const n = { layar: k.target.layar.length, data: d.db.length, kode: jumlahKode(k, kode) }
-  const pil = TAB_KERJA.map(
-    ([id, l]) =>
-      `<a role="tab" href="#/kerja/${esc(k.key)}/${id}" aria-selected="${tab === id}">${l}${n[id] !== undefined ? ` <span class="n">${n[id]}</span>` : ''}${id === 'data' && galatDb ? ` <span class="badge" aria-label="${galatDb} query gagal">${galatDb}</span>` : ''}</a>`,
-  ).join('')
+  const pil = tabKerja(d)
+    .map(
+      ([id, l]) =>
+        `<a role="tab" href="#/kerja/${esc(k.key)}/${id}" aria-selected="${tab === id}">${l}${n[id] !== undefined ? ` <span class="n">${n[id]}</span>` : ''}${id === 'data' && galatDb ? ` <span class="badge" aria-label="${galatDb} query gagal">${galatDb}</span>` : ''}</a>`,
+    )
+    .join('')
   return `<div class="kj-lap-hd" id="kj-lap-hd"><h2>Laporan</h2><div class="pill" role="tablist" aria-label="Bagian laporan kerja">${pil}</div><span class="dim kj-lap-ket">${esc(sub)}</span>
     <span class="kj-lap-konteks"><span class="mono">${esc(k.key)}</span> · ${esc(LABEL_TAHAP[k.tahap] ?? k.tahap)} · <span class="${c.gagal ? 'bad-t' : 'ok-t'}">${c.gagal ? `× ${c.gagal}` : '✓'} ${c.lulus}/${c.total}</span><button type="button" class="btn tb kj-kecil" data-kj-atas>↑ Ringkasan</button></span></div>`
 }
@@ -824,7 +831,7 @@ export function bilahTahap(d, kode = null, cekPlane = null) {
   }).join('<li class="kj-pemisah" aria-hidden="true">›</li>')
   const nKode = jumlahKode(k, kode)
   const kodeTeks = !nKode
-    ? '<span class="dim">tanpa kode</span>'
+    ? '<span class="dim">–</span>'
     : kode?.diRemote === false || kode?.belumDiPush
       ? '<span class="warn-t">! belum di-push</span>'
       : kode?.diRemote
@@ -922,10 +929,26 @@ export function paketReview(d, kode = null) {
       ? `<span class="chip ${g.hasil === 'lulus' ? 'ok' : g.hasil === 'peringatan' ? 'warn' : 'bad'}">${g.hasil === 'lulus' ? '✓' : g.hasil === 'peringatan' ? '!' : '×'} ${nama}</span>`
       : `<span class="chip">○ ${nama} belum</span>`
   const akhir = d.periksa?.akhir
+  // Format 2: Penyelesaian di paling atas (jawaban atas Masalah); risiko dan yang belum dicakup ikut jadi perhatian.
+  const f2 = formatDua(d)
+  const h = k.hasil
+  const penyelesaian = f2
+    ? `<div class="kj-review-selesai"><h3 class="kj-review-h">${h?.sementara ? 'Sejauh ini' : 'Penyelesaian'}</h3>${h?.penyelesaian ? `<p>${mdBaris(h.penyelesaian)}</p>` : `<p class="warn-t">Penyelesaian belum ditulis: <code>bun run kerja hasil ${esc(k.key)} "…"</code>.</p>`}</div>`
+    : ''
+  const perhatianF2 = f2
+    ? [
+        ...aktifButir(k.temuan ?? [])
+          .filter((t) => t.jenis === 'risiko')
+          .map((t) => `<li><span class="warn-t">!</span> <b>Risiko:</b> ${mdBaris(t.teks)}</li>`),
+        ...(h?.belumDicakup ?? []).map(
+          (x) => `<li><span class="dim">○</span> <b>Belum dicakup:</b> ${mdBaris(x)}</li>`,
+        ),
+      ].join('')
+    : ''
   return `<section class="kartu glass kj-review" aria-label="Paket review"><div class="kj-sesi-hd"><span class="db-eyebrow">Review ◆B</span>
       <span class="kj-sesi-status">${gerbang('gerbang fokus', k.gerbang?.fokus)}${gerbang('gerbang CI', k.gerbang?.ci)}${akhir ? `<span class="chip ${akhir.ok ? 'ok' : 'bad'}">${akhir.ok ? '✓' : '×'} catatan akhir</span>` : ''}</span></div>
-    <div class="kj-review-isi"><div><h3 class="kj-review-h">Kriteria dan bukti</h3>${(k.verifikasi ?? []).length ? `<ul class="kj-cek">${daftarKriteria(k)}</ul>` : '<p class="dim">Belum ada kriteria.</p>'}</div>
-      <div><h3 class="kj-review-h">Yang perlu kamu perhatikan</h3>${perhatian ? `<ul class="kj-review-daftar">${perhatian}</ul>` : '<p class="dim">Tidak ada keputusan AI, kriteria terbuka, atau peringatan gerbang.</p>'}${catatanPerhatian}
+    ${penyelesaian}<div class="kj-review-isi"><div><h3 class="kj-review-h">Kriteria dan bukti</h3>${(k.verifikasi ?? []).length ? `<ul class="kj-cek">${daftarKriteria(k)}</ul>` : '<p class="dim">Belum ada kriteria.</p>'}</div>
+      <div><h3 class="kj-review-h">Yang perlu kamu perhatikan</h3>${perhatian || perhatianF2 ? `<ul class="kj-review-daftar">${perhatian}${perhatianF2}</ul>` : '<p class="dim">Tidak ada keputusan AI, kriteria terbuka, atau peringatan gerbang.</p>'}${catatanPerhatian}
         <h3 class="kj-review-h">Perubahan kode per lapisan</h3>${tabelKode}</div></div>
     <div class="kj-review-aksi"><button type="button" class="btn tb utama-tb" data-kj-review="setuju"${akhir && !akhir.ok ? ' disabled title="Catatan akhir belum lengkap"' : ''}>Setuju &amp; Serahkan</button>
       <form class="kj-tanya-isi" data-kj-review-ubah><input type="text" name="teks" placeholder="Yang perlu diubah…" aria-label="Yang perlu diubah"><button type="submit" class="btn tb">Minta ubah</button></form></div></section>`
@@ -1160,6 +1183,203 @@ export function kartuSerah(s) {
       <form class="kj-tanya-isi" data-kj-mr><input type="url" name="url" value="${esc(s.linkMr ?? '')}" placeholder="Tempel link MR dari GitLab…" aria-label="Link MR"><button type="submit" class="btn tb">Simpan</button></form>${s.linkMr ? `<a class="btn tb" href="${esc(s.linkMr)}" target="_blank" rel="noopener">Buka MR ↗</a>` : ''}</div></section>`
 }
 
+// ── Laporan format 2: lima kartu berisi butir yang hanya ditambah ───────────────
+
+/** Butir yang masih berlaku: yang sudah dikoreksi butir lain tidak dihitung. */
+const aktifButir = (xs) => {
+  const c = new Set(xs.flatMap((x) => (x.koreksi ? [x.koreksi] : [])))
+  return xs.filter((x) => !c.has(x.id))
+}
+const SOROT_MS = 10 * 60 * 1000
+const LABEL_JENIS = {
+  penyebab: 'Penyebab',
+  sampingan: 'Sampingan',
+  risiko: 'Risiko',
+  'data-uji': 'Data uji',
+}
+const KELAS_JENIS = { penyebab: 'info', sampingan: '', risiko: 'warn', 'data-uji': 'acc' }
+const tglPendek = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '–'
+
+/**
+ * Satu butir kronologis: tanggal (jam di title), chip jenis/penulis, teks. Sorotan halus bila baru
+ * (< 10 menit); butir yang sudah dikoreksi dicoret. `isi` = HTML tambahan di bawah teks.
+ */
+function butirLaporan(b, { kini, chip = '', dicoret = false, isi = '', pengganti = null }) {
+  const baru = kini - new Date(b.at).getTime() < SOROT_MS
+  const penulis =
+    b.oleh === 'tams' ? '<span class="chip tim">Tams</span>' : '<span class="chip">AI</span>'
+  return `<li class="kj-butir${baru ? ' baru' : ''}${dicoret ? ' coret' : ''}" data-butir="${b.id}"><time class="kj-butir-tgl dim" datetime="${esc(b.at)}" title="${esc(waktu(b.at))}">${esc(tglPendek(b.at))}</time><span class="kj-butir-chip">${chip}${penulis}</span><span class="kj-butir-teks"><span class="dim kj-butir-no">#${b.id}</span> <span class="kj-butir-isi">${mdBaris(b.teks)}</span>${b.koreksi ? ` <span class="dim kj-butir-koreksi">mengoreksi #${b.koreksi}</span>` : ''}${dicoret ? ` <span class="dim kj-butir-koreksi">dikoreksi${pengganti ? ` oleh #${pengganti}` : ''}</span>` : ''}${isi}</span></li>`
+}
+const pengantiDari = (xs) => new Map(xs.filter((x) => x.koreksi).map((x) => [x.koreksi, x.id]))
+const kosongButir = (teks) => `<p class="dim kj-butir-kosong">${teks}</p>`
+
+/** Kartu MASALAH (lebar penuh): ringkasan, penyebab, dan tiket lengkap yang bisa dibuka. */
+export function kartuMasalah(d, buka = new Set()) {
+  const k = d.kerja
+  const m = k.masalah
+  const lokal = kerjaLokal(d)
+  const tiket = tiketTanpaKepala(d.tiket)
+  const terbuka = buka.has('tiket')
+  const lihat = tiket
+    ? `<button type="button" class="btn tb kj-kecil" data-kj-buka="tiket" aria-expanded="${terbuka}">${terbuka ? 'Tutup tiket ↑' : lokal ? 'Lihat tiket lengkap ↓' : 'Lihat tiket lengkap ↓'}</button>`
+    : ''
+  return `<section class="kartu glass kj-ring-kartu kj-lk kj-lk-masalah" aria-label="Masalah"><div class="kj-ring-hd"><h2>Masalah</h2>${m ? `<span class="dim kj-ring-meta">${esc(waktu(m.diubah_at))}</span>` : ''}</div>
+    ${m ? `<p class="kj-masalah-ringkas">${mdBaris(m.ringkas)}</p>${m.penyebab ? `<p class="kj-masalah-penyebab"><span class="db-eyebrow">Penyebab</span> ${mdBaris(m.penyebab)}</p>` : `<p class="dim kj-butir-kosong">Penyebab belum ditulis: <code>bun run kerja masalah ${esc(k.key)} "…" --penyebab "…"</code>.</p>`}` : kosongButir(`Masalah belum ditulis. AI menulisnya di fase Pahami: <code>bun run kerja masalah ${esc(k.key)} "ringkas" --penyebab "…"</code>.`)}
+    <div class="kj-masalah-aksi">${lihat}${lokal ? '' : `<a class="btn tb kj-kecil" href="${esc(k.url)}" target="_blank" rel="noopener">Buka di Plane ↗</a>`}</div>
+    ${terbuka && tiket ? `<div class="kj-md kj-masalah-tiket">${mdRingan(tiket)}</div>` : ''}</section>`
+}
+
+/** Kartu TEMUAN: butir per jenis (penyebab, sampingan, risiko, data uji); data uji punya rincian buka-tutup. */
+export function kartuTemuan(d, { buka = new Set(), kini = Date.now() } = {}) {
+  const xs = d.kerja.temuan ?? []
+  const ganti = pengantiDari(xs)
+  const c = new Set(ganti.keys())
+  const daftar = xs
+    .map((t) => {
+      const idr = `rinci-${t.id}`
+      const rinci = t.rinci
+        ? `<div class="kj-rinci"><button type="button" class="btn tb kj-kecil" data-kj-buka="${idr}" aria-expanded="${buka.has(idr)}">${buka.has(idr) ? 'Tutup rincian ↑' : 'Rincian ↓'}</button>${buka.has(idr) ? `<div class="kj-md kj-rinci-isi">${mdRingan(t.rinci)}</div>` : ''}</div>`
+        : ''
+      return butirLaporan(t, {
+        kini,
+        chip: `<span class="chip ${KELAS_JENIS[t.jenis] ?? ''}">${esc(LABEL_JENIS[t.jenis] ?? t.jenis)}</span>`,
+        dicoret: c.has(t.id),
+        pengganti: ganti.get(t.id),
+        isi: rinci,
+      })
+    })
+    .join('')
+  return `<section class="kartu glass kj-ring-kartu kj-lk kj-lk-temuan" aria-label="Temuan"><div class="kj-ring-hd"><h2>Temuan</h2><span class="dim kj-ring-meta">${aktifButir(xs).length} butir</span></div>
+    ${daftar ? `<ul class="kj-butir-daftar">${daftar}</ul>` : kosongButir(`Belum ada temuan. AI menambah lewat <code>bun run kerja temuan ${esc(d.kerja.key)} "…" --jenis penyebab</code>.`)}</section>`
+}
+
+/** Kartu KEPUTUSAN: keputusan AI bertanda "⚠ ditinjau Tams", beserta alasannya. */
+export function kartuKeputusanLaporan(d, { kini = Date.now() } = {}) {
+  const xs = d.kerja.keputusan ?? []
+  const daftar = xs
+    .map((x) => {
+      const ai = x.oleh === 'ai'
+      const butir = { id: x.id, at: x.at, oleh: x.oleh, teks: x.apa }
+      const li = butirLaporan(butir, {
+        kini,
+        chip: ai
+          ? '<span class="chip warn" title="Diputuskan AI sendiri; Tams meninjau">⚠ ditinjau Tams</span>'
+          : '',
+      })
+      // Alasan satu baris dim di bawah keputusan, di dalam butir yang sama.
+      return x.alasan
+        ? li.replace(
+            /<\/span><\/li>$/,
+            `<span class="kj-butir-alasan dim">Alasan: ${mdBaris(x.alasan)}</span></span></li>`,
+          )
+        : li
+    })
+    .join('')
+  return `<section class="kartu glass kj-ring-kartu kj-lk kj-lk-keputusan" aria-label="Keputusan"><div class="kj-ring-hd"><h2>Keputusan</h2><span class="dim kj-ring-meta">${xs.length} butir</span></div>
+    ${daftar ? `<ul class="kj-butir-daftar">${daftar}</ul>` : kosongButir(`Belum ada keputusan. Dicatat lewat <code>bun run kerja putuskan ${esc(d.kerja.key)} "…" --alasan "…"</code>.`)}</section>`
+}
+
+/** Kartu YANG DILAKUKAN: butir kronologis; rencana berlabel "Rencana", commit tertaut ke tab Kode. */
+export function kartuYangDilakukan(d, { kini = Date.now() } = {}) {
+  const k = d.kerja
+  const xs = k.dilakukan ?? []
+  const ganti = pengantiDari(xs)
+  const c = new Set(ganti.keys())
+  const daftar = xs
+    .map((x) =>
+      butirLaporan(x, {
+        kini,
+        chip: x.rencana ? '<span class="chip info">Rencana</span>' : '',
+        dicoret: c.has(x.id),
+        pengganti: ganti.get(x.id),
+        isi: x.commit
+          ? ` <a class="mono kj-butir-commit" href="#/kerja/${esc(k.key)}/kode" data-kj-ke="kode" title="Lihat di tab Kode">${esc(String(x.commit).slice(0, 8))}</a>`
+          : '',
+      }),
+    )
+    .join('')
+  return `<section class="kartu glass kj-ring-kartu kj-lk kj-lk-dilakukan" aria-label="Yang dilakukan"><div class="kj-ring-hd"><h2>Yang dilakukan</h2><span class="dim kj-ring-meta">${aktifButir(xs).length} butir</span></div>
+    ${daftar ? `<ul class="kj-butir-daftar">${daftar}</ul>` : kosongButir(`Belum ada yang dilakukan. AI mencatat rencana lalu pekerjaan: <code>bun run kerja lakukan ${esc(k.key)} "…" --rencana</code>.`)}</section>`
+}
+
+/** Satu baris status otomatis di Hasil: kriteria x/y (bisa dibuka) · gerbang CI · push/MR/merge. */
+export function statusHasil(d, buka = new Set()) {
+  const k = d.kerja
+  const c = hitungCek(k)
+  const ci = k.gerbang?.ci
+  const kriteria = `<button type="button" class="kj-status-tombol ${c.gagal ? 'bad-t' : c.total && c.lulus === c.total ? 'ok-t' : ''}" data-kj-buka="kriteria" aria-expanded="${buka.has('kriteria')}">${c.gagal ? '×' : c.total && c.lulus === c.total ? '✓' : '○'} kriteria ${c.lulus}/${c.total} ${buka.has('kriteria') ? '▴' : '▾'}</button>`
+  const gerbang = !ci
+    ? '<span class="dim">○ CI belum dijalankan</span>'
+    : `<span class="${ci.hasil === 'lulus' ? 'ok-t' : ci.hasil === 'peringatan' ? 'warn-t' : 'bad-t'}">${ci.hasil === 'lulus' ? '✓' : ci.hasil === 'peringatan' ? '!' : '×'} CI ${esc(ci.hasil)}</span>`
+  const serah = k.merge
+    ? `<span class="ok-t">✓ di-merge ${esc(tglPendek(k.merge.at))}</span>`
+    : k.push
+      ? `<span class="ok-t">✓ di-push ${esc(tglPendek(k.push.at))}</span> · ${k.mr ? `<a href="${esc(k.mr)}" target="_blank" rel="noopener">MR ↗</a>` : '<span class="dim">○ MR belum</span>'} · <span class="dim">○ belum di-merge</span>`
+      : '<span class="dim">○ belum di-push</span>'
+  const daftar = buka.has('kriteria')
+    ? `<div class="kj-status-kriteria">${(k.verifikasi ?? []).length ? `<ul class="kj-cek">${daftarKriteria(k)}</ul>` : '<p class="dim">Belum ada kriteria yang dicek.</p>'}</div>`
+    : ''
+  return `<div class="kj-hasil-status">${kriteria}<span aria-hidden="true">·</span>${gerbang}<span aria-hidden="true">·</span><span>${serah}</span></div>${daftar}`
+}
+
+/** Kartu HASIL: Penyelesaian ("Sejauh ini" bila sementara), Belum dicakup, tabel sebelum/sesudah, status. */
+export function kartuHasil(d, { buka = new Set() } = {}) {
+  const k = d.kerja
+  const h = k.hasil
+  const tabel = h?.tabel?.length
+    ? `<div class="kj-md-tabel kj-hasil-tabel"><table><thead><tr><th>Dilaporkan</th><th>Sebelum</th><th>Sesudah</th><th>Bukti</th></tr></thead><tbody>${h.tabel
+        .map(
+          (r) =>
+            `<tr><td>${mdBaris(r.dilaporkan)}</td><td>${mdBaris(r.sebelum)}</td><td>${mdBaris(r.sesudah)}</td><td>${mdBaris(r.bukti)}</td></tr>`,
+        )
+        .join('')}</tbody></table></div>`
+    : ''
+  const belum = h?.belumDicakup?.length
+    ? `<div class="kj-hasil-belum"><span class="db-eyebrow">Belum dicakup</span><ul>${h.belumDicakup.map((x) => `<li>${mdBaris(x)}</li>`).join('')}</ul></div>`
+    : ''
+  const setuju = h?.disetujui
+    ? `<span class="chip ok">✓ Disetujui ${esc(h.disetujui.oleh === 'tams' ? 'Tams' : h.disetujui.oleh)} · ${esc(waktu(h.disetujui.at))}</span>`
+    : ''
+  return `<section class="kartu glass kj-ring-kartu kj-lk kj-lk-hasil" aria-label="Hasil"><div class="kj-ring-hd"><h2>Hasil</h2>${setuju}</div>
+    ${h ? `<p class="kj-hasil-selesai"><span class="db-eyebrow">${h.sementara ? 'Sejauh ini' : 'Penyelesaian'}</span> ${mdBaris(h.penyelesaian)}</p>${belum}${tabel}` : kosongButir(`Hasil belum ditulis. AI menulisnya di akhir Kerjakan: <code>bun run kerja hasil ${esc(k.key)} "penyelesaian"</code>.`)}
+    ${statusHasil(d, buka)}</section>`
+}
+
+/** Riwayat tahap (log), tertutup secara bawaan: pengganti tab Catatan untuk format 2. */
+function riwayatLipat(k, buka) {
+  const terbuka = buka.has('riwayat')
+  return `<div class="kartu glass kj-ring-kartu kj-lk-riwayat"><button type="button" class="kj-bukti-baris" data-kj-buka="riwayat" aria-expanded="${terbuka}"><span class="db-eyebrow">Riwayat</span><b>${k.riwayat.length}</b><span class="kj-bukti-s dim">butir · kronologis</span><span class="dim kj-panah">${terbuka ? 'Tutup ▴' : 'Buka ▾'}</span></button>${
+    terbuka
+      ? `<ul class="kj-riwayat">${[...k.riwayat]
+          .map(
+            (r) =>
+              `<li><span class="kj-rw-penuh"><span class="dim">${esc(LABEL_TAHAP[r.tahap] ?? r.tahap)} · </span>${esc(r.catatan)}</span><span class="dim kj-rw-w">${esc(jamPendek(r.at))}</span></li>`,
+          )
+          .join('')}</ul>`
+      : ''
+  }</div>`
+}
+
+/** Ringkasan format 2: bilah → Langkah berikutnya → Butuh keputusanmu → Masalah → Temuan|Keputusan → Dilakukan|Hasil. */
+export function ringkasanKerjaDua(
+  d,
+  kode,
+  buka,
+  cekPlane,
+  sesi,
+  modeSesi,
+  serah,
+  kini = Date.now(),
+) {
+  return `<section class="kj-ringkas kj-format2" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}
+    <div class="kj-berikut" aria-label="Langkah berikutnya"><div class="kj-berikut-hd"><span class="db-eyebrow">Langkah berikutnya</span></div>${kartuSesi(d, sesi, modeSesi)}${d.butuh?.titik === 'B' ? paketReview(d, kode) : ''}${kartuSerah(serah)}</div>
+    ${kartuKeputusan(d.kerja)}${kartuMasalah(d, buka)}
+    <div class="kj-baris2">${kartuTemuan(d, { buka, kini })}${kartuKeputusanLaporan(d, { kini })}</div>
+    <div class="kj-baris2">${kartuYangDilakukan(d, { kini })}${kartuHasil(d, { buka })}</div>
+    ${riwayatLipat(d.kerja, buka)}</section>`
+}
+
 export function ringkasanKerja(
   d,
   kode = null,
@@ -1168,7 +1388,9 @@ export function ringkasanKerja(
   sesi = null,
   modeSesi = 'terminal',
   serah = null,
+  kini = Date.now(),
 ) {
+  if (formatDua(d)) return ringkasanKerjaDua(d, kode, buka, cekPlane, sesi, modeSesi, serah, kini)
   return `<section class="kj-ringkas" aria-label="Ringkasan">${bilahTahap(d, kode, cekPlane)}${kartuSesi(d, sesi, modeSesi)}${d.butuh?.titik === 'B' ? paketReview(d, kode) : ''}${kartuSerah(serah)}${kartuKeputusan(d.kerja)}
     <div class="kj-ringkas-kolom"><div class="kj-ringkas-kiri">${kartuTugas(d, buka)}${kartuDilakukan(d, kode, buka)}</div>
     <div class="kj-ringkas-kanan">${kartuBukti(d, kode, buka)}${riwayatTerbaru(d.kerja)}</div></div></section>`
@@ -1181,10 +1403,15 @@ export function ringkasanKerja(
  * @param {any} d hasil /api/kerja/<KEY>
  * `kunci` = kunci dari rute (bar saat memuat/gagal); `cekPlane` = 'memeriksa' | 'gagal' | null;
  * `kabar` = HTML pil kabar sesudah aksi (mis. komentar terkirim).
- * @param {{ tab?: string, pilih?: number, mode?: string, galat?: string | null, sibuk?: string | null, kode?: any, kodeGalat?: string | null, kembali?: string, buka?: Set<string>, sinkron?: boolean, kunci?: string, cekPlane?: string | null, kabar?: string | null, sesi?: any, modeSesi?: string, serah?: any }} [o]
+ * @param {{ tab?: string, pilih?: number, mode?: string, galat?: string | null, sibuk?: string | null, kode?: any, kodeGalat?: string | null, kembali?: string, buka?: Set<string>, sinkron?: boolean, kunci?: string, cekPlane?: string | null, kabar?: string | null, sesi?: any, modeSesi?: string, serah?: any, kini?: number }} [o]
  */
 export function laporanKerja(d, o = {}) {
-  const tab = TAB_KERJA.some(([id]) => id === o.tab) ? o.tab : 'layar'
+  const tab =
+    d && tabKerja(d).some(([id]) => id === o.tab)
+      ? o.tab
+      : !d && TAB_KERJA.some(([id]) => id === o.tab)
+        ? o.tab
+        : 'layar'
   if (!d)
     return o.galat
       ? kerjaGagal(o.kunci, o.galat, o.kembali ?? '‹')
@@ -1213,6 +1440,6 @@ export function laporanKerja(d, o = {}) {
             })
   return {
     bar: barKerja(d, { kembali: o.kembali, cekPlane: o.cekPlane }),
-    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane, o.sesi ?? null, o.modeSesi ?? 'terminal', o.serah ?? null)}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
+    view: `<div class="kj-halaman">${galat}${sibuk}${ringkasanKerja(d, o.kode, o.buka ?? new Set(), o.cekPlane, o.sesi ?? null, o.modeSesi ?? 'terminal', o.serah ?? null, o.kini ?? Date.now())}<section class="kj-laporan" id="kj-laporan"><div class="kj-sentinel" id="kj-sentinel" aria-hidden="true"></div>${kepalaLaporanKerja(d, tab, o.kode)}${isi}</section></div>`,
   }
 }

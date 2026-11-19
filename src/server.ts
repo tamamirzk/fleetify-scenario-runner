@@ -22,6 +22,7 @@ import {
   dataCatatan,
   FASE,
   type Fase,
+  formatDua,
   KERJA_DIR,
   type Kerja,
   komentarHtml,
@@ -529,12 +530,15 @@ async function detailKerja(key: string) {
     kerja: k,
     tiket: bacaBerkasKerja(key, 'tiket.md'),
     // Catatan = dokumen hidup: bagian tulisan + bagian data yang dirender (R-8.1).
-    catatan: renderCatatan({
-      key,
-      md: bacaBerkasKerja(key, 'catatan.md'),
-      data: dataCatatan(k),
-      verifikasi: k.verifikasi,
-    }),
+    // Kerja format 2 tidak punya catatan.md: laporannya lima kartu dari kerja.json.
+    catatan: formatDua(k)
+      ? null
+      : renderCatatan({
+          key,
+          md: bacaBerkasKerja(key, 'catatan.md'),
+          data: dataCatatan(k),
+          verifikasi: k.verifikasi,
+        }),
     periksa: {
       brief: periksaCatatanKerja(key, 'brief'),
       akhir: periksaCatatanKerja(key, 'akhir'),
@@ -980,7 +984,10 @@ const routes: Record<string, Handler> = {
       temuan: existsSync(config.temuanFile)
         ? bacaTemuan(readFileSync(config.temuanFile, 'utf8'))
         : [],
-      adaCatatan: (key) => bacaBerkasKerja(key, 'catatan.md') !== null,
+      adaCatatan: (key) =>
+        formatDua(bacaKerja(key))
+          ? !!bacaKerja(key).masalah
+          : bacaBerkasKerja(key, 'catatan.md') !== null,
       memotret: potretBerjalan,
     })
     // MR yang sudah di-merge ke development memindah tiket ke langkah terakhir (K19).

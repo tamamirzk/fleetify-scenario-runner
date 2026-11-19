@@ -11,6 +11,11 @@
 //   bun run kerja tanya FMS-87 "pertanyaan" [--usul "a" --usul "b"]
 //   bun run kerja jawab FMS-87 <no> "jawaban"            jawaban Tams → keputusan
 //   bun run kerja putuskan FMS-87 "keputusan" [--alasan "…"] [--oleh ai|tams]
+//   Laporan format 2 (kerja baru; lima kartu, butir hanya ditambah):
+//   bun run kerja masalah KEY "ringkas" [--penyebab "…"]
+//   bun run kerja temuan KEY "teks" --jenis penyebab|sampingan|risiko|data-uji [--rinci "…" | --rinci-berkas f] [--koreksi n]
+//   bun run kerja lakukan KEY "teks" [--rencana] [--commit sha] [--koreksi n]
+//   bun run kerja hasil KEY "penyelesaian" [--sementara] [--belum "…"]... [--tabel-berkas f.json]
 //   bun run kerja minta-ubah FMS-87 A|B "teks"  ·  bun run kerja ubah-selesai FMS-87 <no>
 //   bun run kerja staging FMS-87 tambah "teks" | centang <no> | batal <no>
 //   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
@@ -23,6 +28,7 @@
 //   bun run kerja plane FMS-87 komentar ["catatan"] [--ya]   tanpa --ya: pratinjau saja
 //   bun run kerja plane FMS-87 status "Done" [--ya]
 
+import { readFileSync } from 'node:fs'
 import {
   centangCekStaging,
   jawabPertanyaan,
@@ -42,6 +48,7 @@ import {
   dataCatatan,
   FASE,
   type Fase,
+  formatDua,
   HASIL_CEK,
   type HasilCek,
   type Kerja,
@@ -57,6 +64,7 @@ import {
   cekKerja,
   gerbangKerja,
   komentarKePlane,
+  laporanLengkap,
   lepasSlotKerja,
   panenKerja,
   pemakaiSlot,
@@ -70,10 +78,19 @@ import {
   tempatkanDiSlot,
   tundaKerja,
   ubahDataCatatan,
+  ubahLaporan,
 } from './core/kerja-aksi.ts'
 import { AWALAN_LOKAL, type AwalanLokal, buatKerjaLokal } from './core/kerja-lokal.ts'
 import { periksaKesehatan, ringkasKesehatan } from './core/kesehatan.ts'
 import { bacaKomputer } from './core/komputer.ts'
+import {
+  bacaTabel,
+  renderLaporanMd,
+  setHasil,
+  setMasalah,
+  tambahDilakukan,
+  tambahTemuan,
+} from './core/laporan-kerja.ts'
 import { closeSharedBrowser } from './core/lib.ts'
 import { denganSlot, keadaanSlot, type NomorSlot, semuaSlot } from './core/slot.ts'
 
@@ -87,14 +104,22 @@ const OPSI_BERNILAI = new Set([
   '--branch',
   '--commit',
   '--dir',
+  '--belum',
+  '--jenis',
+  '--koreksi',
   '--modul',
   '--oleh',
+  '--penyebab',
+  '--rinci-berkas',
+  '--tabel-berkas',
   '--skenario',
   '--usul',
   '--worktree',
 ])
+// `--rinci` tanpa nilai = progres potret; bernilai hanya di `kerja temuan --rinci "…"`.
+const bernilai = (x: string) => OPSI_BERNILAI.has(x) || (perintah === 'temuan' && x === '--rinci')
 const posisi = sisa.filter(
-  (x, i) => !x.startsWith('--') && !(i > 0 && OPSI_BERNILAI.has(sisa[i - 1] as string)),
+  (x, i) => !x.startsWith('--') && !(i > 0 && bernilai(sisa[i - 1] as string)),
 )
 const opsi = (nama: string) => {
   const out: string[] = []
@@ -127,9 +152,15 @@ function ringkas(k: Kerja) {
   console.log(`  Sebelum    : ${p('sebelum')}`)
   console.log(`  Sesudah    : ${p('sesudah')}`)
   console.log(`  Skenario   : ${k.skenario.join(', ') || '-'}`)
-  console.log(
-    `  Catatan    : ${bacaBerkasKerja(k.key, 'catatan.md') ? `ada (kerja/${k.key}/catatan.md)` : 'belum'}`,
-  )
+  if (formatDua(k)) {
+    const h = k.hasil
+    console.log(
+      `  Laporan    : format 2 · masalah ${k.masalah ? '✓' : '○'} · ${k.temuan?.length ?? 0} temuan · ${k.keputusan.length} keputusan · ${k.dilakukan?.length ?? 0} dilakukan · hasil ${h ? (h.sementara ? 'sementara' : h.disetujui ? 'disetujui' : 'ditulis') : '○'}`,
+    )
+  } else
+    console.log(
+      `  Catatan    : ${bacaBerkasKerja(k.key, 'catatan.md') ? `ada (kerja/${k.key}/catatan.md)` : 'belum'}`,
+    )
   console.log(`  Komentar   : ${k.plane.komentar_at ?? '-'}`)
 }
 
@@ -202,6 +233,10 @@ try {
       if (!key) throw new Error('Pakai: bun run kerja catatan KEY [brief|akhir] [--render]')
       const k = bacaKerja(key)
       if (sisa.includes('--render')) {
+        if (formatDua(k)) {
+          console.log(renderLaporanMd(key, laporanLengkap(k)))
+          break
+        }
         console.log(
           renderCatatan({
             key,
@@ -222,6 +257,80 @@ try {
       const p = periksaCatatanKerja(key, saat)
       console.log(ringkasPeriksaCatatan(p, saat))
       if (!p.ok) process.exitCode = 1
+      break
+    }
+    case 'masalah': {
+      if (!key || !posisi[0])
+        throw new Error('Pakai: bun run kerja masalah KEY "ringkas" [--penyebab "…"]')
+      const k = ubahLaporan(
+        key,
+        (l) => setMasalah(l, posisi.join(' '), opsi('penyebab')[0]).laporan,
+        (l) => {
+          // Masalah awal kerja lokal = judulnya; menggantinya pertama kali bukan perubahan yang perlu dicatat.
+          const lama = bacaKerja(key)
+          return lama.masalah && lama.masalah.ringkas !== lama.judul
+            ? `Masalah diganti: ${l.masalah?.ringkas.slice(0, 80)}`
+            : null
+        },
+      )
+      console.log(`✓ masalah dicatat${k.masalah?.penyebab ? ' (dengan penyebab)' : ''}`)
+      break
+    }
+    case 'temuan': {
+      const jenis = opsi('jenis')[0]
+      if (!key || !posisi[0] || !jenis)
+        throw new Error(
+          'Pakai: bun run kerja temuan KEY "teks" --jenis penyebab|sampingan|risiko|data-uji [--rinci "…" | --rinci-berkas f] [--koreksi n]',
+        )
+      const berkas = opsi('rinci-berkas')[0]
+      const rinci = berkas ? readFileSync(berkas, 'utf8') : opsi('rinci')[0]
+      const k = ubahLaporan(key, (l) =>
+        tambahTemuan(l, {
+          teks: posisi.join(' '),
+          jenis,
+          rinci,
+          koreksi: opsi('koreksi')[0] ? Number(opsi('koreksi')[0]) : undefined,
+        }),
+      )
+      console.log(`✓ temuan #${k.temuan?.at(-1)?.id} (${jenis})`)
+      break
+    }
+    case 'lakukan': {
+      if (!key || !posisi[0])
+        throw new Error(
+          'Pakai: bun run kerja lakukan KEY "teks" [--rencana] [--commit sha] [--koreksi n]',
+        )
+      const k = ubahLaporan(key, (l) =>
+        tambahDilakukan(l, {
+          teks: posisi.join(' '),
+          rencana: sisa.includes('--rencana'),
+          commit: opsi('commit')[0],
+          koreksi: opsi('koreksi')[0] ? Number(opsi('koreksi')[0]) : undefined,
+        }),
+      )
+      console.log(
+        `✓ dilakukan #${k.dilakukan?.at(-1)?.id}${sisa.includes('--rencana') ? ' (rencana)' : ''}`,
+      )
+      break
+    }
+    case 'hasil': {
+      if (!key || !posisi[0])
+        throw new Error(
+          'Pakai: bun run kerja hasil KEY "penyelesaian" [--sementara] [--belum "…"]... [--tabel-berkas f.json]',
+        )
+      const tb = opsi('tabel-berkas')[0]
+      const k = ubahLaporan(
+        key,
+        (l) =>
+          setHasil(l, {
+            penyelesaian: posisi.join(' '),
+            sementara: sisa.includes('--sementara'),
+            belum: opsi('belum'),
+            tabel: tb ? bacaTabel(JSON.parse(readFileSync(tb, 'utf8'))) : undefined,
+          }),
+        (l) => `Hasil ${l.hasil?.sementara ? 'sementara' : 'akhir'} ditulis`,
+      )
+      console.log(`✓ hasil ${k.hasil?.sementara ? '(sejauh ini)' : '(penyelesaian)'} dicatat`)
       break
     }
     case 'tanya': {
@@ -248,6 +357,9 @@ try {
         throw new Error(
           'Pakai: bun run kerja putuskan KEY "keputusan" [--alasan "…"] [--oleh ai|tams]',
         )
+      // Kerja format 2: keputusan AI selalu beralasan (ditinjau Tams di kartu Keputusan).
+      if (oleh === 'ai' && formatDua(bacaKerja(key)) && !opsi('alasan')[0]?.trim())
+        throw new Error('Keputusan AI wajib --alasan "…" (kenapa memilih ini)')
       const k = ubahDataCatatan(key, (d) =>
         tambahKeputusan(d, posisi.join(' '), oleh, opsi('alasan')[0]),
       )

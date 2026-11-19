@@ -41,7 +41,10 @@ const tugas = (o: Record<string, unknown> = {}) => ({
 const ok = { ok: true, masalah: [] } as never
 const lokalKerja = (o: Partial<Kerja> = {}): Kerja =>
   ({
+    // Fixture kerja lama (tanpa format 2): menguji tampilan catatan.md yang tak boleh berubah.
     ...kerjaLokal('BUG-1', 'Bug', 'chat', '2026-11-18T00:00:00Z'),
+    format: undefined,
+    masalah: undefined,
     push: { at: '', branch: 'fix/bug-1', head: 'abcdef12' },
     ...o,
   }) as Kerja

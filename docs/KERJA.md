@@ -28,7 +28,7 @@ Data kerja disimpan di `kerja/<KEY>/` di akar repo. Folder ini **di-ignore git**
 
 - `kerja.json`: keadaan, hasil verifikasi, serta branch dan commit v2 untuk tiket yang dikerjakan AI;
 - `tiket.md`;
-- `catatan.md`;
+- `catatan.md` (hanya kerja format lama; format 2 menyimpan laporannya di `kerja.json`);
 - `sebelum/` dan `sesudah/`: `<nama>.png` dan `<nama>.json`.
 
 Berkas `rencana.md` lama masih terbaca sebagai catatan.
@@ -104,6 +104,42 @@ bun run kerja plane FMS-87 status "Done"       # pratinjau; tambah --ya untuk me
 - **akhir** (syarat maju ke Didokumentasikan/Selesai): Masalah & penyebab dan Yang dikerjakan terisi, semua kriteria sudah dicek, tak ada pertanyaan/minta ubah terbuka, tak ada bagian berjudul "Usulan…"/"Pertanyaan terbuka", tak ada teks "menunggu keputusan" atau "perlu disetujui sebelum".
 
 Pindah tahap (CLI atau panel) menolak maju bila gerbangnya belum lulus, dengan daftar alasannya. Mundur selalu boleh.
+
+## Format laporan v2: lima kartu
+
+Kerja yang dibuat sesudah fitur ini (kerja.json `format: 2`; tiket Plane lewat `ambil`, BUG/REQ lewat `kerja baru`) tidak punya `catatan.md` dan tidak punya tab Catatan. Laporannya **lima kartu berisi butir yang hanya ditambah**. Kerja lama (tanpa `format`) tetap memakai `catatan.md` persis seperti bagian di atas.
+
+| Kartu | Isi | Perintah |
+|---|---|---|
+| Masalah | satu blok: ringkasan (dari tiket/chat) + penyebab; "Lihat tiket lengkap" membuka `tiket.md`. Boleh diganti (tercatat di riwayat) | `kerja masalah KEY "ringkas" [--penyebab "…"]` |
+| Temuan | butir berjenis `penyebab` · `sampingan` · `risiko` · `data-uji`; data-uji boleh punya rincian (tutorial uji) yang dibuka-tutup | `kerja temuan KEY "teks" --jenis … [--rinci "…" \| --rinci-berkas f] [--koreksi n]` |
+| Keputusan | `oleh` (Tams/AI) + `alasan`; keputusan AI bertanda "⚠ ditinjau Tams" dan wajib `--alasan` | `kerja putuskan KEY "…" --alasan "…" [--oleh ai\|tams]` |
+| Yang dilakukan | butir kronologis; `--rencana` berlabel "Rencana"; `--commit sha` tertaut ke tab Kode | `kerja lakukan KEY "teks" [--rencana] [--commit sha] [--koreksi n]` |
+| Hasil | Penyelesaian ("Sejauh ini" bila `--sementara`), Belum dicakup, tabel dilaporkan/sebelum/sesudah/bukti, lalu satu baris status otomatis: kriteria x/y (bisa dibuka) · gerbang CI · push/MR/merge. Tams menyetujuinya di ◆B (`hasil.disetujui`) | `kerja hasil KEY "penyelesaian" [--sementara] [--belum "…"]... [--tabel-berkas f.json]` |
+
+**Append-only.** Butir tidak diedit atau dihapus. Koreksi = butir baru dengan `--koreksi <nomor>`; butir lama tampil dicoret. Butir yang ditambah < 10 menit terakhir disorot halus. Logika murni ada di `src/core/laporan-kerja.ts` (bukan `laporan.ts`, itu laporan jalan skenario).
+
+**Halaman Kerja format 2:** bilah tahap → **Langkah berikutnya** (Sesi AI, Review ◆B, Serahkan) → Butuh keputusanmu → **Masalah** (lebar penuh) → Temuan | Keputusan → Yang dilakukan | Hasil → Riwayat (tertutup) → laporan bertab Layar | Data | Kode. Kartu Bukti, Kriteria, dan Yang dilakukan lama tidak tampil (kriteria hanya di Hasil, commit di Yang dilakukan dan tab Kode). Paket review ◆B menaruh Penyelesaian di paling atas; risiko dan "Belum dicakup" ikut jadi perhatian.
+
+**Gerbang format 2** (`kerja catatan KEY [brief|akhir]`; `--render` mencetak laporan): *brief* = Masalah terisi + minimal satu temuan `penyebab` + minimal satu butir `--rencana` (yang belum dikoreksi); *akhir* = `hasil.penyelesaian` terisi dan bukan sementara, tanpa kriteria belum dicek, pertanyaan, atau minta-ubah terbuka. Panen (`kerja panen`) dan deskripsi MR disusun dari kelima kartu.
+
+**Gaya menulis butir:**
+- Satu butir = satu fakta, 1–2 kalimat; kalimat aktif, langsung ke pokok.
+- Bukti konkret: data, nomor, `berkas:baris`.
+- Istilah layar = label UI **tebal**; istilah kode = `code`.
+- Keputusan AI selalu ada alasan.
+- Hasil = bukti terukur. Penyelesaian menjawab tiap poin Masalah; temuan sampingan yang ikut beres disebut di Penyelesaian, yang tidak beres masuk "Belum dicakup".
+- Koreksi = butir baru.
+
+Contoh singkat:
+
+```bash
+bun run kerja masalah REQ-2 "Approval penambahan part langsung disetujui otomatis." --penyebab 'Layanan mencari langkah approval di workflow perjalanan; gerbangnya di segmen `wo_sparepart_request`.'
+bun run kerja temuan REQ-2 '`hasApprovalStep` memeriksa kunci yang salah. `Service.ts:705`' --jenis penyebab
+bun run kerja lakukan REQ-2 "Gerbang dijadikan satu konstanta; backend saja." --rencana
+bun run kerja lakukan REQ-2 '`submit` tanpa penimpa kunci.' --commit 34ee57df
+bun run kerja hasil REQ-2 "Pengajuan sekarang **menunggu persetujuan**." --belum "Pengajuan lama tidak diubah."
+```
 
 ## Dashboard, Statistik, dan review
 

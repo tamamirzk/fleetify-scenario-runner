@@ -4,7 +4,6 @@
 // dipakai). Di sini catatannya dibuat lengkap dan langsung ditempatkan di slot chat.
 import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { templatCatatan } from './catatan.ts'
 import { bacaKerja, dirKerja, KERJA_DIR, type Kerja, simpanKerja } from './kerja.ts'
 import { tempatkanDiSlot } from './kerja-aksi.ts'
 import { SLOT_CHAT } from './slot.ts'
@@ -40,6 +39,11 @@ export function kerjaLokal(key: string, judul: string, sumber: string, kini: str
     pertanyaan: [],
     mintaUbah: [],
     cekStaging: [],
+    // Format 2: laporan lima kartu, tanpa catatan.md. Masalah awal = judul/sumber (AI memperjelas).
+    format: 2,
+    masalah: { ringkas: judul, diubah_at: kini },
+    temuan: [],
+    dilakukan: [],
   } as Kerja
 }
 
@@ -60,7 +64,6 @@ export function buatKerjaLokal(
     path.join(dirKerja(key), 'tiket.md'),
     `# ${key} · ${judul}\n\nTanpa tiket Plane. Sumber: ${sumber}.\n`,
   )
-  writeFileSync(path.join(dirKerja(key), 'catatan.md'), templatCatatan(key))
   if (o.tempat === false) return { kerja: bacaKerja(key), langkah: [] }
   return tempatkanDiSlot(key, SLOT_CHAT)
 }

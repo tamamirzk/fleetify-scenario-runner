@@ -21,6 +21,7 @@ import {
   dataCatatan,
   dirKerja,
   type Fase,
+  formatDua,
   type HasilCek,
   type Kerja,
   kerjaDariTiket,
@@ -34,6 +35,12 @@ import {
   TargetSchema,
 } from './kerja.ts'
 import { PENTING_POTRET, periksaKesehatan } from './kesehatan.ts'
+import {
+  type LaporanKerja,
+  type LaporanLengkap,
+  periksaLaporan,
+  setujuiHasil,
+} from './laporan-kerja.ts'
 import { metrikKerja, tokenSesi } from './metrik.ts'
 import { MODUL_V2, panen, tebakModul } from './panen.ts'
 import { ambilTiket, komentarTiket, pindahStatusTiket } from './plane.ts'
@@ -69,7 +76,8 @@ export async function ambilKerja(key: string): Promise<Kerja> {
   simpanKerja(kerja)
   writeFileSync(path.join(dirKerja(key), 'tiket.md'), tiketMd)
   // Kerangka catatan: hanya bagian tulisan; bagian data dirender dari kerja.json (R-8.1).
-  if (bacaBerkasKerja(key, 'catatan.md') === null)
+  // Kerja format 2 tidak punya catatan.md: laporannya lima kartu di kerja.json.
+  if (!formatDua(kerja) && bacaBerkasKerja(key, 'catatan.md') === null)
     writeFileSync(path.join(dirKerja(key), 'catatan.md'), templatCatatan(key))
   return kerja
 }
@@ -77,6 +85,8 @@ export async function ambilKerja(key: string): Promise<Kerja> {
 /** Gerbang catatan sebuah kerja: brief (akhir Pahami) atau akhir (sebelum Didokumentasikan). */
 export function periksaCatatanKerja(key: string, saat: 'brief' | 'akhir') {
   const k = bacaKerja(key)
+  if (formatDua(k))
+    return periksaLaporan({ ...k, temuan: k.temuan ?? [], dilakukan: k.dilakukan ?? [] }, saat)
   return periksaCatatan(bacaBerkasKerja(key, 'catatan.md'), dataCatatan(k), k.verifikasi, saat)
 }
 
@@ -111,6 +121,53 @@ export function ubahDataCatatan(key: string, f: (d: DataCatatan) => DataCatatan)
   simpanKerja(k2)
   return k2
 }
+
+/** Laporan format 2 sebuah kerja (tanpa keputusan/verifikasi). */
+export const laporanDari = (k: Kerja): LaporanKerja => ({
+  masalah: k.masalah,
+  temuan: k.temuan ?? [],
+  dilakukan: k.dilakukan ?? [],
+  hasil: k.hasil,
+})
+
+/** Laporan lengkap (lima kartu + verifikasi) untuk panen, deskripsi MR, dan --render. */
+export const laporanLengkap = (k: Kerja): LaporanLengkap => ({
+  ...laporanDari(k),
+  keputusan: k.keputusan,
+  verifikasi: k.verifikasi,
+})
+
+/**
+ * Ubah laporan format 2 lalu simpan (hanya menambah butir; lihat laporan-kerja.ts). `riwayat` bila
+ * perubahan itu penting dicatat di riwayat (mis. Masalah diganti).
+ */
+export function ubahLaporan(
+  key: string,
+  f: (l: LaporanKerja) => LaporanKerja,
+  riwayat?: (l: LaporanKerja) => string | null,
+): Kerja {
+  const k = bacaKerja(key)
+  if (!formatDua(k))
+    throw new Error(
+      `${key} memakai format laporan lama (catatan.md); perintah ini hanya untuk format 2`,
+    )
+  const l = f(laporanDari(k))
+  const k2 = { ...k, masalah: l.masalah, temuan: l.temuan, dilakukan: l.dilakukan, hasil: l.hasil }
+  const cat = riwayat?.(l)
+  simpanKerja(cat ? pindahTahap(k2, k.tahap, cat) : k2)
+  return bacaKerja(key)
+}
+
+/** Masukan deskripsi MR satu kerja: kerja format 2 membawa laporannya, format lama catatan.md. */
+const tiketMr = (x: Kerja) => ({
+  key: x.key,
+  judul: x.judul,
+  url: x.url,
+  md: formatDua(x) ? null : bacaBerkasKerja(x.key, 'catatan.md'),
+  data: dataCatatan(x),
+  verifikasi: x.verifikasi,
+  ...(formatDua(x) ? { laporan: laporanLengkap(x) } : {}),
+})
 
 /** Target potret dari objek atau berkas JSON; divalidasi skema. */
 export function setTarget(key: string, sumber: unknown): Kerja {
@@ -361,14 +418,7 @@ export function keadaanSerah(key: string, gerbangBerjalan = false) {
   const dir = worktreeKerja(k)
   const git = keadaanGit(dir)
   const syarat = syaratPush({ git, gerbangCi: k.gerbang?.ci ?? null, gerbangBerjalan })
-  const tiket = klasterKerja(k).map((x) => ({
-    key: x.key,
-    judul: x.judul,
-    url: x.url,
-    md: bacaBerkasKerja(x.key, 'catatan.md'),
-    data: dataCatatan(x),
-    verifikasi: x.verifikasi,
-  }))
+  const tiket = klasterKerja(k).map(tiketMr)
   const mr = deskripsiMr({
     tiket,
     branch: git.branch ?? '(detached)',
@@ -513,6 +563,19 @@ export function reviewKerja(
   setuju: boolean,
   teks = '',
 ): { kerja: Kerja; mintaUbah?: number } {
+  if (setuju && formatDua(bacaKerja(key))) {
+    // Format 2: persetujuan menempel di Hasil (oleh Tams, waktu); tidak ada butir keputusan tambahan.
+    const p = periksaCatatanKerja(key, 'akhir')
+    if (!p.ok) throw new Error(`Belum bisa disetujui. ${ringkasPeriksaCatatan(p, 'akhir')}`)
+    ubahLaporan(key, (l) => setujuiHasil(l, 'tams'))
+    const k = bacaKerja(key)
+    return {
+      kerja:
+        k.tahap === 'didokumentasikan'
+          ? k
+          : setTahap(key, 'didokumentasikan', 'Hasil disetujui Tams (◆B)'),
+    }
+  }
   if (setuju) {
     ubahDataCatatan(key, (d) =>
       tambahKeputusan(d, `Hasil disetujui (◆B)${teks.trim() ? `: ${teks.trim()}` : ''}`, 'tams'),
@@ -551,9 +614,10 @@ export function panenKerja(key: string, o: { modul?: string; tulis: boolean }) {
       commit: k.commit,
       mr: k.mr,
       tahap: LABEL_TAHAP[k.tahap],
-      md: bacaBerkasKerja(key, 'catatan.md'),
+      md: formatDua(k) ? null : bacaBerkasKerja(key, 'catatan.md'),
       data: dataCatatan(k),
       verifikasi: k.verifikasi,
+      ...(formatDua(k) ? { laporan: laporanLengkap(k) } : {}),
     },
     modul,
     { tulis: o.tulis, tanggal: new Date().toISOString().slice(0, 10) },

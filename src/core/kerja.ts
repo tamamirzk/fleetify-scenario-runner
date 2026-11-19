@@ -8,6 +8,7 @@ import { z } from 'zod'
 import type { CekStaging, DataCatatan, Keputusan, MintaUbah, Pertanyaan } from './catatan.ts'
 import { ROOT } from './config.ts'
 import type { HasilGerbang } from './gerbang.ts'
+import type { Dilakukan, Hasil, Masalah, Temuan } from './laporan-kerja.ts'
 import { PERSONA_IDS } from './personas.ts'
 import type { Sesi } from './sesi.ts'
 
@@ -153,6 +154,15 @@ export interface Kerja {
   antre?: { at: string }
   /** Kunci tiket pemegang slot bila tiket ini gabung klaster (branch dan DB yang sama). */
   klaster?: string
+  /**
+   * Format laporan: 2 = lima kartu butir append-only (masalah/temuan/keputusan/dilakukan/hasil),
+   * tanpa catatan.md. Kosong = format lama (catatan.md). Diisi saat kerja dibuat; tidak pernah diubah.
+   */
+  format?: 2
+  masalah?: Masalah
+  temuan?: Temuan[]
+  dilakukan?: Dilakukan[]
+  hasil?: Hasil
   /** Modul docs-site V2 tempat catatan dipanen (slug process_key, mis. fleet). */
   modul?: string
 }
@@ -185,8 +195,13 @@ export function normalkanKerja(raw: Kerja): Kerja {
     pertanyaan: raw.pertanyaan ?? [],
     mintaUbah: raw.mintaUbah ?? [],
     cekStaging: raw.cekStaging ?? [],
+    // Kolom laporan hanya untuk format 2: kerja lama tidak diberi kolom baru.
+    ...(raw.format === 2 ? { temuan: raw.temuan ?? [], dilakukan: raw.dilakukan ?? [] } : {}),
   }
 }
+
+/** Kerja memakai laporan format 2 (lima kartu), bukan catatan.md. */
+export const formatDua = (k: { format?: number }): boolean => k.format === 2
 
 /** Bagian data catatan sebuah kerja. */
 export const dataCatatan = (k: Kerja): DataCatatan => ({
@@ -293,6 +308,9 @@ export function kerjaDariTiket(
         pertanyaan: [],
         mintaUbah: [],
         cekStaging: [],
+        format: 2,
+        temuan: [],
+        dilakukan: [],
       }
   const tiketMd = `# ${t.key} · ${t.judul}\n\nStatus Plane: ${t.status} · ${t.url}\n\n${htmlKeTeks(t.deskripsiHtml) || '(tanpa deskripsi)'}\n`
   return { kerja, tiketMd }

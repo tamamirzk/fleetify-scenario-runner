@@ -48,9 +48,9 @@ export function promptFase(
   const umum = `Worktree v2: ${o.worktree}. Jangan push dan jangan menulis ke Plane: keduanya lewat tombol panel. Berhenti dan tanya (bun run kerja tanya) bila ada keputusan milik Tams.`
   switch (fase) {
     case 'pahami':
-      return `/kerjakan ${key} — fase PAHAMI saja: telusuri kode dan data, tulis Brief di catatan.md (Masalah & penyebab, Rencana), kriteria lewat "kerja cek ${key} belum", pertanyaan lewat "kerja tanya", lalu potret sebelum. Jangan mengubah kode v2. Selesai bila "bun run kerja catatan ${key} brief" ✓. ${umum}`
+      return `/kerjakan ${key} — fase PAHAMI saja: telusuri kode dan data, tulis Brief sesuai format kerja (format 2: kerja masalah/temuan/lakukan --rencana; format lama: catatan.md Masalah & penyebab, Rencana), kriteria lewat "kerja cek ${key} belum", pertanyaan lewat "kerja tanya", lalu potret sebelum. Jangan mengubah kode v2. Selesai bila "bun run kerja catatan ${key} brief" ✓. ${umum}`
     case 'kerjakan':
-      return `/kerjakan ${key} — fase KERJAKAN: baca jawaban dan keputusan Tams ("bun run kerja catatan ${key} --render"), implementasi di worktree, "bun run kerja gerbang ${key} fokus", verifikasi tiap kriteria, "kerja kesehatan" lalu potret sesudah, isi "Yang dikerjakan". Selesai bila "bun run kerja catatan ${key} akhir" ✓. ${umum}`
+      return `/kerjakan ${key} — fase KERJAKAN: baca jawaban dan keputusan Tams ("bun run kerja catatan ${key} --render"), implementasi di worktree, "bun run kerja gerbang ${key} fokus", verifikasi tiap kriteria, "kerja kesehatan" lalu potret sesudah, catat pekerjaan (format 2: kerja lakukan --commit, lalu kerja hasil; format lama: isi "Yang dikerjakan"). Selesai bila "bun run kerja catatan ${key} akhir" ✓. ${umum}`
     case 'serahkan':
       return `/kerjakan ${key} — fase SERAHKAN: merge origin/development ke branch kerja, "bun run kerja gerbang ${key} ci" sampai ✓ atau !, tambah catatan serah-terima untuk tim staging ("kerja staging ${key} tambah": migrasi, rls.sql, sync-rbac, uji di staging), lalu panen dokumentasi ke docs-site ("bun run kerja panen ${key} --tulis"; check-v2 harus lulus, jangan commit fleetify-ops). Jangan push. ${umum}`
     case 'lanjut':

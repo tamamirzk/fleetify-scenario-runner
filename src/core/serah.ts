@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { type DataCatatan, pecahCatatan } from './catatan.ts'
 import type { HasilGerbang } from './gerbang.ts'
+import { bagianLaporanMd, type LaporanLengkap } from './laporan-kerja.ts'
 
 /** Branch bersama yang tidak boleh di-push langsung dari alur Kerja. */
 export const BRANCH_TERLARANG = ['main', 'master', 'development', 'staging']
@@ -55,6 +56,8 @@ export interface TiketMr {
   md: string | null
   data: DataCatatan
   verifikasi: { kriteria: string; hasil: string }[]
+  /** Kerja format 2: lima kartu laporan (menggantikan md). */
+  laporan?: LaporanLengkap
 }
 
 const bagian = (md: string | null, jenis: string) =>
@@ -80,17 +83,25 @@ export function deskripsiMr(o: {
   const out: string[] = [`## ${judul}`]
   for (const t of o.tiket) {
     const kepala = o.tiket.length > 1 ? `### ${t.key} · ${t.judul}\n\n` : ''
-    const isi = [
-      t.url ? `Tiket: ${t.url}` : 'Tiket: — (tanpa tiket Plane)',
-      bagian(t.md, 'masalah') && `**Masalah & penyebab**\n\n${bagian(t.md, 'masalah')}`,
-      bagian(t.md, 'dikerjakan') && `**Yang dikerjakan**\n\n${bagian(t.md, 'dikerjakan')}`,
-      t.data.keputusan.length &&
-        `**Keputusan**\n\n${t.data.keputusan.map((k) => `- ${k.apa}${k.alasan ? ` — ${k.alasan}` : ''}${k.oleh === 'ai' ? ' _(diambil AI, sudah ditinjau)_' : ''}`).join('\n')}`,
-      t.verifikasi.length &&
-        `**Verifikasi (lokal)**\n\n${t.verifikasi.map((v) => `- ${v.hasil === 'lulus' ? '✓' : v.hasil === 'gagal' ? '×' : '○'} ${v.kriteria}`).join('\n')}`,
-    ]
-      .filter(Boolean)
-      .join('\n\n')
+    const isi = t.laporan
+      ? [
+          t.url ? `Tiket: ${t.url}` : 'Tiket: — (tanpa tiket Plane)',
+          ...bagianLaporanMd(t.laporan, {
+            tinjauAi: 'diambil AI, sudah ditinjau',
+            kepala: (j) => `**${j}**`,
+          }).map(([j, i]) => `${j}\n\n${i}`),
+        ].join('\n\n')
+      : [
+          t.url ? `Tiket: ${t.url}` : 'Tiket: — (tanpa tiket Plane)',
+          bagian(t.md, 'masalah') && `**Masalah & penyebab**\n\n${bagian(t.md, 'masalah')}`,
+          bagian(t.md, 'dikerjakan') && `**Yang dikerjakan**\n\n${bagian(t.md, 'dikerjakan')}`,
+          t.data.keputusan.length &&
+            `**Keputusan**\n\n${t.data.keputusan.map((k) => `- ${k.apa}${k.alasan ? ` — ${k.alasan}` : ''}${k.oleh === 'ai' ? ' _(diambil AI, sudah ditinjau)_' : ''}`).join('\n')}`,
+          t.verifikasi.length &&
+            `**Verifikasi (lokal)**\n\n${t.verifikasi.map((v) => `- ${v.hasil === 'lulus' ? '✓' : v.hasil === 'gagal' ? '×' : '○'} ${v.kriteria}`).join('\n')}`,
+        ]
+          .filter(Boolean)
+          .join('\n\n')
     out.push(`${kepala}${isi}`)
   }
   if (o.commit.length)

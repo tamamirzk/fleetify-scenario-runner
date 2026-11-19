@@ -62,6 +62,10 @@ const tiket = {
 
 const kerjaContoh = (o: Partial<Kerja> = {}): Kerja => ({
   ...kerjaDariTiket(tiket, null).kerja,
+  // Fixture kerja lama (tanpa format 2): menguji tampilan catatan.md yang tak boleh berubah.
+  format: undefined,
+  temuan: undefined,
+  dilakukan: undefined,
   ...o,
 })
 

@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path'
 import { type DataCatatan, pecahCatatan } from './catatan.ts'
 import { ROOT } from './config.ts'
+import { bagianLaporanMd, type LaporanLengkap } from './laporan-kerja.ts'
 
 /** Docs-site fleetify-ops (bersaudara dengan scenario-runner di ~/work/fleetify/). */
 export const DOCS_SITE = path.resolve(ROOT, '..', 'fleetify-ops', 'docs-site')
@@ -53,6 +54,8 @@ export interface SumberPanen {
   md: string | null
   data: DataCatatan
   verifikasi: { kriteria: string; hasil: string }[]
+  /** Kerja format 2: lima kartu laporan (menggantikan md). */
+  laporan?: LaporanLengkap
 }
 
 /** Isi berkas panen satu tiket (markdown docs-site). Murni; `tanggal` = YYYY-MM-DD. */
@@ -77,28 +80,31 @@ export function isiPanen(s: SumberPanen, tanggal: string): string {
   ]
     .filter(Boolean)
     .join('\n\n')
-  const bagian: [string, string][] = [
-    ['Masalah & penyebab', isiBagian(s.md, 'masalah')],
-    ['Keputusan', keputusan],
-    ['Yang dikerjakan', isiBagian(s.md, 'dikerjakan')],
-    ['Perlu diperhatikan', isiBagian(s.md, 'perhatian')],
-    [
-      'Verifikasi (lokal)',
-      s.verifikasi
-        .map(
-          (v) => `- ${v.hasil === 'lulus' ? '✓' : v.hasil === 'gagal' ? '×' : '○'} ${v.kriteria}`,
-        )
-        .join('\n'),
-    ],
-    [
-      'Catatan untuk tim staging',
-      s.data.cekStaging.map((c) => `- [${c.selesai ? 'x' : ' '}] ${c.teks}`).join('\n'),
-    ],
+  const staging: [string, string] = [
+    'Catatan untuk tim staging',
+    s.data.cekStaging.map((c) => `- [${c.selesai ? 'x' : ' '}] ${c.teks}`).join('\n'),
   ]
+  const bagian: [string, string][] = s.laporan
+    ? [...bagianLaporanMd(s.laporan), staging]
+    : [
+        ['Masalah & penyebab', isiBagian(s.md, 'masalah')],
+        ['Keputusan', keputusan],
+        ['Yang dikerjakan', isiBagian(s.md, 'dikerjakan')],
+        ['Perlu diperhatikan', isiBagian(s.md, 'perhatian')],
+        [
+          'Verifikasi (lokal)',
+          s.verifikasi
+            .map(
+              (v) =>
+                `- ${v.hasil === 'lulus' ? '✓' : v.hasil === 'gagal' ? '×' : '○'} ${v.kriteria}`,
+            )
+            .join('\n'),
+        ],
+        staging,
+      ]
   return `# ${s.key} · ${s.judul}
 
-> Dipanen otomatis dari catatan kerja Scenario Runner. Sunting sumbernya (\`kerja/${s.key}/catatan.md\`
-> dan \`kerja.json\`), lalu panen ulang: \`bun run kerja panen ${s.key} --tulis\`.
+> Dipanen otomatis dari catatan kerja Scenario Runner. Sunting sumbernya (${s.laporan ? '' : `\`kerja/${s.key}/catatan.md\` dan `}\`kerja.json\`), lalu panen ulang: \`bun run kerja panen ${s.key} --tulis\`.
 
 | | |
 |---|---|

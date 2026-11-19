@@ -18,6 +18,14 @@ Sesi ini bisa dijalankan dari panel (kartu **Sesi AI**, tmux `kerja-<KEY>`); pro
 
 Di akhir tiap tahap, laporkan ke pengguna dalam satu-dua kalimat, lalu lanjut. Berhenti dan tanya bila ada keputusan yang memang milik pengguna.
 
+## Format laporan: cek dulu
+
+`bun run kerja lihat <KEY>` menampilkan baris **Laporan : format 2 …** (kerja baru) atau **Catatan : …catatan.md** (kerja lama).
+- **Format 2**: laporan = lima kartu di `kerja.json` (Masalah, Temuan, Keputusan, Yang dilakukan, Hasil) berisi **butir yang hanya ditambah**. Pakai perintah `kerja masalah|temuan|putuskan|lakukan|hasil`. **Jangan membuat `catatan.md` atau `rencana.md`.** Bagian bernomor di bawah memakai catatan.md hanya untuk kerja lama; untuk format 2 ikuti blok "Format 2" di tiap bagian.
+- **Kerja lama** (tanpa `format`): tetap `catatan.md` seperti yang tertulis di bawah.
+
+Gaya butir (format 2): satu butir = satu fakta 1–2 kalimat; kalimat aktif langsung ke pokok; bukti konkret (data, nomor, `berkas:baris`); istilah layar = label UI **tebal**, istilah kode = `code`; keputusan AI selalu beralasan; koreksi = butir baru (`--koreksi n`), tidak ada edit atau hapus.
+
 ## 1. Diambil
 
 ```bash
@@ -39,6 +47,17 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
      bun run kerja putuskan <KEY> "keputusan" --alasan "…"          # keputusan yang AI ambil sendiri (tampil "AI — tinjau")
      ```
    - `bun run kerja catatan <KEY> brief` harus `✓` sebelum lanjut. Pertanyaan dijawab Tams di panel (kartu **Butuh keputusanmu**) atau di chat, lalu dicatat dengan `bun run kerja jawab <KEY> <no> "jawaban"`.
+   **Format 2 (pengganti langkah 2 di atas):**
+   ```bash
+   bun run kerja masalah <KEY> "ringkas masalah dari tiket" --penyebab "penyebabnya"
+   bun run kerja temuan <KEY> "…" --jenis penyebab                 # minimal satu penyebab (gerbang brief)
+   bun run kerja temuan <KEY> "…" --jenis data-uji --rinci-berkas rinci.md   # tutorial uji / rincian data
+   bun run kerja temuan <KEY> "…" --jenis sampingan|risiko
+   bun run kerja lakukan <KEY> "rencana per lapisan, berkas, risiko" --rencana   # minimal satu butir rencana
+   bun run kerja cek <KEY> belum "kriteria" "cara membuktikan"
+   bun run kerja putuskan <KEY> "keputusan" --alasan "kenapa" --oleh ai   # alasan wajib untuk keputusan AI
+   ```
+   `bun run kerja catatan <KEY> brief` harus `✓`. Salah tulis? Tambah butir baru dengan `--koreksi <nomor>`; jangan menghapus.
 3. **Tentukan target potret.**
    - Halaman yang memperlihatkan fiturnya, dibuka sebagai persona yang relevan.
    - Query DB yang membuktikan aturannya. Query penghitung pelanggaran dengan hasil yang diharapkan 0 sangat berguna.
@@ -71,7 +90,9 @@ Baca `kerja/<KEY>/tiket.md`. Bila tiket sudah pernah diambil, jalankan `bun run 
   bun run kerja tahap <KEY> dikerjakan "Ringkas apa yang diubah"
   ```
 
-Di akhir Kerjakan, isi bagian **Yang dikerjakan**, **Perlu diperhatikan** (penyimpangan dari tiket, temuan di luar cakupan, risiko: ini yang dibaca Tams di paket review ◆B), dan **Kendala** bila ada di `catatan.md`. Keputusan baru yang diambil sendiri selama mengerjakan dicatat dengan `kerja putuskan`. Permintaan ubah dari Tams dicatat `kerja minta-ubah <KEY> A|B "…"` dan ditutup `kerja ubah-selesai <KEY> <no>` setelah dikerjakan.
+**Format 2:** catat tiap pekerjaan yang beres sebagai butir: `bun run kerja lakukan <KEY> "apa yang berubah" --commit <sha>` (sha commit tertaut ke tab Kode). Temuan baru selama bekerja: `kerja temuan`. Di akhir tulis Hasil: `bun run kerja hasil <KEY> "penyelesaian" [--belum "yang tak tercakup"]... [--tabel-berkas tabel.json]` (Penyelesaian 2–4 kalimat yang menjawab **setiap poin Masalah**; temuan sampingan yang ikut beres disebut di sini, yang tidak beres masuk `--belum`; tabel = larik `{dilaporkan, sebelum, sesudah, bukti}`). Hasil yang belum final: `--sementara` (tampil "Sejauh ini"); gerbang akhir menolak hasil sementara. Tams menyetujui Hasil di ◆B (**Setuju & Serahkan**). Untuk format 2 tidak ada "Perlu diperhatikan": risiko = temuan `--jenis risiko`.
+
+Untuk kerja lama, di akhir Kerjakan isi bagian **Yang dikerjakan**, **Perlu diperhatikan** (penyimpangan dari tiket, temuan di luar cakupan, risiko: ini yang dibaca Tams di paket review ◆B), dan **Kendala** bila ada di `catatan.md`. Keputusan baru yang diambil sendiri selama mengerjakan dicatat dengan `kerja putuskan`. Permintaan ubah dari Tams dicatat `kerja minta-ubah <KEY> A|B "…"` dan ditutup `kerja ubah-selesai <KEY> <no>` setelah dikerjakan.
 
 ## 4. Diverifikasi
 
@@ -96,7 +117,7 @@ bun run kerja tahap <KEY> diverifikasi "n lulus, m gagal"
    - Lalu jalankan `bun run kerja catat <KEY> --skenario <slug>`.
 3. Catatan serah-terima untuk tim staging (deploy dan cek staging **bukan** tugas Tams; tugasnya berhenti di merge ke development): `bun run kerja staging <KEY> tambah "…"` per butir (migrasi, `rls.sql`, `sync-rbac`, uji di staging). Butir ini masuk deskripsi MR.
    Lalu panen ke docs-site: `bun run kerja panen <KEY> --tulis` (check-v2 harus lulus; jangan commit fleetify-ops).
-4. `bun run kerja catatan <KEY> akhir` harus `✓` (tak ada pertanyaan/minta ubah terbuka, tak ada bagian "Usulan…" atau teks "menunggu keputusan"), lalu `bun run kerja tahap <KEY> didokumentasikan "…"`. Tahap menolak maju bila gerbangnya belum lulus.
+4. `bun run kerja catatan <KEY> akhir` harus `✓` (format 2: Hasil ditulis dan bukan "Sejauh ini"; kerja lama: (tak ada pertanyaan/minta ubah terbuka, tak ada bagian "Usulan…" atau teks "menunggu keputusan")), lalu `bun run kerja tahap <KEY> didokumentasikan "…"`. Tahap menolak maju bila gerbangnya belum lulus.
 
 ## 6. Plane (terlihat tim — wajib konfirmasi)
 
