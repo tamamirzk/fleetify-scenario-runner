@@ -184,6 +184,48 @@ untuk catatannya saja). Skrip uji memakai `urlSlot(n)` dari `src/core/slot.ts`, 
 - Slot dilepas otomatis setelah push dari panel. Tiket tanpa slot memakai lingkungan bawaan (`V2_BACKEND_DIR`, web :5173).
 - `fleetify_template` = data uji MBL + skema development; perbarui dengan migrasi slot bila tertinggal.
 
+## Gabungkan untuk MR
+
+Beberapa tiket yang sudah disetujui (◆B) bisa dijadikan **satu MR**: branch tiap tiket digabung ke satu
+branch `feat/gabung-<tanggal>` yang dibuat dari `origin/development` di worktree **`v2-gabung`** (di
+sebelah repo v2, dibuat otomatis; slot tidak tersentuh). Hanya satu gabungan aktif; keadaannya di
+`kerja/_gabung.json` (tidak masuk git).
+
+**Calon**: tahap Didokumentasikan, tidak ditunda, punya commit dan branch, belum di-push/di-merge.
+Kerja lokal (BUG/REQ) juga calon; deskripsi MR menandainya "tanpa tiket Plane".
+
+**Alur**
+1. *Buat*: pilih tiket (kotak centang) dan nama branch, lalu Gabungkan. Tiap branch tiket digabung
+   berurutan dengan `merge --no-ff` (pesan menyebut kunci dan judul tiket). Branch gabungan dibuat
+   `--no-track`, seperti branch slot.
+2. *Konflik*: proses berhenti di tiket itu, merge dibatalkan (worktree tetap bersih), dan daftar berkas
+   konflik ditampilkan. Pilih **Keluarkan** (tiketnya kembali jadi calon dan penggabungan berlanjut ke
+   tiket berikutnya) atau **Minta AI selesaikan konflik** (sesi tiket itu bekerja di `v2-gabung`,
+   meng-commit merge-nya tanpa push). Setelah itu tekan **Lanjutkan gabung**: tiket yang merge-nya sudah
+   ter-commit ditandai tergabung.
+3. *Gerbang CI*: dijalankan pada branch gabungan (lima job `.gitlab-ci.yml`, di latar; hasilnya
+   tersimpan). Commit baru membuat hasilnya tidak berlaku. Langkah install dependency ikut gerbang.
+4. *Push*: hanya bila semua tiket tergabung, gerbang tidak gagal dan cocok dengan HEAD, dan worktree
+   bersih. Dengan konfirmasi (dialog Terlihat tim); push biasa tanpa force. Semua tiket tergabung dicatat
+   di-push ke branch gabungan, slotnya dilepas, lalu antrean tiap slot yang dilepas berjalan (K21), satu
+   kali per slot. Push per tiket dinonaktifkan ("di-push lewat gabungan").
+5. *MR*: **Salin deskripsi MR** (satu deskripsi, satu bagian per tiket, format 2 = lima kartu, format
+   lama = catatan.md; plus commit merge, catatan staging, hasil gerbang). Buat MR di GitLab, tempel
+   linknya di kartu: link tersalin ke semua tiket tergabung.
+6. *Merge*: Dashboard memeriksa apakah head gabungan sudah ada di `origin/development`; bila ya, gabungan
+   ditandai merge dan tiap tiketnya dicatat seperti MR biasa (◆D). Gabungan yang sudah merge tidak
+   menghalangi gabungan baru; arsipnya disimpan di `kerja/_gabung-arsip/<branch>.json`.
+
+**Batalkan gabungan** (sebelum push): worktree kembali ke development, branch gabungan dihapus; branch
+tiket tidak disentuh. Setelah push tidak bisa dibatalkan dari panel (tunggu merge atau tutup MR).
+
+**Panel**: kartu "Siap digabung" di Workspace (calon bila belum ada gabungan; tiket + status + aksi bila
+ada), butir "Gabung" di Butuh kamu (alasan dari langkah berikutnya; atau "N tiket siap digabung" bila
+calon ≥ 2), dan baris "Masuk gabungan …" di kartu Serahkan tiket yang bersangkutan.
+
+**CLI**: `bun run kerja gabung calon | buat [branch] KEY... | lanjut | keluarkan KEY | batal | gerbang | push | mr <url> | lihat`.
+Tidak ada push tanpa `gabung push`. API: `GET/POST /api/gabung[/buat|lanjut|keluarkan|batal|gerbang|push|mr|konflik]`.
+
 ## Sesi Claude dari panel
 
 Halaman Kerja punya kartu **Sesi AI**; Dashboard punya lajur **Butuh kamu** dan **AI sedang jalan**.

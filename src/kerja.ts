@@ -21,6 +21,7 @@
 //   bun run kerja tunda FMS-87 ["alasan"]  ·  bun run kerja aktifkan FMS-87
 //   bun run kerja slot FMS-87 <1|2|3>  ·  antre FMS-87 [--slot n]  ·  lepas FMS-87   (slot paralel)
 //   bun run kerja antre-urut FMS-87 naik|turun  ·  antre-pindah FMS-87 <n|global>  ·  antre-mulai <n>
+//   bun run kerja gabung calon|buat [branch] KEY...|lanjut|keluarkan KEY|batal|gerbang|push|mr <url>|lihat   (Gabungkan untuk MR, K20)
 //   bun run kerja workspace                  slot, antrean per slot, Antre global, komputer
 //   bun run kerja panen FMS-87 [--modul fleet] [--tulis]   catatan → docs-site (pratinjau tanpa --tulis)
 //   bun run kerja metrik [FMS-87]            lama per tahap, kerja ulang, token sesi Claude
@@ -42,6 +43,7 @@ import {
   tambahMintaUbah,
   tambahPertanyaan,
 } from './core/catatan.ts'
+import { langkahGabungan, namaGabunganBawaan } from './core/gabung.ts'
 import { ringkasGerbang } from './core/gerbang.ts'
 import {
   bacaBerkasKerja,
@@ -63,11 +65,18 @@ import {
   ambilKerja,
   antrekanKerja,
   aturUrutAntre,
+  batalkanGabungan,
+  buatGabungan,
+  calonGabungKerja,
   catatKerja,
   cekKerja,
+  gerbangGabungan,
   gerbangKerja,
   jalankanAntreanSlot,
+  keadaanGabungan,
+  keluarkanDariGabungan,
   komentarKePlane,
+  lanjutGabungan,
   laporanLengkap,
   lepasSlotKerja,
   panenKerja,
@@ -75,9 +84,11 @@ import {
   periksaCatatanKerja,
   pindahAntre,
   potretKerja,
+  pushGabungan,
   semuaMetrik,
   setTahap,
   setTarget,
+  simpanLinkMrGabungan,
   slotKerja,
   statusKePlane,
   tempatkanDiSlot,
@@ -172,7 +183,7 @@ function ringkas(k: Kerja) {
 }
 
 const PAKAI =
-  'Pakai: bun run kerja <daftar|ambil|baru|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|antre-urut|antre-pindah|antre-mulai|lepas|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
+  'Pakai: bun run kerja <daftar|ambil|baru|lihat|tahap|target|potret|gerbang|kesehatan|catatan|tanya|jawab|putuskan|minta-ubah|ubah-selesai|staging|tunda|aktifkan|slot|antre|antre-urut|antre-pindah|antre-mulai|lepas|gabung|workspace|panen|metrik|cek|catat|plane> [KEY] ... (lihat docs/KERJA.md)'
 
 try {
   switch (perintah) {
@@ -491,6 +502,60 @@ try {
       if (h.gagal) console.log(`× ${h.gagal.key} gagal ditempatkan: ${h.gagal.alasan}`)
       if (!h.ditempatkan && !h.gagal)
         console.log(`antrean slot ${n} kosong atau slot masih terpakai`)
+      break
+    }
+    case 'gabung': {
+      // Gabungkan untuk MR (K20). Tidak ada aksi push tanpa perintah `gabung push` yang eksplisit.
+      const [x, ...a] = [...posisi]
+      const tampil = (g: NonNullable<ReturnType<typeof keadaanGabungan>['gabungan']>) => {
+        console.log(`Gabungan ${g.branch} (dari ${g.base.slice(0, 8)})`)
+        for (const t of g.tiket)
+          console.log(
+            `  ${t.key} · ${t.status}${t.konflik?.length ? ` · konflik: ${t.konflik.join(', ')}` : ''}`,
+          )
+        console.log(`  Langkah: ${langkahGabungan(g).alasan}`)
+      }
+      if (x === 'calon') {
+        const c = calonGabungKerja()
+        if (!c.length) console.log('(tidak ada tiket yang siap digabung)')
+        for (const k of c)
+          console.log(`${k.key} · ${k.judul} · ${k.branch} · ${k.commit.length} commit`)
+      } else if (x === 'buat') {
+        const kunci = a.filter((v) => /^[A-Z]+-\d+$/.test(v))
+        const nama =
+          a.find((v) => !/^[A-Z]+-\d+$/.test(v)) ??
+          namaGabunganBawaan(new Date().toISOString().slice(0, 10))
+        tampil(buatGabungan(nama, kunci))
+      } else if (x === 'lanjut') tampil(lanjutGabungan())
+      else if (x === 'keluarkan') {
+        if (!a[0]) throw new Error('Pakai: bun run kerja gabung keluarkan KEY')
+        tampil(keluarkanDariGabungan(a[0]))
+      } else if (x === 'batal') {
+        batalkanGabungan()
+        console.log('✓ gabungan dibatalkan')
+      } else if (x === 'gerbang') {
+        const g = await gerbangGabungan()
+        if (g.gerbangCi) console.log(ringkasGerbang(g.gerbangCi))
+      } else if (x === 'push') {
+        const g = pushGabungan()
+        console.log(
+          `✓ ${g.branch} di-push (${g.push?.head.slice(0, 8)}); buat MR di GitLab lalu: kerja gabung mr <url>`,
+        )
+      } else if (x === 'mr') {
+        if (!a[0]) throw new Error('Pakai: bun run kerja gabung mr <url>')
+        simpanLinkMrGabungan(a[0])
+        console.log('✓ link MR gabungan disimpan di semua tiket tergabung')
+      } else if (x === 'lihat') {
+        const d = keadaanGabungan()
+        if (!d.gabungan) console.log('Tidak ada gabungan aktif')
+        else {
+          tampil(d.gabungan)
+          if ('mr' in d && d.mr) console.log(`\n${d.mr.judul}\n\n${d.mr.isi}`)
+        }
+      } else
+        throw new Error(
+          'Pakai: bun run kerja gabung <calon|buat [branch] KEY...|lanjut|keluarkan KEY|batal|gerbang|push|mr <url>|lihat>',
+        )
       break
     }
     case 'lepas': {

@@ -1171,14 +1171,17 @@ export function kartuSerah(s) {
   const push = s.syarat.boleh
     ? `<button type="button" class="btn tb kj-tim" data-kj-push>Push ke ${esc(git.branch ?? '')}…</button>`
     : `<button type="button" class="btn tb" disabled title="${esc(s.syarat.alasan.join('; '))}">Push</button>`
+  const gb = s.gabungan
+    ? `<p class="kj-catatan-kecil"><span class="chip info">${esc(`Masuk gabungan ${s.gabungan.branch} · ${s.gabungan.status}${s.gabungan.merge ? ' · di-merge' : ''}`)}</span> <span class="dim">di-push lewat gabungan, bukan sendiri.</span> <a href="#/workspace">Buka Workspace</a></p>`
+    : ''
   const sudah = s.push
     ? `<span class="ok-t">✓ Di-push ${esc(JAM(s.push.at))}</span><span class="dim"> · ${esc(s.push.branch)} · <span class="mono">${esc(s.push.head.slice(0, 8))}</span></span>`
     : ''
   return `<section class="kartu glass kj-serah" aria-label="Serahkan"><div class="kj-sesi-hd"><span class="db-eyebrow">Serahkan</span><span class="kj-sesi-status">${ci}</span>
       <span class="kj-sesi-aksi"><button type="button" class="btn tb" data-kj-gerbang-ci${s.gerbangBerjalan ? ' disabled' : ''}>${g ? 'Jalankan ulang gerbang CI' : 'Jalankan gerbang CI'}</button>${push}</span></div>
-    ${masalahCi ? `<ul class="kj-serah-daftar">${masalahCi}</ul>` : ''}
+    ${gb}${masalahCi ? `<ul class="kj-serah-daftar">${masalahCi}</ul>` : ''}
     <div class="kj-serah-git"><span class="mono">${esc(git.branch ?? '(detached)')}</span><span class="dim">${git.akanDipush.length} commit akan dikirim · ${esc(git.remote ?? 'tanpa remote')}${s.klaster.length > 1 ? ` · klaster ${esc(s.klaster.join(', '))}` : ''}</span>${sudah}</div>
-    ${s.syarat.boleh ? '' : `<p class="dim kj-catatan-kecil">Push belum bisa: ${esc(s.syarat.alasan.join('; '))}.</p>`}
+    ${s.syarat.boleh || s.gabungan ? '' : `<p class="dim kj-catatan-kecil">Push belum bisa: ${esc(s.syarat.alasan.join('; '))}.</p>`}
     <div class="kj-serah-mr"><button type="button" class="btn tb" data-kj-salin-mr>Salin deskripsi MR</button><button type="button" class="btn tb" data-kj-panen title="Tulis catatan ke fleetify-ops/docs-site (database/v2/<modul>/progres-plane/) lalu jalankan check-v2">Panen dokumentasi</button>
       <form class="kj-tanya-isi" data-kj-mr><input type="url" name="url" value="${esc(s.linkMr ?? '')}" placeholder="Tempel link MR dari GitLab…" aria-label="Link MR"><button type="submit" class="btn tb">Simpan</button></form>${s.linkMr ? `<a class="btn tb" href="${esc(s.linkMr)}" target="_blank" rel="noopener">Buka MR ↗</a>` : ''}</div></section>`
 }

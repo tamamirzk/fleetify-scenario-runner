@@ -30,6 +30,18 @@ import {
   templatCatatan,
 } from './catatan.ts'
 import { config, ROOT } from './config.ts'
+import {
+  arsipkanGabungan,
+  bacaGabungan,
+  calonGabung,
+  type Gabungan,
+  langkahGabungan,
+  lanjutkanGabung,
+  mulaiGabungan,
+  namaGabunganBawaan,
+  simpanGabungan,
+  WORKTREE_GABUNG,
+} from './gabung.ts'
 import { type HasilGerbang, jalankanGerbang } from './gerbang.ts'
 import {
   adaKerja,
@@ -90,8 +102,8 @@ import {
   type NomorSlot,
   type PemakaiSlot,
   pilihanSlot,
-  semuaSlot,
   SLOT_CHAT,
+  semuaSlot,
   siapkanSlotBaru,
 } from './slot.ts'
 
@@ -184,7 +196,7 @@ export function ubahLaporan(
 }
 
 /** Masukan deskripsi MR satu kerja: kerja format 2 membawa laporannya, format lama catatan.md. */
-const tiketMr = (x: Kerja) => ({
+export const tiketMr = (x: Kerja) => ({
   key: x.key,
   judul: x.judul,
   url: x.url,
@@ -326,10 +338,10 @@ export async function jalankanFase(
   key: string,
   fase: FaseSesi,
   mode: ModeSesi,
-  o: { teks?: string; port: number; model?: string },
+  o: { teks?: string; port: number; model?: string; worktree?: string },
 ): Promise<{ kerja: Kerja; cara: string }> {
   const k = bacaKerja(key)
-  const worktree = worktreeKerja(k)
+  const worktree = o.worktree ?? worktreeKerja(k)
   const baru = !k.sesi
   const id = k.sesi?.id ?? crypto.randomUUID()
   const args = argsClaude({
@@ -442,7 +454,18 @@ export function keadaanSerah(key: string, gerbangBerjalan = false) {
   const k = bacaKerja(key)
   const dir = worktreeKerja(k)
   const git = keadaanGit(dir)
-  const syarat = syaratPush({ git, gerbangCi: k.gerbang?.ci ?? null, gerbangBerjalan })
+  const dasar = syaratPush({ git, gerbangCi: k.gerbang?.ci ?? null, gerbangBerjalan })
+  // Tiket di gabungan aktif di-push lewat branch gabungan, bukan sendiri-sendiri (K20).
+  const gb = bacaGabungan()
+  const tg = gb?.tiket.find((t) => t.key === key && t.status !== 'dikeluarkan')
+  const gabungan =
+    gb && tg
+      ? { branch: gb.branch, status: tg.status, konflik: tg.konflik ?? [], merge: !!gb.merge }
+      : null
+  const syarat =
+    gabungan && !gabungan.merge
+      ? { boleh: false, alasan: [`di-push lewat gabungan ${gabungan.branch}`, ...dasar.alasan] }
+      : dasar
   const tiket = klasterKerja(k).map(tiketMr)
   const mr = deskripsiMr({
     tiket,
@@ -459,6 +482,7 @@ export function keadaanSerah(key: string, gerbangBerjalan = false) {
     mr,
     push: k.push ?? null,
     linkMr: k.mr ?? null,
+    gabungan,
     klaster: tiket.map((t) => t.key),
   }
 }
@@ -908,11 +932,12 @@ export function semuaMetrik() {
  * Tandai kerja yang MR-nya sudah di-merge ke development (K19): commit push ada di
  * origin/development. Dipanggil Dashboard; git fetch dibatasi di sudahDiMerge.
  */
-export function periksaMergeSemua(): string[] {
+export function periksaMergeSemua(sudah: typeof sudahDiMerge = sudahDiMerge): string[] {
   const baru: string[] = []
+  periksaMergeGabungan(sudah)
   for (const k of daftarKerja()) {
     if (!k.push || k.merge || k.tahap === 'selesai') continue
-    if (!sudahDiMerge(worktreeKerja(k), k.push.head)) continue
+    if (!sudah(worktreeKerja(k), k.push.head)) continue
     const k2 = pindahTahap(
       { ...k, merge: { at: new Date().toISOString(), head: k.push.head } },
       k.tahap,
@@ -922,4 +947,225 @@ export function periksaMergeSemua(): string[] {
     baru.push(k.key)
   }
   return baru
+}
+
+// ── Gabungkan untuk MR (K20) ───────────────────────────────────────────────
+
+const judulKerja = (key: string) => bacaKerja(key).judul
+
+export function calonGabungKerja() {
+  return calonGabung(daftarKerja(), bacaGabungan())
+}
+
+/** Mulai gabungan dari tiket terpilih (hanya calon yang sah). */
+export function buatGabungan(branch: string, keys: string[]): Gabungan {
+  const lama = bacaGabungan()
+  if (lama && !lama.merge)
+    throw new Error('Masih ada gabungan aktif; selesaikan atau batalkan dulu')
+  const calon = new Map(calonGabungKerja().map((k) => [k.key, k]))
+  const asing = keys.filter((k) => !calon.has(k))
+  if (asing.length) throw new Error(`Bukan calon gabung: ${asing.join(', ')}`)
+  const g = mulaiGabungan(
+    branch,
+    keys.map((k) => ({ key: k, branch: calon.get(k)?.branch as string })),
+    judulKerja,
+  )
+  // Gabungan lama yang sudah di-merge diarsipkan, baru yang aktif menggantikannya.
+  if (lama) arsipkanGabungan(lama)
+  simpanGabungan(g)
+  for (const t of g.tiket) {
+    const k = bacaKerja(t.key)
+    simpanKerja(pindahTahap(k, k.tahap, `Masuk gabungan ${branch}: ${t.status}`))
+  }
+  return g
+}
+
+function gabunganAktif(): Gabungan {
+  const g = bacaGabungan()
+  if (!g) throw new Error('Tidak ada gabungan aktif')
+  return g
+}
+
+/** Lanjutkan menggabung tiket yang tersisa (mis. setelah konflik diselesaikan AI). */
+export function lanjutGabungan(): Gabungan {
+  const g = gabunganAktif()
+  // Konflik yang diselesaikan AI: merge sudah di-commit di v2-gabung → tandai tergabung.
+  const tiket = g.tiket.map((t) =>
+    t.status === 'konflik' && sudahTergabung(t.branch)
+      ? { ...t, status: 'tergabung' as const, konflik: undefined }
+      : t.status === 'konflik'
+        ? { ...t, status: 'menunggu' as const }
+        : t,
+  )
+  const g2 = lanjutkanGabung({ ...g, tiket }, judulKerja)
+  simpanGabungan(g2)
+  return g2
+}
+
+const sudahTergabung = (branch: string) =>
+  spawnSync('git', ['-C', WORKTREE_GABUNG(), 'merge-base', '--is-ancestor', branch, 'HEAD'])
+    .status === 0
+
+/** Keluarkan tiket dari gabungan (mis. konflik); tiketnya kembali jadi calon. */
+export function keluarkanDariGabungan(key: string): Gabungan {
+  const g = gabunganAktif()
+  if (g.push) throw new Error('Gabungan sudah di-push; tiket tidak bisa dikeluarkan lagi')
+  const t = g.tiket.find((x) => x.key === key)
+  if (!t) throw new Error(`${key} tidak ada di gabungan`)
+  if (t.status === 'tergabung')
+    throw new Error(`${key} sudah tergabung; buat gabungan baru bila ingin mengeluarkannya`)
+  const g2 = {
+    ...g,
+    tiket: g.tiket.map((x) =>
+      x.key === key ? { ...x, status: 'dikeluarkan' as const, konflik: undefined } : x,
+    ),
+  }
+  simpanGabungan(g2)
+  return lanjutGabungan()
+}
+
+/** Batalkan gabungan yang belum di-push: worktree kembali ke development, branch gabungan dihapus. */
+export function batalkanGabungan() {
+  const g = gabunganAktif()
+  if (g.push && !g.merge)
+    throw new Error('Gabungan sudah di-push; tunggu merge atau tutup MR-nya dulu')
+  const w = WORKTREE_GABUNG()
+  spawnSync('git', ['-C', w, 'switch', '-q', '--detach', 'origin/development'])
+  if (!g.push) spawnSync('git', ['-C', w, 'branch', '-D', g.branch])
+  simpanGabungan(null)
+}
+
+/** Keadaan gabungan untuk kartu Workspace: git, syarat push, deskripsi MR, langkah berikutnya. */
+export function keadaanGabungan(gerbangBerjalan = false) {
+  const g = bacaGabungan()
+  const calon = calonGabungKerja().map((k) => ({
+    key: k.key,
+    judul: k.judul,
+    branch: k.branch,
+    commit: k.commit.length,
+    gerbangFokus: k.gerbang?.fokus?.hasil ?? null,
+  }))
+  if (!g)
+    return {
+      gabungan: null,
+      calon,
+      bawaan: namaGabunganBawaan(new Date().toISOString().slice(0, 10)),
+    }
+  const dir = WORKTREE_GABUNG()
+  const git = keadaanGit(dir)
+  const syarat = syaratPush({ git, gerbangCi: g.gerbangCi ?? null, gerbangBerjalan })
+  const masuk = g.tiket.filter((t) => t.status === 'tergabung').map((t) => bacaKerja(t.key))
+  const mr = deskripsiMr({
+    tiket: masuk.map(tiketMr),
+    branch: g.branch,
+    commit: git.akanDipush.filter((c) => c.judul.startsWith('Merge ')),
+    gerbangCi: g.gerbangCi ?? null,
+  })
+  return {
+    gabungan: g,
+    calon,
+    git,
+    syarat: { ...syarat, boleh: syarat.boleh && langkahGabungan(g).siapPush },
+    langkah: langkahGabungan(g),
+    mr,
+    gerbangBerjalan,
+  }
+}
+
+/** Gerbang CI pada branch gabungan (R-4.1); hasil tersimpan di gabungan. */
+export async function gerbangGabungan(): Promise<Gabungan> {
+  gabunganAktif() // pastikan ada gabungan sebelum gerbang berjalan
+  const cap = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 13)
+  const h = await jalankanGerbang({
+    dir: WORKTREE_GABUNG(),
+    tingkat: 'ci',
+    logRel: `kerja/_gabung-log/ci-${cap}.log`,
+  })
+  const g2 = { ...gabunganAktif(), gerbangCi: h }
+  simpanGabungan(g2)
+  return g2
+}
+
+/**
+ * Push branch gabungan (klik Tams, R-2.3); dicatat di gabungan dan semua tiket tergabung. Slot
+ * tiket dilepas lalu antrean tiap slot yang dilepas dijalankan (K21), satu kali per slot unik.
+ * `dep` hanya untuk tes: ganti git push dan pemicu antrean.
+ */
+export function pushGabungan(
+  dep: {
+    pushBranch?: typeof pushBranch
+    setelahLepas?: (n: number, pelepas: string[]) => void
+  } = {},
+): Gabungan {
+  const s = keadaanGabungan()
+  if (!s.gabungan || !('syarat' in s) || !s.syarat?.boleh)
+    throw new Error(
+      `Push ditolak: ${'syarat' in s ? s.syarat?.alasan.join('; ') || s.langkah?.alasan : 'tidak ada gabungan'}`,
+    )
+  const g = s.gabungan
+  const r = (dep.pushBranch ?? pushBranch)(WORKTREE_GABUNG(), g.branch, !!s.git?.upstream)
+  if (!r.ok) throw new Error(`git push gagal: ${r.keluaran.split('\n').slice(-3).join(' ')}`)
+  const at = new Date().toISOString()
+  const head = s.git?.head as string
+  const g2 = { ...g, push: { at, head, jumlah: s.git?.akanDipush.length ?? 0 } }
+  simpanGabungan(g2)
+  const lepas = new Map<number, string[]>()
+  for (const t of g.tiket.filter((x) => x.status === 'tergabung')) {
+    const k = bacaKerja(t.key)
+    if (k.slot && (NOMOR_SLOT as readonly number[]).includes(k.slot))
+      lepas.set(k.slot, [...(lepas.get(k.slot) ?? []), k.key])
+    simpanKerja(
+      pindahTahap(
+        {
+          ...k,
+          push: {
+            at,
+            branch: g.branch,
+            head,
+            remote: s.git?.remote ?? null,
+            jumlah: g2.push.jumlah,
+          },
+          slot: null,
+        },
+        k.tahap,
+        `Di-push lewat gabungan ${g.branch} (${head.slice(0, 8)})`,
+      ),
+    )
+  }
+  for (const [n, pelepas] of lepas) (dep.setelahLepas ?? mulaiAntreanLatar)(n, pelepas)
+  return g2
+}
+
+/**
+ * Deteksi merge gabungan (K19/K20): bila head yang di-push sudah ada di origin/development,
+ * gabungan ditandai merge. Tiap tiket di dalamnya lalu dicatat oleh deteksi merge per kerja
+ * (push.head mereka sama dengan head gabungan).
+ */
+export function periksaMergeGabungan(sudah: typeof sudahDiMerge = sudahDiMerge): boolean {
+  const g = bacaGabungan()
+  if (!g?.push || g.merge) return false
+  if (!sudah(WORKTREE_GABUNG(), g.push.head)) return false
+  simpanGabungan({ ...g, merge: { at: new Date().toISOString(), head: g.push.head } })
+  return true
+}
+
+/** Link MR gabungan (ditempel Tams) disalin ke semua tiket tergabung. */
+export function simpanLinkMrGabungan(url: string): Gabungan {
+  const g = gabunganAktif()
+  const u = url.trim()
+  if (u && !/^https:\/\/\S+$/.test(u)) throw new Error('Link MR harus diawali https://')
+  const g2 = { ...g, mr: u || undefined }
+  simpanGabungan(g2)
+  for (const t of g.tiket.filter((x) => x.status === 'tergabung'))
+    simpanKerja({ ...bacaKerja(t.key), mr: u || undefined })
+  return g2
+}
+
+/** Minta AI menyelesaikan konflik tiket di v2-gabung (sesi tiket itu, worktree gabungan). */
+export async function selesaikanKonflikAI(key: string, port: number) {
+  const g = gabunganAktif()
+  const t = g.tiket.find((x) => x.key === key && x.status === 'konflik')
+  if (!t) throw new Error(`${key} tidak sedang konflik`)
+  const teks = `Selesaikan konflik penggabungan di worktree ${WORKTREE_GABUNG()} (branch ${g.branch}): jalankan "git -C ${WORKTREE_GABUNG()} merge --no-ff -m 'Merge ${t.branch} (${key}: ${judulKerja(key)})' ${t.branch}", selesaikan konflik di ${t.konflik?.join(', ')} dengan mempertahankan maksud kedua sisi, jalankan tes terkait, lalu commit merge-nya. Jangan push. Setelah selesai, Tams menekan "Lanjutkan gabung" di Workspace.`
+  return jalankanFase(key, 'lanjut', 'terminal', { teks, port, worktree: WORKTREE_GABUNG() })
 }

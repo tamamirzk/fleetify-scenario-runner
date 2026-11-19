@@ -2,6 +2,7 @@
 // lajur — Butuh kamu (dengan satu aksi utama), AI sedang jalan, Menunggu pihak lain, Antre,
 // Ditunda, atau Selesai. Fungsi murni: masukannya kerja.json + hasil gerbang catatan.
 import type { PeriksaCatatan } from './catatan.ts'
+import { type Gabungan, langkahGabungan } from './gabung.ts'
 import { adalahKerjaLokal, type Kerja } from './kerja.ts'
 import type { FaseSesi } from './sesi.ts'
 
@@ -144,11 +145,38 @@ export function butuhKamu(k: Kerja, periksa: Periksa): ButuhKamu | null {
   return null
 }
 
-/** Lajur sebuah kerja untuk Dashboard. */
-export function lajurKerja(k: Kerja, periksa: Periksa): PosisiLajur {
+/** Butir Butuh kamu untuk gabungan (K20); tujuannya selalu kartu "Siap digabung" di Workspace. */
+export interface ButirGabungan {
+  judul: string
+  alasan: string
+}
+
+/**
+ * Gabungan aktif butuh langkah Tams (lanjutkan, konflik, gerbang, push, tempel MR), atau tiket siap
+ * digabung (dua atau lebih) saat belum ada gabungan. Gabungan yang menunggu review/merge bukan
+ * urusan Tams.
+ */
+export function butuhGabungan(g: Gabungan | null, jumlahCalon: number): ButirGabungan | null {
+  if (g && !g.merge) {
+    if (g.push && g.mr) return null
+    return { judul: g.branch, alasan: langkahGabungan(g).alasan }
+  }
+  if (jumlahCalon >= 2)
+    return {
+      judul: 'Gabungkan untuk MR',
+      alasan: `${jumlahCalon} tiket siap digabung menjadi satu MR`,
+    }
+  return null
+}
+
+/** Lajur sebuah kerja untuk Dashboard. `gabungan` = nama branch bila tiket ini masuk gabungan aktif. */
+export function lajurKerja(k: Kerja, periksa: Periksa, gabungan?: string | null): PosisiLajur {
   const dasar = { key: k.key, judul: k.judul }
   if (k.tahap === 'selesai') return { ...dasar, lajur: 'selesai', alasan: 'Selesai' }
   if (k.ditunda) return { ...dasar, lajur: 'ditunda', alasan: k.ditunda.alasan ?? 'Ditunda' }
+  // Tiket di gabungan aktif yang belum di-push digerakkan oleh butir gabungan, bukan sendiri-sendiri.
+  if (gabungan && !k.push && k.tahap === 'didokumentasikan')
+    return { ...dasar, lajur: 'diam', alasan: `Masuk gabungan ${gabungan}` }
   const b = butuhKamu(k, periksa)
   if (b) return { ...dasar, lajur: 'butuh', alasan: b.alasan, butuh: b }
   if (k.sesi?.status === 'bekerja')

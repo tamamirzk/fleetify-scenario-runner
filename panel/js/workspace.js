@@ -102,7 +102,106 @@ export function barisRencana(u) {
   return `<li class="ws-rencana-baris"><span class="ws-rencana-isi"><a class="mono" href="#/kerja/${esc(u.key)}">${esc(u.key)}</a> <span class="dim">${esc(u.judul)}</span>${u.modul ? ` <span class="chip">${esc(u.modul)}</span>` : ''}<span class="dim ws-rencana-alasan">${esc(u.alasan)}</span></span><span class="ws-berikut-aksi"><select class="in" data-ws-opsi="${esc(u.key)}" aria-label="Rencana untuk ${esc(u.key)}">${opsi}</select><button type="button" class="btn tb utama-tb" data-ws-terap="${esc(u.key)}">Terapkan</button></span></li>`
 }
 
-export function halamanWorkspace(w, { galat = null, sibuk = null } = {}) {
+const STATUS_GABUNG = {
+  menunggu: ['', '○ menunggu'],
+  tergabung: ['ok', '✓ tergabung'],
+  konflik: ['bad', '× konflik'],
+  dikeluarkan: ['', '↷ dikeluarkan'],
+}
+const HASIL_CI = { lulus: ['ok', '✓'], peringatan: ['warn', '!'], gagal: ['bad', '×'] }
+
+/** Gabungan yang sedang berjalan: tiket + status, langkah berikutnya, dan aksi sesuai keadaan. */
+function gabunganAktif(d) {
+  const g = d.gabungan
+  const tiket = g.tiket
+    .map((t) => {
+      const [kelas, label] = STATUS_GABUNG[t.status] ?? ['', t.status]
+      const rinci =
+        t.status === 'konflik' && t.konflik?.length
+          ? `<span class="dim ws-gb-konflik">Berkas konflik: <span class="mono">${t.konflik.map(esc).join(', ')}</span></span>`
+          : ''
+      const aksi = []
+      if (!g.push && (t.status === 'konflik' || t.status === 'menunggu'))
+        aksi.push(`<button type="button" class="btn tb" data-gb-keluarkan="${esc(t.key)}">Keluarkan</button>`)
+      if (!g.push && t.status === 'konflik')
+        aksi.push(`<button type="button" class="btn tb" data-gb-konflik="${esc(t.key)}" title="Sesi Claude tiket ini menyelesaikan konflik di worktree v2-gabung">Minta AI selesaikan konflik</button>`)
+      return `<li class="ws-gb-tiket"><span class="ws-gb-isi"><a class="mono" href="#/kerja/${esc(t.key)}">${esc(t.key)}</a> <span class="chip ${kelas}">${esc(label)}</span> <span class="dim mono">${esc(t.branch)}</span>${rinci}</span><span class="ws-berikut-aksi">${aksi.join('')}</span></li>`
+    })
+    .join('')
+  const tertunda = g.tiket.some((t) => t.status === 'menunggu' || t.status === 'konflik')
+  const bergabung = g.tiket.some((t) => t.status === 'tergabung')
+  const ci = g.gerbangCi
+  const ciTeks = d.gerbangBerjalan
+    ? '<span class="chip info"><span class="putar kecil" aria-hidden="true"></span>Gerbang CI berjalan…</span>'
+    : ci
+      ? `<span class="chip ${HASIL_CI[ci.hasil]?.[0] ?? ''}">${HASIL_CI[ci.hasil]?.[1] ?? ''} Gerbang CI ${esc(ci.hasil)}</span><span class="dim">${ci.langkah.filter((l) => l.hasil === 'lulus').length}/${ci.langkah.length} · <span class="mono">${esc(ci.head.slice(0, 8))}</span></span>`
+      : '<span class="dim">○ Gerbang CI belum dijalankan</span>'
+  const masalahCi =
+    ci && !d.gerbangBerjalan
+      ? ci.langkah
+          .filter((l) => l.hasil !== 'lulus')
+          .map((l) => `<li>${l.hasil === 'peringatan' ? '<span class="warn-t">!</span>' : '<span class="bad-t">×</span>'} ${esc(l.judul)}${l.ringkas ? `<span class="dim">: ${esc(l.ringkas)}</span>` : ''}</li>`)
+          .join('')
+      : ''
+  const aksi = []
+  if (!g.push && !g.merge) {
+    if (tertunda)
+      aksi.push('<button type="button" class="btn tb utama-tb" data-gb-lanjut>Lanjutkan gabung</button>')
+    if (!tertunda && bergabung)
+      aksi.push(`<button type="button" class="btn tb" data-gb-gerbang${d.gerbangBerjalan ? ' disabled' : ''}>${ci ? 'Jalankan ulang gerbang CI' : 'Jalankan gerbang CI'}</button>`)
+    aksi.push(
+      d.syarat?.boleh
+        ? `<button type="button" class="btn tb kj-tim" data-gb-push>Push ${esc(g.branch)}…</button>`
+        : `<button type="button" class="btn tb" disabled title="${esc((d.syarat?.alasan ?? []).join('; ') || d.langkah.alasan)}">Push</button>`,
+    )
+  }
+  if (!g.push || g.merge)
+    aksi.push('<button type="button" class="btn tb" data-gb-batal>Batalkan gabungan</button>')
+  const sudahPush = g.push
+    ? `<p class="ok-t">✓ Di-push ${esc(JAM(g.push.at))} <span class="dim">· <span class="mono">${esc(g.push.head.slice(0, 8))}</span>${g.merge ? ' · sudah di-merge ke development' : ''}</span></p>`
+    : ''
+  const mr =
+    g.push && !g.merge
+      ? `<form class="kj-tanya-isi" data-gb-mr><input type="url" name="url" value="${esc(g.mr ?? '')}" placeholder="Tempel link MR dari GitLab…" aria-label="Link MR gabungan"><button type="submit" class="btn tb">Simpan</button></form>${g.mr ? `<a class="btn tb" href="${esc(g.mr)}" target="_blank" rel="noopener">Buka MR ↗</a>` : ''}`
+      : ''
+  return `<div class="ws-gb-kepala"><span class="mono">${esc(g.branch)}</span> <span class="dim">dari <span class="mono">origin/development</span> ${esc(g.base.slice(0, 8))}</span></div>
+    <ul class="ws-gb-daftar">${tiket}</ul>
+    <p class="ws-gb-langkah"><b>Langkah berikutnya:</b> ${esc(d.langkah.alasan)}</p>
+    <div class="ws-gb-ci">${ciTeks}</div>${masalahCi ? `<ul class="kj-serah-daftar">${masalahCi}</ul>` : ''}${sudahPush}
+    <div class="ws-aksi">${aksi.join('')}<button type="button" class="btn tb" data-gb-salin-mr${d.mr ? '' : ' disabled'}>Salin deskripsi MR</button>${mr}</div>`
+}
+
+/** Calon gabung: kotak centang per tiket + nama branch + tombol Gabungkan. */
+function calonGabungan(d) {
+  if (!d.calon.length)
+    return '<p class="dim">Belum ada tiket yang siap digabung. Tiket yang sudah disetujui (◆B), punya commit, dan belum di-push muncul di sini.</p>'
+  const baris = d.calon
+    .map((c) => {
+      const ci = c.gerbangFokus
+      const chip = ci ? `<span class="chip ${HASIL_CI[ci]?.[0] ?? ''}">${HASIL_CI[ci]?.[1] ?? ''} fokus ${esc(ci)}</span>` : '<span class="dim">fokus belum dijalankan</span>'
+      return `<li class="ws-gb-calon"><label><input type="checkbox" data-gb-calon="${esc(c.key)}" checked><span class="ws-gb-isi"><a class="mono" href="#/kerja/${esc(c.key)}">${esc(c.key)}</a> <span class="dim">${esc(c.judul)}</span><span class="dim mono">${esc(c.branch)} · ${c.commit} commit</span> ${chip}</span></label></li>`
+    })
+    .join('')
+  return `<ul class="ws-gb-daftar">${baris}</ul>
+    <form class="ws-gb-buat" data-gb-buat><label class="dim" for="gb-branch">Branch gabungan</label><input id="gb-branch" class="in mono" name="branch" value="${esc(d.bawaan)}" aria-label="Nama branch gabungan"><button type="submit" class="btn tb utama-tb">Gabungkan</button></form>
+    <p class="dim kj-catatan-kecil">Dibuat dari origin/development di worktree v2-gabung; tiket digabung satu per satu (merge --no-ff). Konflik menghentikan proses di tiket itu.</p>`
+}
+
+/** Kartu "Siap digabung" (K20). `d` = GET /api/gabung, atau null/galat saat belum termuat. */
+export function kartuGabungan(d, { galat = null, sibuk = null } = {}) {
+  const n = d?.gabungan ? d.gabungan.tiket.length : (d?.calon?.length ?? 0)
+  const isi = galat
+    ? `<p class="bad-t">× ${esc(galat)}</p>`
+    : !d
+      ? '<p class="dim">Memuat…</p>'
+      : d.gabungan
+        ? gabunganAktif(d)
+        : calonGabungan(d)
+  const info = sibuk ? `<div class="kj-sibuk glass" role="status"><span class="putar" aria-hidden="true"></span>${esc(sibuk)}…</div>` : ''
+  return `<section class="db-panel ws-gabung" aria-labelledby="ws-gb-h"><h2 id="ws-gb-h" class="db-lajur-h">Siap digabung <span class="dim">${n}</span></h2>${info}${isi}</section>`
+}
+
+export function halamanWorkspace(w, { galat = null, sibuk = null, gabung = null, gabungGalat = null, gabungSibuk = null } = {}) {
   const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · kerja paralel</div><h1>Workspace</h1></div><button type="button" class="btn db-pil" id="ws-segarkan">Segarkan</button></div>`
   if (galat)
     return `${kepala}<div class="errbox" role="alert"><b>Workspace gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
@@ -124,6 +223,7 @@ export function halamanWorkspace(w, { galat = null, sibuk = null } = {}) {
     : ''
   return `<div class="db ws">${kepala}${sibuk ? `<div class="kj-sibuk glass" role="status"><span class="putar" aria-hidden="true"></span>${esc(sibuk)}…</div>` : ''}${stripKomputer(w.komputer)}
     <div class="ws-slot-baris">${w.slot.map(kartuSlot).join('')}</div>
+    ${kartuGabungan(gabung, { galat: gabungGalat, sibuk: gabungSibuk })}
     <div class="ws-bawah"><section class="db-panel" aria-labelledby="ws-lay-h"><h2 id="ws-lay-h" class="db-lajur-h">Layanan bersama</h2><ul class="ws-layanan">${layanan}</ul></section>
       <section class="db-panel" aria-labelledby="ws-antre-h"><h2 id="ws-antre-h" class="db-lajur-h">Rencana slot <span class="dim">${usulan.length + sisaGlobal.length}</span></h2>${rencana}${antre}</section></div></div>`
 }

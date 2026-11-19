@@ -8725,3 +8725,66 @@ details.kj-tiket > summary h2 {
 .tg-kartu-hd .tg-pilih + .tg-kunci {
   margin-right: auto;
 }
+
+/* Gabungkan untuk MR (K20): kartu "Siap digabung" di Workspace */
+.ws-gabung {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ws-gb-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sr-text-sm);
+}
+.ws-gb-tiket,
+.ws-gb-calon label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.ws-gb-calon label {
+  cursor: pointer;
+}
+.ws-gb-isi {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  overflow-wrap: anywhere;
+}
+.ws-gb-konflik {
+  flex-basis: 100%;
+  font-size: var(--sr-text-xs);
+}
+.ws-gb-buat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ws-gb-buat .in {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.ws-gb-kepala,
+.ws-gb-langkah,
+.ws-gb-ci {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: var(--sr-text-sm);
+}
+.ws-gabung .ws-aksi {
+  margin-top: 0;
+  align-items: center;
+}

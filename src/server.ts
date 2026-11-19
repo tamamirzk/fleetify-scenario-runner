@@ -8,10 +8,11 @@ import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import path from 'node:path'
 import { antreanSlot, antreanTertahan, PERINGATAN_KLASTER } from './core/antrean.ts'
-import { butuhKamu, lajurKerja } from './core/butuh-kamu.ts'
+import { butuhGabungan, butuhKamu, lajurKerja } from './core/butuh-kamu.ts'
 import { bagianPerhatian, jawabPertanyaan, renderCatatan } from './core/catatan.ts'
 import { config, ROOT } from './core/config.ts'
 import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
+import { bacaGabungan } from './core/gabung.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
 import {
   adaKerja,
@@ -35,11 +36,18 @@ import {
   ambilKerja,
   antrekanKerja,
   aturUrutAntre,
+  batalkanGabungan,
+  buatGabungan,
+  calonGabungKerja,
+  gerbangGabungan,
   gerbangKerja,
   jalankanFase,
   kabarSesi,
+  keadaanGabungan,
   keadaanSerah,
+  keluarkanDariGabungan,
   komentarKePlane,
+  lanjutGabungan,
   lepasSlotKerja,
   mulaiAntreanLatar,
   panenKerja,
@@ -50,13 +58,16 @@ import {
   pindahAntre,
   pindahkanSisaAntre,
   potretKerja,
+  pushGabungan,
   pushKerja,
   rencanaSlotKerja,
   reviewKerja,
+  selesaikanKonflikAI,
   semuaMetrik,
   sesiTerkini,
   setTahap,
   simpanLinkMr,
+  simpanLinkMrGabungan,
   slotKerja,
   statusKePlane,
   tempatkanDiSlot,
@@ -568,6 +579,51 @@ const REDIS_CONF = '/opt/homebrew/etc/redis.conf'
 /** Kerja yang gerbang CI-nya sedang berjalan di latar (proses panel ini). */
 const gerbangBerjalan = new Set<string>()
 
+/** Gerbang CI gabungan (K20) sedang berjalan di latar. */
+let gerbangGabunganBerjalan = false
+
+/** Aksi gabungan (K20): keadaan, buat, lanjut, keluarkan, batal, gerbang, push, link MR, konflik AI. */
+async function ruteGabung(req: IncomingMessage, aksi: string | null) {
+  if (req.method === 'GET' && !aksi) return keadaanGabungan(gerbangGabunganBerjalan)
+  if (req.method !== 'POST') throw new HttpError(405, 'Metode tidak didukung')
+  const body = await readBody(req)
+  const tolak = (e: unknown, kode = 409): never => {
+    throw e instanceof HttpError ? e : new HttpError(kode, (e as Error).message)
+  }
+  try {
+    if (aksi === 'gerbang') {
+      if (!bacaGabungan()) throw new HttpError(409, 'Tidak ada gabungan aktif')
+      if (gerbangGabunganBerjalan) throw new HttpError(409, 'Gerbang CI gabungan sedang berjalan')
+      gerbangGabunganBerjalan = true
+      gerbangGabungan()
+        .catch((e) => console.error('gerbang gabungan:', (e as Error).message))
+        .finally(() => {
+          gerbangGabunganBerjalan = false
+        })
+      return keadaanGabungan(true)
+    }
+    if (gerbangGabunganBerjalan) throw new HttpError(409, 'Gerbang CI gabungan sedang berjalan')
+    if (aksi === 'buat') {
+      const keys = Array.isArray(body.keys) ? body.keys.map(String) : []
+      buatGabungan(String(body.branch ?? '').trim(), keys)
+    } else if (aksi === 'lanjut') lanjutGabungan()
+    else if (aksi === 'keluarkan') keluarkanDariGabungan(String(body.key ?? ''))
+    else if (aksi === 'batal') {
+      if (body.konfirmasi !== true) throw new HttpError(400, 'Batalkan gabungan butuh konfirmasi')
+      batalkanGabungan()
+    } else if (aksi === 'push') {
+      // Push hanya dari klik Tams (R-2.3); syarat diperiksa ulang di pushGabungan.
+      if (body.konfirmasi !== true) throw new HttpError(400, 'Push butuh konfirmasi')
+      pushGabungan()
+    } else if (aksi === 'mr') simpanLinkMrGabungan(String(body.url ?? ''))
+    else if (aksi === 'konflik') await selesaikanKonflikAI(String(body.key ?? ''), config.port)
+    else throw new HttpError(404, `Aksi gabungan tidak dikenal: ${aksi}`)
+  } catch (e) {
+    tolak(e)
+  }
+  return keadaanGabungan(gerbangGabunganBerjalan)
+}
+
 /** Satu potret per waktu dalam proses panel (di samping kunci tenant). */
 let potretBerjalan: string | null = null
 
@@ -1042,12 +1098,23 @@ const routes: Record<string, Handler> = {
     // MR yang sudah di-merge ke development memindah tiket ke langkah terakhir (K19).
     periksaMergeSemua()
     // Lajur tindakan (R-9.1): tiap kerja di satu lajur; Butuh kamu membawa aksi utamanya (R-5.2).
-    const posisi = daftarKerja().map((k) =>
-      lajurKerja(k, {
-        brief: periksaCatatanKerja(k.key, 'brief'),
-        akhir: periksaCatatanKerja(k.key, 'akhir'),
-      }),
+    const gabungan = bacaGabungan()
+    const diGabungan = new Set(
+      gabungan && !gabungan.merge
+        ? gabungan.tiket.filter((t) => t.status !== 'dikeluarkan').map((t) => t.key)
+        : [],
     )
+    const posisi = daftarKerja().map((k) =>
+      lajurKerja(
+        k,
+        {
+          brief: periksaCatatanKerja(k.key, 'brief'),
+          akhir: periksaCatatanKerja(k.key, 'akhir'),
+        },
+        diGabungan.has(k.key) ? gabungan?.branch : null,
+      ),
+    )
+    const butirGabung = butuhGabungan(gabungan, calonGabungKerja().length)
     const di = (l: string) => posisi.filter((x) => x.lajur === l)
     const butuh = di('butuh').map((x) => x.butuh)
     const semuaKerja = daftarKerja()
@@ -1083,7 +1150,7 @@ const routes: Record<string, Handler> = {
     })
     const km = bacaKomputer(semuaSlot().map((d) => [`Slot ${d.n}`, d.worktree]))
     const angka = {
-      butuh: butuh.length,
+      butuh: butuh.length + (butirGabung ? 1 : 0),
       slotTerpakai: slotMini.filter((x) => x.pemakai.length).length,
       ciMerah: semuaKerja.filter((k) => k.tahap !== 'selesai' && k.gerbang?.ci?.hasil === 'gagal')
         .length,
@@ -1094,6 +1161,7 @@ const routes: Record<string, Handler> = {
       ...dasbor,
       metrik: semuaMetrik(),
       butuhKamu: butuh,
+      butuhGabungan: butirGabung,
       aiBekerja: bekerja,
       pihakLain: di('pihak-lain').map((x) => ({ key: x.key, judul: x.judul, alasan: x.alasan })),
       antre: di('antre').map((x) => ({ key: x.key, judul: x.judul })),
@@ -1341,6 +1409,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       throw new HttpError(502, (e as Error).message)
     }
   }
+  const mg = url.pathname.match(/^\/api\/gabung(?:\/([a-z]+))?$/)
+  if (mg) return send(res, 200, await ruteGabung(req, mg[1] ?? null))
   const mk = url.pathname.match(/^\/api\/kerja\/([A-Z]+-\d+)(?:\/([a-z]+))?$/)
   if (mk?.[1]) return send(res, 200, await rutekerja(req, mk[1], mk[2] ?? null))
   let m = url.pathname.match(/^\/api\/scenarios\/([a-z0-9-]+)$/)

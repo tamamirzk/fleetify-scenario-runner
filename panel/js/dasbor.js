@@ -509,7 +509,10 @@ export function lajurTindakan(d) {
       ),
     )
     .join('')
-  const kiriSemua = kiri + tertahan.map(butirTertahan).join('')
+  const gb = d.butuhGabungan
+    ? `<li><span class="chip info" aria-hidden="true">Gabung</span><span class="db-butuh-teks">${esc(d.butuhGabungan.alasan)}<span class="dim"> · ${esc(d.butuhGabungan.judul)}</span></span><a class="btn db-pil" href="#/workspace">Buka Workspace</a></li>`
+    : ''
+  const kiriSemua = gb + kiri + tertahan.map(butirTertahan).join('')
   const tengah = ai
     .map((x) =>
       butir(
@@ -526,7 +529,7 @@ export function lajurTindakan(d) {
   const tunda = d.ditunda?.length
     ? `<span>Ditunda ${d.ditunda.length}: ${d.ditunda.map((x) => `<a class="mono" href="#/kerja/${esc(x.key)}">${esc(x.key)}</a>`).join(', ')}</span>`
     : ''
-  return `<div class="db-lajur3">${kolom('db-butuh-h', 'Butuh kamu', butuh.length + tertahan.length, kiriSemua, 'Tidak ada yang menunggumu.')}${kolom('db-ai-h', 'AI sedang jalan', ai.length, tengah, 'Tidak ada sesi Claude yang bekerja.')}${kolom('db-lain-h', 'Menunggu pihak lain', lain.length, kanan, 'Tidak ada yang menunggu pihak lain.')}</div>${antre || tunda ? `<p class="dim db-tunda">${[antre, tunda].filter(Boolean).join(' · ')}</p>` : ''}`
+  return `<div class="db-lajur3">${kolom('db-butuh-h', 'Butuh kamu', butuh.length + tertahan.length + (gb ? 1 : 0), kiriSemua, 'Tidak ada yang menunggumu.')}${kolom('db-ai-h', 'AI sedang jalan', ai.length, tengah, 'Tidak ada sesi Claude yang bekerja.')}${kolom('db-lain-h', 'Menunggu pihak lain', lain.length, kanan, 'Tidak ada yang menunggu pihak lain.')}</div>${antre || tunda ? `<p class="dim db-tunda">${[antre, tunda].filter(Boolean).join(' · ')}</p>` : ''}`
 }
 
 /** Strip mini: 3 slot (● bekerja · ◆ menunggu · ○ kosong) + kesehatan komputer; ke Workspace. */

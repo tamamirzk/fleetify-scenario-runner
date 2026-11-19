@@ -12,7 +12,8 @@ import type { Dilakukan, Hasil, Masalah, Temuan } from './laporan-kerja.ts'
 import { PERSONA_IDS } from './personas.ts'
 import type { Sesi } from './sesi.ts'
 
-export const KERJA_DIR = path.join(ROOT, 'kerja')
+/** Folder kerja; RUNNER_KERJA_DIR hanya untuk tes (mengarah ke folder sementara). */
+export const KERJA_DIR = process.env.RUNNER_KERJA_DIR ?? path.join(ROOT, 'kerja')
 
 export const TAHAP = [
   'diambil',

@@ -271,13 +271,41 @@ async function tempatkanTiket(key, pilihan) {
 async function renderWorkspace() {
   const main = appMain('workspace')
   if (!S.ws) main.innerHTML = halamanWorkspace(null)
-  try { S.ws = await api('/api/workspace'); S.wsGalat = null } catch (e) { S.wsGalat = e.message }
+  await Promise.all([
+    api('/api/workspace').then((r) => { S.ws = r; S.wsGalat = null }).catch((e) => { S.wsGalat = e.message }),
+    muatGabung(),
+  ])
   if (route()[0] !== 'workspace') return
   gambarWorkspace()
+  pantauGabung()
 }
-function gambarWorkspace(sibuk = null) {
+/** Keadaan gabungan (K20); selama gerbang CI gabungan berjalan, tarik ulang tiap 5 detik. */
+async function muatGabung() {
+  try { S.gb = await api('/api/gabung'); S.gbGalat = null } catch (e) { S.gbGalat = e.message }
+}
+function pantauGabung() {
+  clearTimeout(S.gbT)
+  if (!S.gb?.gerbangBerjalan) return
+  S.gbT = setTimeout(async () => {
+    if (route()[0] !== 'workspace') return
+    const tadi = S.gb?.gerbangBerjalan
+    await muatGabung()
+    if (tadi && !S.gb?.gerbangBerjalan) toast(`Gerbang CI gabungan: ${S.gb?.gabungan?.gerbangCi?.hasil ?? 'selesai'}`)
+    if (!document.activeElement?.closest?.('form')) gambarWorkspace()
+    pantauGabung()
+  }, 5000)
+}
+/** Aksi gabungan: jalankan, tampilkan hasilnya, lalu gambar ulang kartu. */
+async function aksiGabung(aksi, body, sibuk, pesan) {
+  gambarWorkspace(null, sibuk)
+  try { S.gb = await api(`/api/gabung/${aksi}`, body); S.gbGalat = null; if (pesan) toast(pesan) } catch (e) { toast(e.message, true); await muatGabung() }
+  if (route()[0] !== 'workspace') return
+  gambarWorkspace()
+  pantauGabung()
+}
+function gambarWorkspace(sibuk = null, gabungSibuk = null) {
   const main = appMain('workspace')
-  main.innerHTML = halamanWorkspace(S.ws, { galat: S.wsGalat, sibuk })
+  main.innerHTML = halamanWorkspace(S.ws, { galat: S.wsGalat, sibuk, gabung: S.gb, gabungGalat: S.gbGalat, gabungSibuk })
   $('#ws-segarkan')?.addEventListener('click', (e) => { e.target.disabled = true; renderWorkspace() })
   for (const b of main.querySelectorAll('[data-ws-aksi]'))
     b.addEventListener('click', async () => {
@@ -291,6 +319,40 @@ function gambarWorkspace(sibuk = null) {
       } catch (e) { toast(e.message, true) }
       renderWorkspace()
     })
+  // Kartu "Siap digabung" (K20)
+  main.querySelector('[data-gb-buat]')?.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const keys = [...main.querySelectorAll('[data-gb-calon]:checked')].map((c) => c.dataset.gbCalon)
+    if (!keys.length) return toast('Pilih minimal satu tiket', true)
+    aksiGabung('buat', { branch: e.currentTarget.elements.branch.value.trim(), keys }, 'Menggabungkan tiket (git merge di v2-gabung)', 'Gabungan dibuat')
+  })
+  main.querySelector('[data-gb-lanjut]')?.addEventListener('click', () => aksiGabung('lanjut', {}, 'Melanjutkan penggabungan'))
+  for (const b of main.querySelectorAll('[data-gb-keluarkan]'))
+    b.addEventListener('click', () => aksiGabung('keluarkan', { key: b.dataset.gbKeluarkan }, `Mengeluarkan ${b.dataset.gbKeluarkan}`, `${b.dataset.gbKeluarkan} dikeluarkan dari gabungan`))
+  for (const b of main.querySelectorAll('[data-gb-konflik]'))
+    b.addEventListener('click', () => aksiGabung('konflik', { key: b.dataset.gbKonflik }, `Memulai sesi AI untuk ${b.dataset.gbKonflik}`, `Sesi AI ${b.dataset.gbKonflik} menyelesaikan konflik; setelah selesai tekan Lanjutkan gabung`))
+  main.querySelector('[data-gb-gerbang]')?.addEventListener('click', () => aksiGabung('gerbang', {}, null, 'Gerbang CI gabungan berjalan di latar'))
+  main.querySelector('[data-gb-salin-mr]')?.addEventListener('click', () => salin(S.gb?.mr?.isi ?? '', 'Deskripsi MR gabungan disalin'))
+  main.querySelector('[data-gb-mr]')?.addEventListener('submit', (e) => {
+    e.preventDefault()
+    aksiGabung('mr', { url: e.currentTarget.elements.url.value }, null, 'Link MR disimpan di semua tiket gabungan')
+  })
+  main.querySelector('[data-gb-push]')?.addEventListener('click', async () => {
+    const g = S.gb
+    const html = `<div class="kj-dialog-kepala"><h2>Push ${esc(g.gabungan.branch)}?</h2><span class="chip tim">${IKON_TIM}Terlihat tim</span></div>
+      <p class="dim kj-catatan-kecil">Push biasa (tanpa force) ke <span class="mono">${esc(g.git.remote ?? '')}</span>. Berlaku untuk ${g.gabungan.tiket.filter((t) => t.status === 'tergabung').map((t) => esc(t.key)).join(', ')}. MR-nya kamu buat sendiri di GitLab.</p>
+      <div class="kj-pratinjau"><b>${g.git.akanDipush.length} commit</b><ul>${g.git.akanDipush.map((c) => `<li><span class="mono">${esc(c.sha.slice(0, 8))}</span> ${esc(c.judul)}</li>`).join('')}</ul></div>
+      <div class="kj-dialog-aksi"><button class="btn tb" value="batal" autofocus>Batal</button><button class="btn tb tim-isi" value="ok">Push ${esc(g.gabungan.branch)}</button></div>`
+    if ((await bukaDialogKerja(html, () => {}, 560)) === null) return toast('Tidak ada yang di-push.')
+    aksiGabung('push', { konfirmasi: true }, 'Mendorong branch gabungan', 'Di-push. Buat MR di GitLab lalu tempel link-nya di kartu ini')
+  })
+  main.querySelector('[data-gb-batal]')?.addEventListener('click', async () => {
+    const html = `<div class="kj-dialog-kepala"><span class="kj-dialog-ikon" aria-hidden="true">!</span><h2>Batalkan gabungan ${esc(S.gb.gabungan.branch)}?</h2></div>
+      <p>Branch gabungan di v2-gabung dihapus dan semua tiket kembali menjadi calon. Branch tiket tidak disentuh.</p>
+      <div class="kj-dialog-aksi"><button class="btn tb" value="batal" autofocus>Tidak</button><button class="btn tb bahaya-isi" value="ok">Batalkan gabungan</button></div>`
+    if ((await bukaDialogKerja(html)) === null) return
+    aksiGabung('batal', { konfirmasi: true }, 'Membatalkan gabungan', 'Gabungan dibatalkan')
+  })
   // Antrean per slot: urutan, pindah slot, keluarkan, mulai (slot kosong tapi antrean belum jalan).
   const ubahAntrean = async (url, body, pesan) => {
     try { await api(url, body); if (pesan) toast(pesan) } catch (e) { toast(e.message, true) }
