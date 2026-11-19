@@ -89,7 +89,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, tgLaci: null, tgPratinjau: new Map(), slotRingkas: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjKode: null, kjKodeGalat: null, kjMode: 'sesudah', kjBuka: new Set(), kjGulir: false, kjIO: null, kjSinkron: true, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, tgDipilih: new Set(), tgLaci: null, tgPratinjau: new Map(), slotRingkas: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjKode: null, kjKodeGalat: null, kjMode: 'sesudah', kjBuka: new Set(), kjGulir: false, kjIO: null, kjSinkron: true, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -811,7 +811,7 @@ function gambarTugas() {
   if (!main || route()[0] !== 'tugas') return
   const x = window.scrollX
   const papan = main.querySelector('.tg-papan')?.scrollLeft ?? 0
-  main.innerHTML = halamanTugas(S.tugas, { galat: S.tugasGalat, ...S.tgPilihan, laci: S.tgLaci })
+  main.innerHTML = halamanTugas(S.tugas, { galat: S.tugasGalat, ...S.tgPilihan, laci: S.tgLaci, dipilih: S.tgDipilih })
   const p2 = main.querySelector('.tg-papan')
   if (p2) p2.scrollLeft = papan
   window.scrollTo(x, window.scrollY)
@@ -827,6 +827,26 @@ function gambarTugas() {
   for (const b of main.querySelectorAll('[data-tg-laci-tutup]')) b.addEventListener('click', () => tutupLaciTugas())
   for (const b of main.querySelectorAll('[data-tg-laci-ulang]')) b.addEventListener('click', () => muatPratinjau(b.dataset.tgLaciUlang, true))
   if (S.tgLaciFokus) { S.tgLaciFokus = false; main.querySelector('.tg-laci-x')?.focus() }
+  // Pilih beberapa tiket → Ambil terpilih (tanpa slot) → Rencana slot di Workspace.
+  for (const c of main.querySelectorAll('[data-tg-pilih]'))
+    c.addEventListener('change', () => {
+      if (c.checked) S.tgDipilih.add(c.dataset.tgPilih)
+      else S.tgDipilih.delete(c.dataset.tgPilih)
+      gambarTugas()
+    })
+  $('#tg-batal-pilih')?.addEventListener('click', () => { S.tgDipilih.clear(); gambarTugas() })
+  $('#tg-ambil-pilih')?.addEventListener('click', async (e) => {
+    const kunci = [...S.tgDipilih]
+    e.target.disabled = true
+    const gagal = []
+    for (const [i, key] of kunci.entries()) {
+      e.target.textContent = `Mengambil ${i + 1}/${kunci.length}…`
+      try { await api(`/api/kerja/${key}/ambil`, {}); S.tgDipilih.delete(key) } catch (err) { gagal.push(`${key}: ${err.message}`) }
+    }
+    if (gagal.length) { toast(`Gagal diambil — ${gagal.join('; ')}`, true); renderTugas(true); return }
+    toast(`${kunci.length} tiket diambil. Tentukan slotnya di Rencana slot.`)
+    location.hash = '#/workspace'
+  })
   for (const b of main.querySelectorAll('[data-tg-ambil]'))
     b.onclick = async () => {
       b.disabled = true

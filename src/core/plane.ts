@@ -165,6 +165,21 @@ async function semuaIsu(ws: string, pid: string): Promise<Isu[]> {
   return []
 }
 
+/**
+ * Satu isu berdasarkan kunci (mis. FMS-87) lewat /issues/<KEY>/ atau /work-items/<KEY>/ —
+ * satu permintaan (±0,2 dtk), bukan mengunduh semua isu project. null bila tidak ditemukan
+ * di kedua jalur (isu tidak ada, atau Plane belum mendukung jalur ini).
+ */
+async function isuSatu(ws: string, key: string): Promise<Isu | null> {
+  for (const jenis of ['issues', 'work-items']) {
+    const r = await ambil(`/workspaces/${ws}/${jenis}/${key}/?expand=state`)
+    if (r.status === 404) continue
+    if (r.status >= 400) throw new Error(`Plane ${r.status} saat membaca ${key}`)
+    return r.body as Isu
+  }
+  return null
+}
+
 let cache: {
   at: number
   data: { saya: string; project: string; status: StatusPlane[]; tugas: Tugas[] }
@@ -214,19 +229,24 @@ export async function tugasSaya(segarkan = false) {
 
 // ── Satu tiket: ambil, komentar, pindah status (tahap Kerja) ─────────────────────────────
 
+type ProjectPlane = { ws: string; id: string; nama: string; identifier: string }
+/** Daftar project hampir tak berubah: disimpan 10 menit per (url, workspace, project). */
+let cacheProject: { kunci: string; at: number; p: ProjectPlane } | null = null
+const UMUR_PROJECT = 10 * 60_000
+
 /** Project Plane (id + identifier) sesuai PLANE_PROJECT. */
-async function projectPlane(): Promise<{
-  ws: string
-  id: string
-  nama: string
-  identifier: string
-}> {
+async function projectPlane(): Promise<ProjectPlane> {
   if (!planeDikonfigurasi()) throw new Error('Plane belum dikonfigurasi (PLANE_API_KEY di .env)')
   const { workspace: ws, project: identifier } = config.plane
+  const kunci = `${config.plane.url}|${ws}|${identifier}`
+  if (cacheProject?.kunci === kunci && Date.now() - cacheProject.at < UMUR_PROJECT)
+    return cacheProject.p
   const projects = daftar(await wajib(`/workspaces/${ws}/projects/`, 'membaca project'))
   const proj = projects.find((p) => String(p.identifier) === identifier)
   if (!proj) throw new Error(`Project ${identifier} tidak ada di workspace ${ws}`)
-  return { ws, id: String(proj.id), nama: String(proj.name ?? identifier), identifier }
+  const p = { ws, id: String(proj.id), nama: String(proj.name ?? identifier), identifier }
+  cacheProject = { kunci, at: Date.now(), p }
+  return p
 }
 
 export interface TiketPlane {
@@ -248,7 +268,12 @@ export async function ambilTiket(key: string): Promise<TiketPlane> {
   const p = await projectPlane()
   if (m[1] !== p.identifier)
     throw new Error(`Tiket ${key} bukan project ${p.identifier} (PLANE_PROJECT)`)
-  const isu = (await semuaIsu(p.ws, p.id)).find((i) => String(i.sequence_id) === m[2])
+  // Satu permintaan lebih dulu; cadangan ke daftar semua isu bila jalur per-kunci tak ada.
+  const satu = await isuSatu(p.ws, key)
+  const isu =
+    satu && String(satu.sequence_id) === m[2]
+      ? satu
+      : (await semuaIsu(p.ws, p.id)).find((i) => String(i.sequence_id) === m[2])
   if (!isu) throw new Error(`Tiket ${key} tidak ada di Plane`)
   const st = (typeof isu.state === 'object' && isu.state ? isu.state : {}) as Record<
     string,

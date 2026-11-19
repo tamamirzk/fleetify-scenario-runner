@@ -136,13 +136,28 @@ export function aksiKerja(t) {
 export const atributBuka = (t) =>
   `tabindex="0" data-tg-buka="${esc(t.key)}" data-tg-ke="${t.kerja ? 'kerja' : 'laci'}" aria-label="${esc(`${t.key}: ${t.judul} — ${t.kerja ? 'buka kerja' : 'lihat pratinjau'}`)}"`
 
+/**
+ * Kotak centang "pilih untuk diambil" — hanya untuk tiket terbuka yang belum diambil. Beberapa
+ * tiket diambil sekaligus lalu ditempatkan lewat Rencana slot di Workspace.
+ */
+export const centangPilih = (t, dipilih = new Set()) =>
+  t.kerja || t.selesai
+    ? ''
+    : `<label class="tg-pilih" title="Pilih ${esc(t.key)} untuk diambil bersama"><input type="checkbox" data-tg-pilih="${esc(t.key)}"${dipilih.has(t.key) ? ' checked' : ''} aria-label="Pilih ${esc(t.key)}"></label>`
+
+/** Bilah pilihan: muncul bila ada tiket dicentang. */
+export function bilahPilih(n) {
+  if (!n) return ''
+  return `<div class="tg-bilah-pilih" role="region" aria-label="Tiket terpilih"><b>${n} dipilih</b><span class="dim">diambil tanpa slot, lalu ditempatkan lewat Rencana slot di Workspace</span><button type="button" class="btn tb utama-tb" id="tg-ambil-pilih">Ambil terpilih</button><button type="button" class="btn tb" id="tg-batal-pilih">Batal</button></div>`
+}
+
 /** Kartu papan: kunci + prioritas, judul, label, tenggat, skenario tertaut, aksi kerja. */
-export function kartuTugas(t) {
+export function kartuTugas(t, dipilih = new Set()) {
   const label = t.label?.length
     ? `<div class="tg-labels">${t.label.map(chipLabel).join('')}</div>`
     : ''
   return `<article class="tg-kartu tg-buka${t.skenario?.length ? '' : ' tg-belum'}" ${atributBuka(t)}>
-    <div class="tg-kartu-hd">${kunci(t)}${ikonPrioritas(t.prioritas)}</div>
+    <div class="tg-kartu-hd">${centangPilih(t, dipilih)}${kunci(t)}${ikonPrioritas(t.prioritas)}</div>
     <div class="tg-judul">${esc(t.judul)}</div>
     ${label}
     <div class="tg-kartu-kaki">${chipSkenario(t)}${tenggat(t)}</div>
@@ -151,9 +166,9 @@ export function kartuTugas(t) {
 }
 
 /** Baris daftar: prioritas, kunci, judul + label, tenggat, skenario tertaut. */
-export function barisTugas(t) {
+export function barisTugas(t, dipilih = new Set()) {
   return `<li class="tg-baris tg-buka" ${atributBuka(t)}>
-    ${ikonPrioritas(t.prioritas)}
+    ${centangPilih(t, dipilih)}${ikonPrioritas(t.prioritas)}
     ${kunci(t)}
     <div class="tg-teks"><span class="tg-judul">${esc(t.judul)}</span>${t.label?.length ? `<span class="tg-labels">${t.label.map(chipLabel).join('')}</span>` : ''}</div>
     ${tenggat(t)}
@@ -218,25 +233,25 @@ const kepalaKolom = (s, n) =>
   `${ikonStatus(s)}<span class="tg-kol-nama">${esc(s.nama)}</span><span class="tg-kol-n">${n}</span>`
 
 /** Papan: satu kolom per status; kolom kosong diciutkan jadi lajur sempit berjudul tegak (seperti Plane). */
-export function papanTugas(kolom) {
+export function papanTugas(kolom, dipilih = new Set()) {
   if (!kolom.some((k) => k.tugas.length))
     return '<div class="empty">Tidak ada tugas yang cocok dengan saringan.</div>'
   return `<div class="tg-papan" role="list">${kolom
     .map(({ status: s, tugas }) =>
       tugas.length
-        ? `<section class="tg-kolom" role="listitem" aria-label="${esc(s.nama)}, ${tugas.length} tugas"><div class="tg-kol-hd">${kepalaKolom(s, tugas.length)}</div><div class="tg-kol-isi">${tugas.map(kartuTugas).join('')}</div></section>`
+        ? `<section class="tg-kolom" role="listitem" aria-label="${esc(s.nama)}, ${tugas.length} tugas"><div class="tg-kol-hd">${kepalaKolom(s, tugas.length)}</div><div class="tg-kol-isi">${tugas.map((t) => kartuTugas(t, dipilih)).join('')}</div></section>`
         : `<section class="tg-kolom tg-kolom-ciut" role="listitem" aria-label="${esc(s.nama)}, kosong" title="${esc(s.nama)} · kosong"><div class="tg-kol-hd">${kepalaKolom(s, 0)}</div></section>`,
     )
     .join('')}</div>`
 }
 
-export function daftarTugas(kolom) {
+export function daftarTugas(kolom, dipilih = new Set()) {
   const isi = kolom.filter((k) => k.tugas.length)
   if (!isi.length) return '<div class="empty">Tidak ada tugas yang cocok dengan saringan.</div>'
   return isi
     .map(
       ({ status: s, tugas }) =>
-        `<section class="tg-grup" aria-label="${esc(s.nama)}"><div class="tg-grup-hd">${kepalaKolom(s, tugas.length)}</div><ul class="tg-list">${tugas.map(barisTugas).join('')}</ul></section>`,
+        `<section class="tg-grup" aria-label="${esc(s.nama)}"><div class="tg-grup-hd">${kepalaKolom(s, tugas.length)}</div><ul class="tg-list">${tugas.map((t) => barisTugas(t, dipilih)).join('')}</ul></section>`,
     )
     .join('')
 }
@@ -249,11 +264,18 @@ const laciDari = (semua, status, laci) => {
 /**
  * Isi halaman Tugas saya.
  * @param {{ dikonfigurasi: boolean, saya?: string, project?: string, status?: any[], tugas?: any[], lokal?: any[] } | null} data
- * @param {{ galat?: string | null, memuat?: boolean, tampilan?: 'papan' | 'daftar', saring?: { skenario?: string, selesai?: boolean }, laci?: { key: string, memuat?: boolean, galat?: string | null, data?: any } | null }} o
+ * @param {{ galat?: string | null, memuat?: boolean, tampilan?: 'papan' | 'daftar', saring?: { skenario?: string, selesai?: boolean }, laci?: { key: string, memuat?: boolean, galat?: string | null, data?: any } | null, dipilih?: Set<string> }} o
  */
 export function halamanTugas(
   data,
-  { galat = null, memuat = false, tampilan = 'papan', saring = {}, laci = null } = {},
+  {
+    galat = null,
+    memuat = false,
+    tampilan = 'papan',
+    saring = {},
+    laci = null,
+    dipilih = new Set(),
+  } = {},
 ) {
   const kepala = (ctx, extra = '') =>
     `<div class="titlerow"><div class="titlebox"><div class="ctx">${ctx}</div><h1>Tugas saya</h1></div>${extra}</div>`
@@ -295,6 +317,7 @@ export function halamanTugas(
       <span class="tg-jumlah dim">${tampil.length} tugas</span>
       <button type="button" class="btn tb" id="tg-segarkan">Segarkan</button>
     </div>
+    ${bilahPilih(dipilih.size)}
     ${bagianLokal(data.lokal)}
-    ${tampilan === 'daftar' ? daftarTugas(kolom) : papanTugas(kolom)}${laciDari(semua, data.status, laci)}`
+    ${tampilan === 'daftar' ? daftarTugas(kolom, dipilih) : papanTugas(kolom, dipilih)}${laciDari(semua, data.status, laci)}`
 }

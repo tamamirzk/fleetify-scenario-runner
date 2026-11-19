@@ -8689,3 +8689,39 @@ details.kj-tiket > summary h2 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Tugas saya: pilih beberapa tiket untuk diambil sekaligus. */
+.tg-pilih {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  cursor: pointer;
+}
+.tg-pilih input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--sr-primary-bg);
+}
+.tg-bilah-pilih {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--sr-line);
+  border-radius: 12px;
+  background: var(--sr-glass-solid);
+}
+.tg-bilah-pilih .dim {
+  flex: 1 1 260px;
+}
+/* Kotak centang + kunci tetap berdempet di kiri; prioritas tetap di kanan. */
+.tg-kartu-hd .tg-pilih + .tg-kunci {
+  margin-right: auto;
+}
