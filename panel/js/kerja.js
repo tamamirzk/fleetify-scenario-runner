@@ -239,7 +239,8 @@ const hitungCek = (k) => {
 const LABEL_REL = { lulus: 'bukti lengkap', gagal: 'gagal', menunggu: 'belum lengkap' }
 /** Rel bernomor (pola rel laporan): butir {no, label, status, judul}; status = kelas s-*. */
 export function relKerja(butir, pilih, atribut = 'data-kj-pilih') {
-  if (!butir.length) return '<ol class="rel" aria-label="Kosong"></ol>'
+  // Tanpa butir: tidak ada rel sama sekali (dulu <ol> kosong tampil sebagai pil kosong di kiri tab).
+  if (!butir.length) return ''
   return `<ol class="rel" aria-label="Pilihan">${butir
     .map(
       (b) =>
@@ -265,11 +266,17 @@ function statusQuery(q) {
 const JAM = (iso) =>
   iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''
 
+/** Kerja lokal = tanpa tiket Plane (BUG-n / REQ-n / FMS-0 lama): tidak ada yang dicek atau ditulis ke Plane. */
+export const kerjaLokal = (d) =>
+  d?.plane?.lokal === true || (d?.kerja?.plane?.status === 'Tanpa Plane' && !d?.kerja?.url)
+
 /**
  * Status Plane selalu dengan jam cek (§6.1). Belum segar: miring + "?" + jam cache, tidak pernah
  * tampil seperti fakta. `cek`: 'memeriksa' | 'gagal' | null. `chip` = bentuk chip (bilah tahap).
  */
 export function statusPlane(d, cek = null, { chip = false } = {}) {
+  if (kerjaLokal(d))
+    return chip ? '<span class="chip">Tanpa tiket Plane</span>' : 'Tanpa tiket Plane'
   const s = esc(d.kerja.plane.status)
   const jam = d.plane?.dicek ? JAM(d.plane.dicek) : ''
   if (d.plane?.segar)
@@ -288,9 +295,15 @@ export function statusPlane(d, cek = null, { chip = false } = {}) {
     : `<i>Plane: ${s}?</i> · ${cache}`
 }
 
-const tombolBar = (mati = false) => {
+/** Tebakan dari kunci saat data belum ada (bar memuat/gagal): BUG-n, REQ-n, FMS-0 lama. */
+const kunciLokal = (kunci) => /^(BUG|REQ)-\d+$|^FMS-0$/.test(String(kunci ?? ''))
+
+const tombolBar = (mati = false, lokal = false) => {
   const m = mati ? ' disabled' : ''
-  return `<div class="bar-end kj-bar-aksi"><button type="button" class="btn tb" id="kj-komentar"${m}>Komentar Plane…</button><button type="button" class="btn tb" id="kj-status"${m}>Status Plane…</button><button type="button" class="btn tb utama-tb" id="kj-salin"${m}>Salin perintah AI</button></div>`
+  const plane = lokal
+    ? ''
+    : `<button type="button" class="btn tb" id="kj-komentar"${m}>Komentar Plane…</button><button type="button" class="btn tb" id="kj-status"${m}>Status Plane…</button>`
+  return `<div class="bar-end kj-bar-aksi">${plane}<button type="button" class="btn tb utama-tb" id="kj-salin"${m}>Salin perintah AI</button></div>`
 }
 
 /** Bar atas: kembali, judul, sub-judul (Plane + jam cek · tahap · kriteria), aksi Plane. */
@@ -301,8 +314,8 @@ export function barKerja(d, { kembali = '‹', cekPlane = null } = {}) {
     ? `<b class="bad-t">× ${c.gagal} kriteria gagal · ${c.lulus}/${c.total} lulus</b>`
     : `<b class="${c.total && c.lulus === c.total ? 'ok-t' : ''}">${c.total && c.lulus === c.total ? '✓ ' : ''}kriteria ${c.lulus}/${c.total} lulus</b>`
   return `<a class="btn icon kj-kembali" href="#/tugas" aria-label="Kembali ke Tugas saya" title="Tugas saya">${kembali}</a>
-    <div class="bar-title kj-bar-judul"><b><em class="kj-awal">Kerja</em> · <a href="${esc(k.url)}" target="_blank" rel="noopener">${esc(k.key)}</a> · ${esc(k.judul)}</b><span class="kj-sub" role="status">${statusPlane(d, cekPlane)} · ${esc(LABEL_TAHAP[k.tahap] ?? k.tahap)} · ${kriteria}</span></div>
-    ${tombolBar()}`
+    <div class="bar-title kj-bar-judul"><b><em class="kj-awal">Kerja</em> · ${kerjaLokal(d) ? `<code class="kj-kunci-lokal">${esc(k.key)}</code>` : `<a href="${esc(k.url)}" target="_blank" rel="noopener">${esc(k.key)}</a>`} · ${esc(k.judul)}</b><span class="kj-sub" role="status">${statusPlane(d, cekPlane)} · ${esc(LABEL_TAHAP[k.tahap] ?? k.tahap)} · ${kriteria}</span></div>
+    ${tombolBar(false, kerjaLokal(d))}`
 }
 
 /** Bar + kerangka (skeleton) saat data kerja belum datang. */
@@ -321,7 +334,7 @@ function kerjaMemuat(kunci, kembali) {
   return {
     bar: `<a class="btn icon kj-kembali" href="#/tugas" aria-label="Kembali ke Tugas saya" title="Tugas saya">${kembali}</a>
       <div class="bar-title kj-bar-judul"><b><em class="kj-awal">Kerja</em>${kunci ? ` · ${esc(kunci)}` : ''}</b><span class="kj-sub" role="status"><span class="putar kecil" aria-hidden="true"></span>Memuat kerja…</span></div>
-      ${tombolBar(true)}`,
+      ${tombolBar(true, kunciLokal(kunci))}`,
     view: `<div class="kj-halaman kj-memuat" aria-hidden="true">
       <div class="kj-ringkas">
         <div class="kartu glass kj-skel-bilah"><span class="kj-skel-atas">${s('80px', 10)}${s('150px', 20, 999)}</span><span class="kj-skel-langkah-baris">${langkah}</span></div>
@@ -338,7 +351,7 @@ function kerjaGagal(kunci, galat, kembali) {
   return {
     bar: `<a class="btn icon kj-kembali" href="#/tugas" aria-label="Kembali ke Tugas saya" title="Tugas saya">${kembali}</a>
       <div class="bar-title kj-bar-judul"><b><em class="kj-awal">Kerja</em>${kunci ? ` · ${esc(kunci)}` : ''}</b><span class="kj-sub"><span class="bad-t">× Gagal dimuat</span></span></div>
-      ${tombolBar(true)}`,
+      ${tombolBar(true, kunciLokal(kunci))}`,
     view: `<div class="kj-gagal-wadah"><div class="glass kj-gagal" role="alert">
       <span class="kj-gagal-ikon" aria-hidden="true">×</span>
       <div class="kj-gagal-isi"><h2>Kerja ${esc(kunci ?? '')} tidak bisa dimuat</h2>
@@ -921,10 +934,14 @@ export function paketReview(d, kode = null) {
 /** Kartu Tugas di Plane: deskripsi tiket apa adanya, dipotong 170 px dengan buka/tutup. */
 function kartuTugas(d, buka) {
   const k = d.kerja
+  const lokal = kerjaLokal(d)
   const ref = refTiket(d.tiket)
   const isi = tiketTanpaKepala(d.tiket)
-  return `<article class="kartu glass kj-ring-kartu"><div class="kj-ring-hd"><h2>Tugas di Plane</h2>${ref ? `<span class="dim kj-ring-ket">${esc(ref)}</span>` : ''}<a class="btn tb kj-kecil" href="${esc(k.url)}" target="_blank" rel="noopener">Buka di Plane ↗</a></div>
-    ${isi ? lipat('tiket', 'tiket', mdRingan(isi), 170, buka.has('tiket')) : '<p class="dim">Deskripsi tiket belum disalin. Jalankan <code>bun run kerja ambil</code> untuk menyalin ulang.</p>'}</article>`
+  const kosong = lokal
+    ? '<p class="dim">Belum ada deskripsi di <code>tiket.md</code>.</p>'
+    : '<p class="dim">Deskripsi tiket belum disalin. Jalankan <code>bun run kerja ambil</code> untuk menyalin ulang.</p>'
+  return `<article class="kartu glass kj-ring-kartu"><div class="kj-ring-hd"><h2>${lokal ? 'Tugas (tanpa Plane)' : 'Tugas di Plane'}</h2>${ref ? `<span class="dim kj-ring-ket">${esc(ref)}</span>` : ''}${lokal ? '' : `<a class="btn tb kj-kecil" href="${esc(k.url)}" target="_blank" rel="noopener">Buka di Plane ↗</a>`}</div>
+    ${isi ? lipat('tiket', 'tiket', mdRingan(isi), 170, buka.has('tiket')) : kosong}</article>`
 }
 
 /** Kartu Yang dilakukan: poin dari commit (atau riwayat), keputusan terbuka, lalu catatan kerja. */
@@ -1057,7 +1074,9 @@ export function tombolButuh(b) {
       ? `data-kj-fase="${esc(a.fase)}"`
       : a.jenis === 'terminal'
         ? 'data-kj-terminal'
-        : 'data-kj-ke-keputusan'
+        : a.jenis === 'tahap'
+          ? `data-kj-tandai-selesai="${esc(a.tahap)}"`
+          : 'data-kj-ke-keputusan'
   return `<button type="button" class="btn tb utama-tb" ${attr}>${esc(a.label)}</button>`
 }
 
@@ -1162,7 +1181,7 @@ export function ringkasanKerja(
  * @param {any} d hasil /api/kerja/<KEY>
  * `kunci` = kunci dari rute (bar saat memuat/gagal); `cekPlane` = 'memeriksa' | 'gagal' | null;
  * `kabar` = HTML pil kabar sesudah aksi (mis. komentar terkirim).
- * @param {{ tab?: string, pilih?: number, mode?: string, galat?: string | null, sibuk?: string | null, kode?: any, kodeGalat?: string | null, kembali?: string, buka?: Set<string>, sinkron?: boolean, kunci?: string, cekPlane?: string | null, kabar?: string | null }} [o]
+ * @param {{ tab?: string, pilih?: number, mode?: string, galat?: string | null, sibuk?: string | null, kode?: any, kodeGalat?: string | null, kembali?: string, buka?: Set<string>, sinkron?: boolean, kunci?: string, cekPlane?: string | null, kabar?: string | null, sesi?: any, modeSesi?: string, serah?: any }} [o]
  */
 export function laporanKerja(d, o = {}) {
   const tab = TAB_KERJA.some(([id]) => id === o.tab) ? o.tab : 'layar'

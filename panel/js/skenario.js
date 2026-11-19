@@ -292,18 +292,33 @@ function bagSumberTugas(tutup, plane = null) {
 const hostDari = (u) => String(u ?? '').replace(/^https?:\/\//, '')
 
 /**
+ * Baris ringkas slot kerja: "Slot 1 :5181 · Slot 2 :5182 · Slot 3 :5183 (chat)", tiap slot bertanda
+ * hidup/mati (teks + titik, bukan warna saja). `slot` = [{ n, portWeb, api, web, chat }].
+ */
+export function ringkasSlot(slot) {
+  if (!slot?.length) return '<div class="sb-slot" hidden></div>'
+  const satu = (s) => {
+    const hidup = !!(s.api || s.web)
+    return `<li title="Slot ${s.n}${s.chat ? ' (chat)' : ''}: server ${hidup ? 'hidup' : 'mati'}"><span class="${hidup ? 'ok-t' : 'dim'}" aria-hidden="true">${hidup ? '●' : '○'}</span> Slot ${s.n} <span class="mono">:${esc(s.portWeb)}</span>${s.chat ? ' <span class="dim">(chat)</span>' : ''} <span class="${hidup ? 'ok-t' : 'dim'}">${hidup ? 'hidup' : 'mati'}</span></li>`
+  }
+  return `<div class="sb-slot"><span class="sb-sub">Slot kerja (server web)</span><ul class="plain sb-lapis">${slot.map(satu).join('')}</ul></div>`
+}
+
+/**
  * Bagian bawah sidebar: Sasaran (server v2 lokal + tenant persona, tidak bisa diganti dari panel — alat ini
  * hanya menerima localhost), status lapisan Pemeriksaan, Sumber tugas (redup). Satu kisi rata kiri.
- * @param {{ web?: string, tenant?: string, db?: boolean, ui?: boolean } | null} info
+ * @param {{ web?: string, tenant?: string, db?: boolean, ui?: boolean, plane?: any, slot?: any[] | null } | null} info
  */
 export function sidebarBawah(info = null, tutup = new Set()) {
   const buka = terbuka(tutup, 'sasaran')
   const lapis = (ok, nama, ket) =>
     `<li class="${ok ? 'ok-t' : 'dim'}" title="${esc(ket)}"><span aria-hidden="true">${ok ? '✓' : '○'}</span> ${nama}${ok ? '' : ' · tidak dikonfigurasi'}</li>`
   const isi = info
-    ? `<div class="sb-baris sb-sasaran"><span class="sb-sasaran-host" title="${esc(info.web ?? '')}">${esc(hostDari(info.web))}</span><span class="chip">tenant ${esc(info.tenant ?? '?')}</span></div>
-      <ul class="plain sb-lapis">${lapis(!!info.db, 'Pemeriksaan DB', 'V2_DATABASE_URL / V2_BACKEND_DIR di .env')}${lapis(!!info.ui, 'Pemeriksaan UI', 'V2_DIR di .env (check:design)')}</ul>
-      <div class="sb-status dim">Hanya server v2 lokal; diatur di .env.</div>`
+    ? `<div class="sb-sub">Server skenario</div>
+      <div class="sb-baris sb-sasaran"><span class="sb-sasaran-host" title="${esc(info.web ?? '')}">${esc(hostDari(info.web))}</span><span class="chip">tenant ${esc(info.tenant ?? '?')}</span></div>
+      <div class="sb-status dim">Tempat skenario dijalankan; hanya server v2 lokal, diatur di .env.</div>
+      ${ringkasSlot(info.slot)}
+      <ul class="plain sb-lapis">${lapis(!!info.db, 'Pemeriksaan DB', 'V2_DATABASE_URL / V2_BACKEND_DIR di .env')}${lapis(!!info.ui, 'Pemeriksaan UI', 'V2_DIR di .env (check:design)')}</ul>`
     : '<div class="sb-status dim">Memuat…</div>'
   return `<div class="sb-bawah" id="sb-bawah-modul">
     <section class="sb-bag" aria-labelledby="sb-h-sasaran">${tombolGrup('sasaran', buka, '<span class="sb-judul" id="sb-h-sasaran">Sasaran</span>', 'sb-bag-hd', 'Sasaran')}

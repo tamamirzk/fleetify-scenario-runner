@@ -14,6 +14,7 @@ import { config, ROOT } from './config.ts'
 import { type HasilGerbang, jalankanGerbang } from './gerbang.ts'
 import {
   adaKerja,
+  adalahKerjaLokal,
   bacaBerkasKerja,
   bacaKerja,
   daftarKerja,
@@ -587,7 +588,7 @@ export function periksaMergeSemua(): string[] {
     const k2 = pindahTahap(
       { ...k, merge: { at: new Date().toISOString(), head: k.push.head } },
       k.tahap,
-      `MR di-merge ke development (${k.push.head.slice(0, 8)}): tugas Tams tinggal Plane Code Complete`,
+      `MR di-merge ke development (${k.push.head.slice(0, 8)}): ${adalahKerjaLokal(k) ? 'tugas Tams tinggal menandai selesai' : 'tugas Tams tinggal Plane Code Complete'}`,
     )
     simpanKerja(k2)
     baru.push(k.key)

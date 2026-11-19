@@ -63,7 +63,7 @@ export function kartuSlot(s) {
   const server = (nama, port, hidup) =>
     `<span>${esc(nama)} <span class="mono">:${port}</span> ${hidup ? '<span class="ok-t">● hidup</span>' : '<span class="dim">○ mati</span>'}</span>`
   const hidup = s.api || s.web
-  return `<article class="db-panel ws-slot" aria-labelledby="ws-slot-${s.n}"><h2 id="ws-slot-${s.n}" class="ws-slot-h">Slot ${s.n}${s.diam ? ' <span class="chip">diam</span>' : ''}</h2>
+  return `<article class="db-panel ws-slot" aria-labelledby="ws-slot-${s.n}"><h2 id="ws-slot-${s.n}" class="ws-slot-h">Slot ${s.n}${s.chat ? ' <span class="chip" title="Slot tetap untuk kerja tanpa tiket (bug/permintaan dari chat)">chat</span>' : ''}${s.diam ? ' <span class="chip">diam</span>' : ''}</h2>
     ${s.ada ? '' : `<p class="bad-t">× worktree ${esc(s.worktree)} belum ada</p>`}
     <div class="ws-pemakai">${isi}</div>${sesi ? `<div class="ws-sesi">${sesi}</div>` : ''}
     <dl class="ws-dl"><dt>Git</dt><dd><span class="mono">${esc(s.branch ?? `detached ${s.head ?? '-'}`)}</span>${s.bersih ? '' : ' <span class="warn-t">! ada perubahan</span>'}</dd>

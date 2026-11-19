@@ -6484,6 +6484,12 @@ details.kj-tiket > summary h2 {
   text-decoration-color: var(--sr-text-2);
   text-underline-offset: 3px;
 }
+/* Kunci kerja lokal (tanpa tautan Plane): <code>, bukan <span> — `.bar-title span` = block. */
+.kj-kunci-lokal {
+  font-family: var(--mono);
+  font-size: inherit;
+  font-weight: inherit;
+}
 .kj-awal {
   font-style: normal;
   font-weight: 500;
@@ -8083,6 +8089,7 @@ details.kj-tiket > summary h2 {
 /* Dashboard tindakan (R-9.1): strip mini, tiga lajur, angka tindakan */
 .db-strip {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 20px;
@@ -8216,4 +8223,216 @@ details.kj-tiket > summary h2 {
 }
 .db-metrik .kanan {
   text-align: right;
+}
+
+/* Tugas saya: kartu/baris bisa diklik seluruhnya + laci pratinjau */
+.tg-buka {
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background-color 0.12s,
+    box-shadow 0.12s;
+}
+.tg-kartu.tg-buka:hover {
+  border-color: var(--sr-line-strong);
+  background: var(--sr-fill-1);
+}
+.tg-buka:focus-visible {
+  outline: 2px solid var(--sr-info-text);
+  outline-offset: 2px;
+}
+.tg-baris.tg-buka:focus-visible {
+  outline-offset: -2px;
+}
+/* Tombol Ambil dan chip tahap: tinggi dan baris sama, sejajar di kanan kartu */
+.tg-kartu-aksi .tg-ambil,
+.tg-kartu-aksi .tg-tahap,
+.tg-baris-aksi .tg-ambil,
+.tg-baris-aksi .tg-tahap {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--sr-radius-pill);
+  font-size: var(--sr-text-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+.tg-kartu-aksi .tg-ambil,
+.tg-baris-aksi .tg-ambil {
+  border-color: var(--sr-line-strong);
+}
+.tg-slot {
+  font-size: var(--sr-text-xs);
+  color: var(--sr-text-2);
+}
+.tg-lokal {
+  margin: 0 0 18px;
+}
+.tg-lokal-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.tg-lokal-hd h2 {
+  font-size: var(--sr-text-md, 15px);
+  margin: 0;
+}
+.tg-lokal-isi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+.tg-laci-latar {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 40;
+}
+.tg-laci {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(460px, 100vw);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 20px;
+  overflow-y: auto;
+  background: var(--sr-bg);
+  border-left: 1px solid var(--sr-line-strong);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.28);
+}
+.tg-laci-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tg-laci-judul {
+  font-size: var(--sr-text-lg);
+  line-height: 1.35;
+  margin: 0;
+}
+.tg-laci-h3 {
+  font-size: var(--sr-text-sm);
+  color: var(--sr-text-2);
+  margin: 4px 0 0;
+}
+.tg-laci-meta {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  align-items: center;
+  font-size: var(--sr-text-sm);
+}
+.tg-laci-meta dt {
+  color: var(--sr-text-2);
+}
+.tg-laci-meta dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tg-desk {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--sr-text-sm);
+  line-height: 1.55;
+}
+.tg-laci-muat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sr-text-2);
+}
+.tg-laci-aksi {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sr-line);
+}
+.tg-laci-aksi .tg-ambil,
+.tg-laci-aksi .tg-tahap {
+  height: 36px;
+  font-size: 13px;
+}
+
+/* Dashboard: kerangka pemuatan */
+.db-skel-butir {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  list-style: none;
+}
+.db-memuat .db-lajur-kolom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.db-memuat .db-angka {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db-memuat .db-strip {
+  min-height: 46px;
+}
+
+/* Sidebar: ringkasan Sasaran dan slot */
+.sb-sub {
+  font-size: var(--sr-text-xs);
+  font-weight: 600;
+  color: var(--sr-text-2);
+  letter-spacing: 0.02em;
+}
+.sb-slot {
+  margin-top: 8px;
+}
+.sb-slot[hidden] {
+  display: none;
+}
+
+/* Sidebar: latar kolom setinggi halaman. .sb menempel (sticky, setinggi layar); ::before memberi
+   latar dan garis pembatas yang sama sepanjang kolom, sehingga halaman panjang tak menyisakan
+   kolom kosong di bawah sidebar. Hanya desktop; di ponsel sidebar berupa laci. */
+@media (min-width: 901px) {
+  .app::before {
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    background: var(--sr-sidebar);
+    border-right: 1px solid var(--sr-line);
+  }
+  .app > .sb {
+    grid-column: 1;
+    grid-row: 1;
+    background: transparent;
+    border-right: 0;
+  }
+  .app > .app-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+/* Laporan Kerja: tanpa butir, rel tidak dilukis (kolomnya tetap ada supaya panggung tidak bergeser). */
+.kj-rel:empty {
+  visibility: hidden;
+}
+/* Kerangka Dashboard: baris butir tidak boleh melebihi kolomnya */
+.db-skel-butir > .skel:nth-child(2) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.tg-laci-meta .tg-skenario {
+  justify-content: flex-start;
 }

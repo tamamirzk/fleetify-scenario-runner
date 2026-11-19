@@ -14,6 +14,7 @@ import { bacaTemuan, susunDasbor, type TugasRingkas } from './core/dasbor.ts'
 import { jumpSources, lastResult, listRuns, readRun } from './core/history.ts'
 import {
   adaKerja,
+  adalahKerjaLokal,
   bacaBerkasKerja,
   bacaKerja,
   bedaBaris,
@@ -63,6 +64,7 @@ import { susunDataLaporan } from './core/laporan-data.ts'
 import { closeSharedBrowser } from './core/lib.ts'
 import { personaName } from './core/personas.ts'
 import { planeDikonfigurasi, tugasSaya, tugasSayaTersimpan, waktuTugasSaya } from './core/plane.ts'
+import { pratinjauTiket } from './core/pratinjau.ts'
 import { modulProject, PROJECTS, statusSkenario } from './core/project.ts'
 import {
   bacaRetensi,
@@ -102,7 +104,9 @@ import {
   type NomorSlot,
   nyalakanSlot,
   PG_SLOT,
+  portSlotHidup,
   resetDbSlot,
+  SLOT_CHAT,
   semuaSlot,
 } from './core/slot.ts'
 import {
@@ -485,7 +489,11 @@ const denganStatusTerkini = (k: Kerja, status: Map<string, string>): Kerja => {
 }
 
 async function detailKerja(key: string) {
-  const { status, segar } = await statusPlaneTerkini()
+  // Kerja lokal (tanpa tiket Plane) tidak pernah memanggil Plane.
+  const lokal = adalahKerjaLokal(bacaKerja(key))
+  const { status, segar } = lokal
+    ? { status: new Map<string, string>(), segar: false }
+    : await statusPlaneTerkini()
   const k = denganStatusTerkini(bacaKerja(key), status)
   const baca = (fase: Fase, file: string | null) => {
     if (!file) return null
@@ -537,7 +545,9 @@ async function detailKerja(key: string) {
       akhir: periksaCatatanKerja(key, 'akhir'),
     }),
     // Kapan status Plane terakhir dicek; segar = status di atas datang dari Plane, bukan salinan.
-    plane: { dicek: waktuTugasSaya(), segar: segar && status.has(key) },
+    plane: lokal
+      ? { lokal: true, dicek: null, segar: false }
+      : { dicek: waktuTugasSaya(), segar: segar && status.has(key) },
     db,
     komentar: komentarHtml(k),
   }
@@ -597,6 +607,7 @@ async function susunWorkspace() {
     return {
       ...k,
       pemakai: p,
+      chat: d.n === SLOT_CHAT,
       sesi: sesi ?? null,
       diam: (k.api || k.web) && sesi?.status !== 'bekerja',
     }
@@ -663,6 +674,8 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
   }
   if (req.method !== 'POST') throw new HttpError(405, 'Metode tidak didukung')
   if (aksi === 'ambil') {
+    if (adaKerja(key) && adalahKerjaLokal(bacaKerja(key)))
+      throw new HttpError(400, `${key} kerja lokal (tanpa tiket Plane): tidak ada yang diambil`)
     if (!planeDikonfigurasi()) throw new HttpError(400, 'Plane belum dikonfigurasi')
     try {
       await ambilKerja(key)
@@ -836,6 +849,11 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
   if (aksi === 'plane') {
     // Menulis ke Plane terlihat tim: panel mengirim konfirmasi: true hanya dari dialog yang disetujui.
     if (body.konfirmasi !== true) throw new HttpError(400, 'Butuh konfirmasi pengguna')
+    if (adalahKerjaLokal(bacaKerja(key)))
+      throw new HttpError(
+        400,
+        `${key} kerja lokal (tanpa tiket Plane): tidak ada yang ditulis ke Plane`,
+      )
     try {
       if (body.jenis === 'komentar') await komentarKePlane(key, String(body.catatan ?? ''))
       else if (body.jenis === 'status') await statusKePlane(key, String(body.status ?? ''))
@@ -847,6 +865,13 @@ async function rutekerja(req: IncomingMessage, key: string, aksi: string | null)
     return detailKerja(key)
   }
   throw new HttpError(404, 'Aksi kerja tidak dikenal')
+}
+
+/** Kerja lokal yang belum selesai, untuk bagian "Kerja lokal" di Tugas saya. */
+function kerjaLokalAktif() {
+  return daftarKerja()
+    .filter((k) => adalahKerjaLokal(k) && k.tahap !== 'selesai')
+    .map((k) => ({ key: k.key, judul: k.judul, tahap: k.tahap, slot: k.slot ?? null }))
 }
 
 type Handler = (body: Record<string, unknown>, url: URL) => Promise<unknown>
@@ -881,7 +906,7 @@ const routes: Record<string, Handler> = {
   },
   /** Tugas saya dari Plane, tiap tugas dengan skenario yang menautkan tiketnya. ?segarkan=1 lewati cache. */
   'GET /api/tugas': async (_b, url) => {
-    if (!planeDikonfigurasi()) return { dikonfigurasi: false, tugas: [] }
+    if (!planeDikonfigurasi()) return { dikonfigurasi: false, tugas: [], lokal: kerjaLokalAktif() }
     const semua = bacaSemua()
     let hasil: Awaited<ReturnType<typeof tugasSaya>>
     try {
@@ -893,6 +918,8 @@ const routes: Record<string, Handler> = {
     return {
       dikonfigurasi: true,
       ...hasil,
+      // Kerja tanpa tiket Plane (BUG/REQ/FMS-0) yang belum selesai; kartunya menaut ke halaman Kerja.
+      lokal: kerjaLokalAktif(),
       tugas: hasil.tugas.map((t) => ({
         ...t,
         // Tahap Kerja bila tiket sudah diambil (panel menampilkan chip tahap, bukan tombol Ambil).
@@ -910,6 +937,15 @@ const routes: Record<string, Handler> = {
   },
   'GET /api/kerja': async () => ({ kerja: daftarKerja() }),
   'GET /api/workspace': async () => susunWorkspace(),
+  /** Ringkasan slot (hidup/mati server web+API) untuk sidebar; hanya cek port, tanpa git/psql. */
+  'GET /api/slot-ringkas': async () => ({
+    slot: semuaSlot().map((d) => ({
+      n: d.n,
+      portWeb: d.portWeb,
+      ...portSlotHidup(d),
+      chat: d.n === SLOT_CHAT,
+    })),
+  }),
   /** Dasbor operasional: tugas Plane (cache), kerja, jalan, skenario, temuan, aktivitas. */
   'GET /api/dasbor': async () => {
     let tugas: TugasRingkas[] | null = null
@@ -973,11 +1009,20 @@ const routes: Record<string, Handler> = {
     // Strip mini: slot (pemakai, server, sesi) dan ringkasan komputer (R-9.1, R-7.9).
     const pemakai = pemakaiSlot()
     const slotMini = semuaSlot().map((d) => {
-      const k = keadaanSlot(d)
+      // Strip hanya butuh hidup/mati server: portSlotHidup melewati git status dan psql keadaanSlot
+      // (±0,7 dtk untuk 3 slot) dengan hasil yang sama untuk api/web.
+      const k = portSlotHidup(d)
       const p = pemakai.get(d.n) ?? []
       const sesi =
         p.map((x) => semuaKerja.find((y) => y.key === x.key)?.sesi?.status).find(Boolean) ?? null
-      return { n: d.n, pemakai: p.map((x) => x.key), api: k.api, web: k.web, sesi }
+      return {
+        n: d.n,
+        pemakai: p.map((x) => x.key),
+        api: k.api,
+        web: k.web,
+        sesi,
+        chat: d.n === SLOT_CHAT,
+      }
     })
     const km = bacaKomputer(semuaSlot().map((d) => [`Slot ${d.n}`, d.worktree]))
     const angka = {
@@ -1221,6 +1266,19 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   }
   const ms = url.pathname.match(/^\/api\/slot\/(\d)\/([a-z]+)$/)
   if (ms?.[1] && ms[2]) return send(res, 200, await ruteSlot(req, Number(ms[1]), ms[2]))
+  const mp = url.pathname.match(/^\/api\/tugas\/([A-Z]+-\d+)\/pratinjau$/)
+  if (req.method === 'GET' && mp?.[1]) {
+    if (!planeDikonfigurasi()) throw new HttpError(400, 'Plane belum dikonfigurasi')
+    try {
+      return send(
+        res,
+        200,
+        await pratinjauTiket(mp[1], { segarkan: url.searchParams.get('segarkan') === '1' }),
+      )
+    } catch (e) {
+      throw new HttpError(502, (e as Error).message)
+    }
+  }
   const mk = url.pathname.match(/^\/api\/kerja\/([A-Z]+-\d+)(?:\/([a-z]+))?$/)
   if (mk?.[1]) return send(res, 200, await rutekerja(req, mk[1], mk[2] ?? null))
   let m = url.pathname.match(/^\/api\/scenarios\/([a-z0-9-]+)$/)

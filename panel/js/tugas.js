@@ -128,12 +128,20 @@ export function aksiKerja(t) {
     : `<button type="button" class="btn tb tg-ambil" data-tg-ambil="${esc(t.key)}" title="Mulai monitoring: salin tiket dari Plane ke kerja/${esc(t.key)}/">Ambil</button>`
 }
 
+/**
+ * Atribut kartu/baris yang bisa diklik seluruhnya: bisa difokus (Enter membuka). Tiket yang sudah
+ * diambil membuka halaman Kerja; yang belum membuka laci pratinjau. Elemen interaktif di dalamnya
+ * (kunci, chip, tombol) menjalankan aksinya sendiri — pemanggil mengabaikan klik yang berasal dari sana.
+ */
+export const atributBuka = (t) =>
+  `tabindex="0" data-tg-buka="${esc(t.key)}" data-tg-ke="${t.kerja ? 'kerja' : 'laci'}" aria-label="${esc(`${t.key}: ${t.judul} — ${t.kerja ? 'buka kerja' : 'lihat pratinjau'}`)}"`
+
 /** Kartu papan: kunci + prioritas, judul, label, tenggat, skenario tertaut, aksi kerja. */
 export function kartuTugas(t) {
   const label = t.label?.length
     ? `<div class="tg-labels">${t.label.map(chipLabel).join('')}</div>`
     : ''
-  return `<article class="tg-kartu${t.skenario?.length ? '' : ' tg-belum'}">
+  return `<article class="tg-kartu tg-buka${t.skenario?.length ? '' : ' tg-belum'}" ${atributBuka(t)}>
     <div class="tg-kartu-hd">${kunci(t)}${ikonPrioritas(t.prioritas)}</div>
     <div class="tg-judul">${esc(t.judul)}</div>
     ${label}
@@ -144,7 +152,7 @@ export function kartuTugas(t) {
 
 /** Baris daftar: prioritas, kunci, judul + label, tenggat, skenario tertaut. */
 export function barisTugas(t) {
-  return `<li class="tg-baris">
+  return `<li class="tg-baris tg-buka" ${atributBuka(t)}>
     ${ikonPrioritas(t.prioritas)}
     ${kunci(t)}
     <div class="tg-teks"><span class="tg-judul">${esc(t.judul)}</span>${t.label?.length ? `<span class="tg-labels">${t.label.map(chipLabel).join('')}</span>` : ''}</div>
@@ -152,6 +160,58 @@ export function barisTugas(t) {
     <div class="tg-skenario">${chipSkenario(t)}</div>
     <div class="tg-baris-aksi">${aksiKerja(t)}</div>
   </li>`
+}
+
+const LABEL_SLOT = (n) => (n ? `Slot ${n}` : '')
+
+/** Kartu kerja lokal (tanpa tiket Plane): seluruh kartu menaut ke halaman Kerja. */
+export function kartuLokal(k) {
+  const slot = k.slot ? `<span class="tg-slot">${esc(LABEL_SLOT(k.slot))}</span>` : ''
+  return `<article class="tg-kartu tg-buka tg-lokal-kartu" tabindex="0" data-tg-buka="${esc(k.key)}" data-tg-ke="kerja" aria-label="${esc(`${k.key}: ${k.judul} — buka kerja`)}">
+    <div class="tg-kartu-hd"><a class="tg-kunci" href="#/kerja/${esc(k.key)}" title="Buka kerja ${esc(k.key)}">${esc(k.key)}</a>${slot}</div>
+    <div class="tg-judul">${esc(k.judul)}</div>
+    <div class="tg-kartu-aksi"><a class="tg-tahap tahap-${esc(k.tahap)}" href="#/kerja/${esc(k.key)}" title="Buka kerja ${esc(k.key)}">${esc(LABEL_TAHAP[k.tahap] ?? k.tahap)}</a></div>
+  </article>`
+}
+
+/** Bagian "Kerja lokal" di atas papan/daftar: kerja tanpa tiket Plane yang belum selesai. */
+export function bagianLokal(lokal) {
+  if (!lokal?.length) return ''
+  return `<section class="tg-lokal" aria-labelledby="tg-lokal-h"><div class="tg-lokal-hd"><h2 id="tg-lokal-h">Kerja lokal</h2><span class="tg-kol-n">${lokal.length}</span><span class="dim">tanpa tiket Plane (bug/permintaan dari chat)</span></div><div class="tg-lokal-isi">${lokal.map(kartuLokal).join('')}</div></section>`
+}
+
+/**
+ * Laci pratinjau tiket yang belum diambil. `pratinjau` = { memuat?, galat?, data? } dari
+ * GET /api/tugas/<KEY>/pratinjau; bagian lain datang dari data tugas yang sudah dimuat.
+ */
+export function laciPratinjau(t, status, pratinjau = {}) {
+  const st = (status ?? []).find((s) => s.nama === t.status) ?? { nama: t.status, grup: t.grup }
+  const label = t.label?.length
+    ? `<div class="tg-labels">${t.label.map(chipLabel).join('')}</div>`
+    : ''
+  const d = pratinjau.data
+  const desk = pratinjau.memuat
+    ? '<div class="tg-laci-muat" role="status"><span class="putar kecil" aria-hidden="true"></span>Memuat deskripsi dari Plane…</div>'
+    : pratinjau.galat
+      ? `<div class="errbox" role="alert"><b>Deskripsi gagal dimuat</b><div class="mono">${esc(pratinjau.galat)}</div></div><button type="button" class="btn tb" data-tg-laci-ulang="${esc(t.key)}">Coba lagi</button>`
+      : d?.deskripsi
+        ? `<div class="tg-desk">${esc(d.deskripsi)}</div>${d.dipotong ? '<p class="dim">Deskripsi dipotong; selengkapnya di Plane.</p>' : ''}`
+        : '<p class="dim">Tiket ini tanpa deskripsi.</p>'
+  return `<div class="tg-laci-latar" data-tg-laci-tutup></div>
+  <aside class="tg-laci" role="dialog" aria-modal="false" aria-labelledby="tg-laci-j" id="tg-laci">
+    <div class="tg-laci-hd"><a class="tg-kunci" href="${esc(t.url)}" target="_blank" rel="noopener" title="Buka ${esc(t.key)} di Plane">${esc(t.key)}</a><button type="button" class="btn icon tg-laci-x" data-tg-laci-tutup aria-label="Tutup pratinjau" title="Tutup (Esc)">×</button></div>
+    <h2 class="tg-laci-judul" id="tg-laci-j">${esc(t.judul)}</h2>
+    <dl class="tg-laci-meta">
+      <dt>Status</dt><dd>${ikonStatus(st)}<span>${esc(t.status)}</span></dd>
+      <dt>Prioritas</dt><dd>${ikonPrioritas(t.prioritas)}<span>${esc(LABEL_PRIORITAS[t.prioritas] ?? t.prioritas)}</span></dd>
+      <dt>Label</dt><dd>${label || '<span class="dim">–</span>'}</dd>
+      <dt>Tenggat</dt><dd>${t.tenggat ? esc(tgl(t.tenggat)) : '<span class="dim">–</span>'}</dd>
+      <dt>Skenario</dt><dd class="tg-skenario">${chipSkenario(t)}</dd>
+    </dl>
+    <h3 class="tg-laci-h3">Deskripsi</h3>
+    ${desk}
+    <div class="tg-laci-aksi">${aksiKerja(t)}<a class="btn tb" href="${esc(t.url)}" target="_blank" rel="noopener">Buka di Plane ↗</a></div>
+  </aside>`
 }
 
 const kepalaKolom = (s, n) =>
@@ -181,14 +241,19 @@ export function daftarTugas(kolom) {
     .join('')
 }
 
+const laciDari = (semua, status, laci) => {
+  const t = laci ? semua.find((x) => x.key === laci.key) : null
+  return t ? laciPratinjau(t, status, laci) : ''
+}
+
 /**
  * Isi halaman Tugas saya.
- * @param {{ dikonfigurasi: boolean, saya?: string, project?: string, status?: any[], tugas?: any[] } | null} data
- * @param {{ galat?: string | null, memuat?: boolean, tampilan?: 'papan' | 'daftar', saring?: { skenario?: string, selesai?: boolean } }} o
+ * @param {{ dikonfigurasi: boolean, saya?: string, project?: string, status?: any[], tugas?: any[], lokal?: any[] } | null} data
+ * @param {{ galat?: string | null, memuat?: boolean, tampilan?: 'papan' | 'daftar', saring?: { skenario?: string, selesai?: boolean }, laci?: { key: string, memuat?: boolean, galat?: string | null, data?: any } | null }} o
  */
 export function halamanTugas(
   data,
-  { galat = null, memuat = false, tampilan = 'papan', saring = {} } = {},
+  { galat = null, memuat = false, tampilan = 'papan', saring = {}, laci = null } = {},
 ) {
   const kepala = (ctx, extra = '') =>
     `<div class="titlerow"><div class="titlebox"><div class="ctx">${ctx}</div><h1>Tugas saya</h1></div>${extra}</div>`
@@ -230,5 +295,6 @@ export function halamanTugas(
       <span class="tg-jumlah dim">${tampil.length} tugas</span>
       <button type="button" class="btn tb" id="tg-segarkan">Segarkan</button>
     </div>
-    ${tampilan === 'daftar' ? daftarTugas(kolom) : papanTugas(kolom)}`
+    ${bagianLokal(data.lokal)}
+    ${tampilan === 'daftar' ? daftarTugas(kolom) : papanTugas(kolom)}${laciDari(semua, data.status, laci)}`
 }

@@ -27,7 +27,7 @@ import { aksiPintasan, dariEvent } from '/js/pintasan.js'
 import { alurLangkah, bagianLipat, bilahPutar, daftarPersona, halamanRingkasan, kartuPutar, kartuTerakhir, kepalaRingkasan } from '/js/ringkasan.js'
 import { isiKonfirmasi, lebihLama, ringkasHapus, teksByte } from '/js/riwayat.js'
 import { balik, bukaAktif, grupAktif, lipatSemua, muatSidebar, simpanSidebar, terbuka } from '/js/sidebar-ciut.js'
-import { chipFilter, daftarSkenario, kelompokModul, LABEL_FILTER, labelNilai, metaSkenario, nilaiFilter, papanSkenario, saringSkenario, sidebar, sidebarBawah } from '/js/skenario.js'
+import { chipFilter, daftarSkenario, kelompokModul, LABEL_FILTER, labelNilai, metaSkenario, nilaiFilter, papanSkenario, ringkasSlot, saringSkenario, sidebar, sidebarBawah } from '/js/skenario.js'
 import { perluGeser } from '/js/tata-letak.js'
 import { halamanTugas } from '/js/tugas.js'
 import { halamanWorkspace, isiPilihSlot } from '/js/workspace.js'
@@ -89,7 +89,7 @@ async function salin(teks, label = 'Disalin') {
 }
 
 // ── Keadaan ────────────────────────────────────────────────────────────────
-const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjKode: null, kjKodeGalat: null, kjMode: 'sesudah', kjBuka: new Set(), kjGulir: false, kjIO: null, kjSinkron: true, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
+const S = { pilihRiwayat: new Set(), hariLama: 30, disk: null, tampilan: { ukuran: '1400x900', skala: 1, mutu: 'tajam' }, filter: {}, skView: 'daftar', skTab: 'skenario', sb: muatSidebar(localStorage), sbAwal: false, lipat: muatSidebar(localStorage).lipat, rinci: new Map(), project: null, modulAktif: null, halaman: 'skenario', peta: false, fokus: false, speedMenu: false, stopArm: 0, satuAksiSampai: 0, temuanInfo: null, cfg: null, files: [], run: null, antrean: [], logs: [], task: null, sel: null, q: '', detail: null, viewStep: null, jenis: 'bug', pausedByNote: false, frame: false, rasio: null, tugas: null, tugasGalat: null, tgPilihan: null, tgLaci: null, tgPratinjau: new Map(), slotRingkas: null, dasbor: null, dasborGalat: null, dbMinggu: 0, kj: null, kjGalat: null, kjKode: null, kjKodeGalat: null, kjMode: 'sesudah', kjBuka: new Set(), kjGulir: false, kjIO: null, kjSinkron: true, kjSibuk: null, ai: null, startStep: 1, dataRun: '' }
 const route = () => (location.hash.replace(/^#\/?/, '') || '').split('/').map(decodeURIComponent)
 const runActive = () => !!S.run && ACTIVE.includes(S.run.status)
 
@@ -127,7 +127,7 @@ function runStatusText(r) {
 const webSasaran = () => S.cfg?.web_url ?? ''
 const labelSasaran = () => `Server v2 lokal · tenant ${S.cfg?.tenant ?? '?'}`
 /** Info sasaran untuk blok bawah sidebar (tetap: server v2 lokal dari .env). */
-const infoSasaran = () => (S.cfg ? { web: S.cfg.web_url, tenant: S.cfg.tenant, db: !!S.cfg.pemeriksaan, ui: !!S.cfg.pemeriksaan_ui, plane: S.cfg.plane ?? null } : null)
+const infoSasaran = () => (S.cfg ? { web: S.cfg.web_url, tenant: S.cfg.tenant, db: !!S.cfg.pemeriksaan, ui: !!S.cfg.pemeriksaan_ui, plane: S.cfg.plane ?? null, slot: S.slotRingkas } : null)
 
 // ── Tata letak aplikasi (sidebar) untuk Skenario, Ringkasan, Riwayat ───────────────────────
 /** Pasang sidebar + area utama (sekali), perbarui sidebar; kembalikan elemen utama. */
@@ -150,7 +150,20 @@ function appMain(halaman) {
     $('#sb-latar').addEventListener('click', () => laci(false))
   }
   renderSidebar(halaman)
+  segarkanSlotSidebar()
   return $('#app-main')
+}
+/** Ringkasan slot di sidebar: dimuat tiap pindah halaman (hanya cek port, murah); gagal = baris tidak tampil. */
+let slotSidebarSibuk = false
+async function segarkanSlotSidebar() {
+  if (slotSidebarSibuk) return
+  slotSidebarSibuk = true
+  try {
+    const d = await api('/api/slot-ringkas')
+    S.slotRingkas = d.slot
+    const el = $('#sb-bawah-modul .sb-slot')
+    if (el) el.outerHTML = ringkasSlot(d.slot)
+  } catch { /* baris slot opsional */ } finally { slotSidebarSibuk = false }
 }
 function renderSidebar(halaman = S.halaman) {
   S.halaman = halaman
@@ -329,6 +342,13 @@ function gambarDasbor() {
       try { await api(`/api/kerja/${b.dataset.key}/fase`, { fase: b.dataset.dbFase, mode: 'terminal' }); toast(`${b.dataset.key}: fase ${b.dataset.dbFase} berjalan`) } catch (e) { toast(e.message, true) }
       renderDasbor()
     })
+  // Kerja lokal ◆D: MR sudah di-merge → tandai selesai (tanpa Plane).
+  for (const b of main.querySelectorAll('[data-db-tahap]'))
+    b.addEventListener('click', async () => {
+      b.disabled = true
+      try { await api(`/api/kerja/${b.dataset.key}/tahap`, { tahap: b.dataset.dbTahap, catatan: 'MR sudah di-merge ke development: ditandai selesai dari Dashboard' }); toast(`${b.dataset.key}: selesai`) } catch (e) { toast(e.message, true) }
+      renderDasbor()
+    })
   for (const b of main.querySelectorAll('[data-db-terminal]'))
     b.addEventListener('click', () => api(`/api/kerja/${b.dataset.dbTerminal}/terminal`, {}).catch((e) => toast(e.message, true)))
   for (const b of main.querySelectorAll('[data-db-salin]')) b.addEventListener('click', () => salin(b.dataset.dbSalin, `Disalin: ${b.dataset.dbSalin}`))
@@ -471,6 +491,8 @@ function gambarKerja(key) {
     const tunda = e.currentTarget.dataset.kjTunda === '1'
     aksi(tunda ? 'Menunda tiket' : 'Mengaktifkan tiket', () => api(`/api/kerja/${key}/tunda`, { tunda }))
   })
+  $('#view [data-kj-tandai-selesai]')?.addEventListener('click', (e) =>
+    aksi('Menandai selesai', () => api(`/api/kerja/${key}/tahap`, { tahap: e.currentTarget.dataset.kjTandaiSelesai, catatan: 'MR sudah di-merge ke development: ditandai selesai dari panel' })))
   $('#view [data-kj-ke-keputusan]')?.addEventListener('click', () => ($('#view .kj-keputusan') ?? $('#kj-laporan'))?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   pantauSesi(key)
   // Jawab pertanyaan AI: satu klik pada usulan, atau isian sendiri (R-5.1).
@@ -507,7 +529,7 @@ function kabarKerja(key, html, lama = 4000) {
  * status cache tampil miring bertanda "?"; gagal → chip oranye + Cek ulang (§6.1).
  */
 async function cekPlane(key, diam = false) {
-  if (!S.cfg?.plane) return
+  if (!S.cfg?.plane || S.kj?.plane?.lokal) return
   if (!diam) { S.kjCekPlane = 'memeriksa'; gambarKerja(key) }
   try {
     S.tugas = await api('/api/tugas?segarkan=1')
@@ -728,7 +750,7 @@ async function renderKerja(key, ulang = false) {
     S.kjSerah = null
     if (S.kj?.kerja?.commit?.length || S.kj?.kerja?.branch) pantauSerah(key)
     // Status Plane dari cache lama (Plane lambat): tandai belum segar lalu periksa ulang (§6.1).
-    if (S.kj && !S.kj.plane?.segar) cekPlane(key)
+    if (S.kj && !S.kj.plane?.segar && !S.kj.plane?.lokal) cekPlane(key)
   }
   gambarKerja(key)
 }
@@ -747,7 +769,7 @@ function gambarTugas() {
   if (!main || route()[0] !== 'tugas') return
   const x = window.scrollX
   const papan = main.querySelector('.tg-papan')?.scrollLeft ?? 0
-  main.innerHTML = halamanTugas(S.tugas, { galat: S.tugasGalat, ...S.tgPilihan })
+  main.innerHTML = halamanTugas(S.tugas, { galat: S.tugasGalat, ...S.tgPilihan, laci: S.tgLaci })
   const p2 = main.querySelector('.tg-papan')
   if (p2) p2.scrollLeft = papan
   window.scrollTo(x, window.scrollY)
@@ -755,6 +777,14 @@ function gambarTugas() {
   for (const b of main.querySelectorAll('[data-tg-tampilan]')) b.onclick = () => { S.tgPilihan.tampilan = b.dataset.tgTampilan; simpanPilihanTugas(); gambarTugas() }
   for (const b of main.querySelectorAll('[data-tg-saring]')) b.onclick = () => { S.tgPilihan.saring.skenario = b.dataset.tgSaring; simpanPilihanTugas(); gambarTugas() }
   $('#tg-selesai')?.addEventListener('change', (e) => { S.tgPilihan.saring.selesai = e.target.checked; simpanPilihanTugas(); gambarTugas() })
+  // Kartu/baris bisa diklik seluruhnya; klik pada elemen interaktif di dalamnya menjalankan aksinya sendiri.
+  for (const k of main.querySelectorAll('[data-tg-buka]')) {
+    k.addEventListener('click', (e) => { if (!e.target.closest('a, button, input, label')) bukaKartuTugas(k) })
+    k.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === k) { e.preventDefault(); bukaKartuTugas(k) } })
+  }
+  for (const b of main.querySelectorAll('[data-tg-laci-tutup]')) b.addEventListener('click', () => tutupLaciTugas())
+  for (const b of main.querySelectorAll('[data-tg-laci-ulang]')) b.addEventListener('click', () => muatPratinjau(b.dataset.tgLaciUlang, true))
+  if (S.tgLaciFokus) { S.tgLaciFokus = false; main.querySelector('.tg-laci-x')?.focus() }
   for (const b of main.querySelectorAll('[data-tg-ambil]'))
     b.onclick = async () => {
       b.disabled = true
@@ -769,6 +799,41 @@ function gambarTugas() {
       } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ambil' }
     }
 }
+/** Buka satu kartu: sudah diambil → halaman Kerja; belum → laci pratinjau di kanan. */
+function bukaKartuTugas(el) {
+  const key = el.dataset.tgBuka
+  if (el.dataset.tgKe === 'kerja') { location.hash = `#/kerja/${key}`; return }
+  S.tgLaciAsal = key
+  S.tgLaci = { key, memuat: !S.tgPratinjau.has(key), data: S.tgPratinjau.get(key) ?? null, galat: null }
+  S.tgLaciFokus = true
+  gambarTugas()
+  if (!S.tgPratinjau.has(key)) muatPratinjau(key)
+}
+async function muatPratinjau(key, ulang = false) {
+  if (S.tgLaci?.key !== key) return
+  S.tgLaci = { key, memuat: true, data: null, galat: null }
+  if (ulang) gambarTugas()
+  try {
+    const d = await api(`/api/tugas/${encodeURIComponent(key)}/pratinjau${ulang ? '?segarkan=1' : ''}`)
+    S.tgPratinjau.set(key, d)
+    if (S.tgLaci?.key === key) S.tgLaci = { key, data: d, memuat: false, galat: null }
+  } catch (e) {
+    if (S.tgLaci?.key === key) S.tgLaci = { key, data: null, memuat: false, galat: e.message }
+  }
+  if (route()[0] === 'tugas' && S.tgLaci?.key === key) gambarTugas()
+}
+function tutupLaciTugas() {
+  if (!S.tgLaci) return
+  const asal = S.tgLaciAsal
+  S.tgLaci = null
+  gambarTugas()
+  // Fokus kembali ke kartu asal supaya navigasi papan-ketik berlanjut.
+  if (asal) document.querySelector(`#app-main [data-tg-buka="${CSS.escape(asal)}"]`)?.focus()
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !S.tgLaci || route()[0] !== 'tugas' || document.querySelector('dialog[open]')) return
+  tutupLaciTugas()
+})
 /** Halaman Tugas saya: GET /api/tugas; Segarkan melewati cache 60 detik di server. */
 async function renderTugas(segarkan = false) {
   const main = appMain('tugas')
@@ -1907,7 +1972,7 @@ async function init() {
     S.detail = null
     if (route()[0] !== 'jalan') render()
   })
-  window.addEventListener('hashchange', () => { if (document.querySelector('.app.laci-buka')) laci(false); render() })
+  window.addEventListener('hashchange', () => { if (document.querySelector('.app.laci-buka')) laci(false); if (route()[0] !== 'tugas') S.tgLaci = null; render() })
   render()
 }
 

@@ -234,6 +234,10 @@ export function daftarKerja(): Kerja[] {
     .sort((a, b) => b.diperbarui_at.localeCompare(a.diperbarui_at))
 }
 
+/** Kerja lokal = tanpa tiket Plane (BUG-n / REQ-n / FMS-0 lama): `plane.status` "Tanpa Plane" dan url kosong. */
+export const adalahKerjaLokal = (k: { url: string; plane: { status: string } }): boolean =>
+  k.plane?.status === 'Tanpa Plane' && k.url === ''
+
 /** Teks dari HTML deskripsi Plane (paragraf, baris, butir) untuk tiket.md. */
 export function htmlKeTeks(html: string): string {
   return html

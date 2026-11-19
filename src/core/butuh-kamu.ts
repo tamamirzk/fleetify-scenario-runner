@@ -2,13 +2,14 @@
 // lajur — Butuh kamu (dengan satu aksi utama), AI sedang jalan, Menunggu pihak lain, Antre,
 // Ditunda, atau Selesai. Fungsi murni: masukannya kerja.json + hasil gerbang catatan.
 import type { PeriksaCatatan } from './catatan.ts'
-import type { Kerja } from './kerja.ts'
+import { adalahKerjaLokal, type Kerja } from './kerja.ts'
 import type { FaseSesi } from './sesi.ts'
 
 export type AksiButuh =
   | { jenis: 'buka'; label: string }
   | { jenis: 'terminal'; label: string }
   | { jenis: 'fase'; label: string; fase: FaseSesi }
+  | { jenis: 'tahap'; label: string; tahap: 'selesai' }
 
 export interface ButuhKamu {
   key: string
@@ -56,6 +57,14 @@ export function butuhKamu(k: Kerja, periksa: Periksa): ButuhKamu | null {
   // Sesudah push: buat MR (C); setelah MR di-merge ke development, kirim Plane Code Complete (D).
   // Deploy dan cek staging tugas tim lain (K19).
   if (k.push) {
+    // Kerja lokal (tanpa tiket Plane): tidak ada status Plane untuk diubah; cukup tandai selesai.
+    if (k.merge && adalahKerjaLokal(k))
+      return {
+        ...dasar,
+        titik: 'D',
+        alasan: 'MR sudah di-merge ke development: tandai selesai',
+        aksi: { jenis: 'tahap', label: 'Tandai selesai', tahap: 'selesai' },
+      }
     if (k.merge)
       return {
         ...dasar,

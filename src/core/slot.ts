@@ -177,6 +177,11 @@ export function keadaanSlot(s: DefSlot): KeadaanSlot {
   }
 }
 
+/** Hanya hidup/mati server slot (cek port), tanpa git/psql: untuk strip ringkas Dashboard. */
+export function portSlotHidup(s: DefSlot): { api: boolean; web: boolean } {
+  return { api: !!mendengar(s.portApi), web: !!mendengar(s.portWeb) }
+}
+
 /** Nyalakan API (bun --hot) dan web (vite --port) slot dalam sesi tmux `slot-<n>`. */
 export function nyalakanSlot(s: DefSlot) {
   if (!existsSync(path.join(s.worktree, '.git')))

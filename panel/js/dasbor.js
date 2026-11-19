@@ -470,7 +470,9 @@ function tombolButuh(b) {
     ? `<button type="button" class="btn db-pil" data-db-fase="${esc(b.aksi.fase)}" data-key="${esc(b.key)}">${esc(b.aksi.label)}</button>`
     : b.aksi.jenis === 'terminal'
       ? `<button type="button" class="btn db-pil" data-db-terminal="${esc(b.key)}">${esc(b.aksi.label)}</button>`
-      : `<a class="btn db-pil" href="#/kerja/${esc(b.key)}">${esc(b.aksi.label)}</a>`
+      : b.aksi.jenis === 'tahap'
+        ? `<button type="button" class="btn db-pil" data-db-tahap="${esc(b.aksi.tahap)}" data-key="${esc(b.key)}">${esc(b.aksi.label)}</button>`
+        : `<a class="btn db-pil" href="#/kerja/${esc(b.key)}">${esc(b.aksi.label)}</a>`
 }
 
 const butir = (key, teks, judul, tombol = '') =>
@@ -529,7 +531,7 @@ export function stripMini(m) {
   const slot = m.slot
     .map((s) => {
       const [t, arti] = tanda(s)
-      return `<span class="db-mini-slot" title="Slot ${s.n}: ${esc(arti)}"><b>${t}</b> Slot ${s.n} <span class="dim">${s.pemakai.length ? esc(s.pemakai.join(', ')) : 'kosong'}${s.api || s.web ? ' · server hidup' : ''}</span></span>`
+      return `<span class="db-mini-slot" title="Slot ${s.n}${s.chat ? ' (chat)' : ''}: ${esc(arti)}"><b>${t}</b> Slot ${s.n} <span class="dim">${s.chat ? 'chat · ' : ''}${s.pemakai.length ? esc(s.pemakai.join(', ')) : 'kosong'}${s.api || s.web ? ' · server hidup' : ''}</span></span>`
     })
     .join('')
   const k = m.komputer
@@ -558,6 +560,33 @@ export function angkaTindakan(d) {
 }
 
 /**
+ * Kerangka (skeleton) selama /api/dasbor dimuat: bentuknya mengikuti tata letak akhir (strip slot,
+ * tiga lajur, lima kotak angka, daftar temuan) supaya halaman tidak melompat saat data datang.
+ */
+export function kerangkaDasbor() {
+  const s = (w, h, r = 6) =>
+    `<span class="skel" style="width:${w};height:${h}px;border-radius:${r}px"></span>`
+  const butir = (n) =>
+    Array.from(
+      { length: n },
+      (_, i) =>
+        `<li class="db-skel-butir">${s('56px', 12)}${s(`${58 + ((i * 11) % 28)}%`, 12)}${s('64px', 26, 999)}</li>`,
+    ).join('')
+  const lajur = (lebar) =>
+    `<section class="db-panel db-lajur-kolom">${s(`${lebar}px`, 16)}<ul class="db-butuh">${butir(3)}</ul></section>`
+  const angka = Array.from(
+    { length: 5 },
+    () => `<div class="db-panel db-angka">${s('90px', 11)}${s('44px', 28)}${s('140px', 11)}</div>`,
+  ).join('')
+  return `<div class="db db-memuat" role="status" aria-busy="true" aria-label="Memuat dashboard">
+    <div class="db-panel db-strip">${[0, 1, 2].map(() => s('150px', 14)).join('')}${s('230px', 14)}</div>
+    <div class="db-lajur3">${lajur(110)}${lajur(130)}${lajur(150)}</div>
+    <div class="db-angka-baris">${angka}</div>
+    <section class="db-panel">${s('120px', 16)}${[0, 1, 2].map(() => `<div class="db-skel-butir">${s('48px', 12)}${s('70%', 12)}</div>`).join('')}</section>
+  </div>`
+}
+
+/**
  * Isi halaman Dasbor: tindakan saja (R-9.1); tren ada di halamanStatistik.
  * @param {any} d hasil /api/dasbor
  * @param {{ galat?: string | null }} [o]
@@ -566,7 +595,7 @@ export function halamanDasbor(d, { galat = null } = {}) {
   const kepala = `<div class="titlerow db-kepala"><div class="titlebox"><div class="ctx">Scenario Runner · apa yang harus aku lakukan</div><h1>Dashboard</h1></div><a class="btn db-pil" href="#/statistik">Statistik ›</a><button type="button" class="btn db-pil" id="db-segarkan">Segarkan</button></div>`
   if (galat)
     return `${kepala}<div class="errbox" role="alert"><b>Dashboard gagal dimuat</b><div class="mono">${esc(galat)}</div></div>`
-  if (!d) return `${kepala}<div class="empty">Memuat dashboard…</div>`
+  if (!d) return `<div class="db">${kepala}${kerangkaDasbor()}</div>`
   return `<div class="db">${kepala}${stripMini(d.mini)}${lajurTindakan(d)}${angkaTindakan(d)}${daftarTemuan(d.temuan.terbaru)}</div>`
 }
 
