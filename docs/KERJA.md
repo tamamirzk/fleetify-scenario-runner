@@ -127,6 +127,14 @@ Tiga slot v2 untuk kerja paralel (`docs/RANCANGAN-KERJA-V2.md` §7):
 | 2 | `~/work/fleetify/v2-slot2` | 3020 | 5182 | `fleetify_slot2` | DB 2 |
 | 3 | `~/work/fleetify/v2-slot3` | 3030 | 5183 | `fleetify_slot3` | DB 3 |
 
+**Slot 3 = slot chat/bug (tetap).** Kerja tanpa tiket Plane dari chat (`BUG-n` perbaikan,
+`REQ-n` permintaan) selalu di slot 3; tiket Plane memakai slot 1 dan 2, dan baru meminjam
+slot 3 bila keduanya penuh. DB slot 3 **tidak pernah di-reset** dari template: data uji yang
+disiapkan saat chat dipakai lagi. Buat kerja lokal dengan
+`bun run kerja baru <BUG|REQ> "judul"` (catatan lengkap + langsung di slot 3; `--tanpa-slot`
+untuk catatannya saja). Skrip uji memakai `urlSlot(n)` dari `src/core/slot.ts`, bukan
+`config.apiUrl` (bawaan `.env` menunjuk server :5173).
+
 - **Ambil di Tugas saya** membuka pilihan slot: *kosong* (branch `feat/<key>` dari development, server slot dimatikan, DB di-reset dari `fleetify_template` lalu dimigrasi, ±15 detik), *gabung klaster* (branch dan DB yang sama), atau *Antrekan*. CLI: `kerja slot KEY <n>`, `kerja antre KEY`, `kerja lepas KEY`.
 - **Workspace** (`#/workspace`, CLI `kerja workspace`): strip komputer (CPU, memori, disk, pemakaian memori per kelompok, peringatan + saran), kartu per slot (tiket, sesi Claude, git, server, DB; Nyalakan/Matikan, Migrasi, Reset DB), layanan bersama, dan Antre dengan tombol Tempatkan.
 - Server slot berjalan di tmux `slot-<n>` (jendela `api` dan `web`). Menyalakan slot ditolak saat memori tertekan (bebas < 15%), dengan saran slot diam yang bisa dimatikan.
